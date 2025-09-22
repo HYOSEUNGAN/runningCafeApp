@@ -1,0 +1,55 @@
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { ROUTES } from '../constants/app';
+import Navigation from './layout/Navigation';
+
+// 페이지 컴포넌트들 (나중에 생성될 예정)
+import HomePage from '../pages/HomePage';
+import MapPage from '../pages/MapPage';
+import ProfilePage from '../pages/ProfilePage';
+// import LoginPage from '../pages/LoginPage';
+// import SignupPage from '../pages/SignupPage';
+// import RunningCoursesPage from '../pages/RunningCoursesPage';
+// import CafesPage from '../pages/CafesPage';
+// import MyRecordsPage from '../pages/MyRecordsPage';
+
+// 임시 페이지 컴포넌트
+const TempPage = ({ title }) => (
+  <div className="container mx-auto px-4 py-8">
+    <div className="text-center">
+      <h1 className="text-h1 font-bold text-gradient mb-4">{title}</h1>
+      <p className="text-body text-neutral-600">준비 중인 페이지입니다.</p>
+    </div>
+  </div>
+);
+
+const AppRoutes = () => {
+  return (
+    <>
+      <Navigation />
+      <Routes>
+        <Route path={ROUTES.HOME} element={<HomePage />} />
+        <Route path={ROUTES.LOGIN} element={<TempPage title="로그인" />} />
+        <Route path={ROUTES.SIGNUP} element={<TempPage title="회원가입" />} />
+        <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+        <Route
+          path={ROUTES.RUNNING_COURSES}
+          element={<TempPage title="러닝 코스" />}
+        />
+        <Route path={ROUTES.MAP} element={<MapPage />} />
+        <Route path={ROUTES.CAFES} element={<TempPage title="카페" />} />
+        <Route
+          path={ROUTES.MY_RECORDS}
+          element={<TempPage title="내 기록" />}
+        />
+        {/* 404 페이지 */}
+        <Route
+          path="*"
+          element={<TempPage title="페이지를 찾을 수 없습니다" />}
+        />
+      </Routes>
+    </>
+  );
+};
+
+export default AppRoutes;

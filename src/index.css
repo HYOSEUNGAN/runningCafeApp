@@ -1,13 +1,170 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Pretendard 폰트 로드 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css');
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900 font-sans;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 스크롤바 스타일링 */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-neutral-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400;
+  }
+
+  code {
+    font-family:
+      source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer components {
+  /* 버튼 컴포넌트 */
+  .btn-primary {
+    @apply bg-primary-gradient text-white font-medium px-6 py-3 rounded-card 
+           hover:shadow-card-hover transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-primary-500 font-medium px-6 py-3 rounded-card border-2 border-primary-500
+           hover:bg-primary-50 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-primary-500 font-medium px-6 py-3 rounded-card
+           hover:bg-primary-50 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+
+  /* 카드 컴포넌트 */
+  .card {
+    @apply bg-white rounded-card shadow-card p-6 hover:shadow-card-hover transition-shadow duration-200;
+  }
+
+  /* 입력 필드 */
+  .input-field {
+    @apply w-full px-4 py-3 border border-neutral-300 rounded-card
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 focus:outline-none
+           transition-all duration-200;
+  }
+
+  /* 그라데이션 텍스트 */
+  .text-gradient {
+    @apply bg-primary-gradient bg-clip-text text-transparent;
+  }
+
+  /* 모바일 최적화 */
+  .mobile-container {
+    @apply max-w-md mx-auto;
+  }
+
+  .mobile-card {
+    @apply bg-white rounded-2xl shadow-lg p-4 transition-all duration-200 hover:shadow-xl;
+  }
+
+  .mobile-nav-item {
+    @apply flex flex-col items-center space-y-1 py-2 px-3 rounded-lg transition-colors duration-200;
+  }
+
+  .mobile-nav-item.active {
+    @apply text-primary-500;
+  }
+
+  .mobile-nav-item:not(.active) {
+    @apply text-neutral-500 hover:text-neutral-700;
+  }
+
+  /* 터치 친화적 버튼 */
+  .touch-button {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+
+  /* 안전 영역 고려 (iOS) */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* 맵 관련 스타일 */
+  .map-marker {
+    @apply relative rounded-full w-12 h-12 flex items-center justify-center shadow-lg 
+           hover:shadow-xl transition-all transform hover:scale-110;
+  }
+
+  .map-marker.running {
+    @apply bg-primary-gradient;
+  }
+
+  .map-marker.cafe {
+    @apply bg-secondary-orange;
+  }
+
+  .map-marker-pulse {
+    @apply absolute inset-0 rounded-full animate-ping opacity-20;
+  }
+
+  .map-marker-pulse.running {
+    @apply bg-primary-500;
+  }
+
+  .map-marker-pulse.cafe {
+    @apply bg-secondary-orange;
+  }
+
+  .map-filter-button {
+    @apply flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition-all;
+  }
+
+  .map-filter-button.active {
+    @apply bg-primary-gradient text-white shadow-sm;
+  }
+
+  .map-filter-button:not(.active) {
+    @apply bg-neutral-100 text-neutral-600 hover:bg-neutral-200;
+  }
+
+  .location-popup {
+    @apply bg-white rounded-t-3xl w-full p-6 transform transition-transform;
+  }
+
+  .location-tag {
+    @apply text-sm px-2 py-1 rounded-full;
+  }
+
+  .location-tag.distance {
+    @apply bg-primary-100 text-primary-700;
+  }
+
+  .location-tag.difficulty {
+    @apply bg-secondary-mint bg-opacity-20 text-secondary-mint;
+  }
 }

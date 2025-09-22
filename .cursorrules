@@ -1,0 +1,160 @@
+; # Running Cafe 프로젝트 - Cursor AI 개발 규칙
+
+; ## 프로젝트 개요
+; - **프로젝트명**: Running Cafe
+; - **기술 스택**: React 19.1.1, JavaScript, CSS
+; - **빌드 도구**: Create React App (react-scripts 5.0.1)
+; - **테스팅**: Jest, React Testing Library
+
+; ## 기본 개발 원칙
+
+; ### 1. 코드 품질
+; - **DRY 원칙**: 중복 코드를 피하고 재사용 가능한 컴포넌트/함수 작성
+; - **가독성 우선**: 명확하고 이해하기 쉬운 코드 작성
+; - **성능 고려**: React.memo, useMemo, useCallback 적절히 활용
+; - **타입 안전성**: PropTypes 또는 TypeScript 도입 권장
+
+; ### 2. React 개발 규칙
+; - **함수형 컴포넌트**: 클래스 컴포넌트 대신 함수형 컴포넌트 사용
+; - **Hooks 활용**: useState, useEffect, useContext 등 적절히 활용
+; - **컴포넌트 분리**: 단일 책임 원칙에 따라 작은 컴포넌트로 분리
+; - **조건부 렌더링**: 명확한 조건부 렌더링 패턴 사용
+
+; ### 3. 파일 구조 및 네이밍
+; ```
+; src/
+;   components/     # 재사용 가능한 컴포넌트
+;     common/       # 공통 컴포넌트
+;     ui/          # UI 컴포넌트
+;   pages/          # 페이지 컴포넌트
+;   hooks/          # 커스텀 훅
+;   utils/          # 유틸리티 함수
+;   contexts/       # React Context
+;   services/       # API 서비스
+;   styles/         # 스타일 파일
+;   assets/         # 이미지, 폰트 등
+; ```
+
+; ### 4. 네이밍 컨벤션
+; - **컴포넌트**: PascalCase (예: `MenuCard`, `OrderForm`)
+; - **파일명**: PascalCase (예: `MenuCard.js`, `OrderForm.js`)
+; - **변수/함수**: camelCase (예: `menuItems`, `handleOrderSubmit`)
+; - **상수**: UPPER_SNAKE_CASE (예: `API_BASE_URL`, `MAX_ORDER_ITEMS`)
+; - **CSS 클래스**: kebab-case (예: `menu-card`, `order-form`)
+
+; ### 5. 스타일링 규칙
+; - **CSS Modules** 또는 **Styled Components** 사용 권장
+; - **반응형 디자인**: 모바일 퍼스트 접근
+; - **일관된 디자인 시스템**: 색상, 폰트, 간격 변수화
+; - **접근성**: semantic HTML, ARIA 속성 활용
+
+; ### 6. 상태 관리
+; - **로컬 상태**: useState 활용
+; - **전역 상태**: Context API 또는 Redux Toolkit 고려
+; - **서버 상태**: React Query/TanStack Query 권장
+; - **폼 상태**: React Hook Form 활용
+
+; ### 7. API 및 데이터 처리
+; - **비동기 처리**: async/await 패턴 사용
+; - **에러 핸들링**: try-catch 블록 및 Error Boundary 활용
+; - **로딩 상태**: 명확한 로딩 UI 제공
+; - **데이터 검증**: 입력 데이터 유효성 검사 필수
+
+; ### 8. 테스트 작성
+; - **단위 테스트**: 각 컴포넌트/함수별 테스트 작성
+; - **통합 테스트**: 사용자 시나리오 기반 테스트
+; - **테스트 커버리지**: 80% 이상 유지 목표
+; - **테스트 파일명**: `*.test.js` 또는 `*.spec.js`
+
+; ### 9. 성능 최적화
+; - **번들 크기**: 불필요한 라이브러리 제거
+; - **이미지 최적화**: WebP 포맷, lazy loading 활용
+; - **코드 스플리팅**: React.lazy와 Suspense 활용
+; - **메모이제이션**: 적절한 최적화 적용
+
+; ### 10. 보안 및 접근성
+; - **XSS 방지**: 사용자 입력 검증 및 이스케이프
+; - **HTTPS**: 프로덕션 환경에서 HTTPS 사용
+; - **접근성**: WCAG 2.1 AA 수준 준수
+; - **SEO**: 메타 태그, 시맨틱 HTML 활용
+
+; ## 커밋 메시지 규칙
+; ```
+; feat: 새로운 기능 추가
+; fix: 버그 수정
+; docs: 문서 수정
+; style: 코드 포맷팅, 세미콜론 누락 등
+; refactor: 코드 리팩토링
+; test: 테스트 코드 추가/수정
+; chore: 빌드 업무 수정, 패키지 매니저 수정
+
+; 예시:
+; feat: 메뉴 카드 컴포넌트 추가
+; fix: 주문 폼 유효성 검사 오류 수정
+; refactor: API 서비스 모듈 구조 개선
+; ```
+
+; ## 코드 리뷰 체크리스트
+; - [ ] 코드가 DRY 원칙을 따르는가?
+; - [ ] 컴포넌트가 단일 책임을 가지는가?
+; - [ ] 적절한 에러 핸들링이 있는가?
+; - [ ] 접근성을 고려했는가?
+; - [ ] 성능 최적화가 필요한 부분은 없는가?
+; - [ ] 테스트 코드가 작성되었는가?
+; - [ ] 네이밍이 일관성 있고 명확한가?
+
+; ## 권장 라이브러리
+; ```json
+; {
+;   "UI": ["@mui/material", "antd", "chakra-ui"],
+;   "스타일링": ["styled-components", "emotion", "tailwindcss"],
+;   "상태관리": ["@reduxjs/toolkit", "zustand", "jotai"],
+;   "폼": ["react-hook-form", "formik"],
+;   "API": ["@tanstack/react-query", "axios", "swr"],
+;   "라우팅": ["react-router-dom"],
+;   "유틸리티": ["lodash", "date-fns", "uuid"],
+;   "테스팅": ["@testing-library/react", "jest", "msw"]
+; }
+; ```
+
+; ## 개발 환경 설정
+; - **Node.js**: 18.x 이상
+; - **패키지 매니저**: npm 또는 yarn
+; - **코드 포맷터**: Prettier
+; - **린터**: ESLint
+; - **에디터**: VS Code (권장)
+
+; ## 주의사항
+; - 프로덕션 배포 전 반드시 테스트 실행
+; - 민감한 정보는 환경변수(.env) 사용
+; - 정기적인 의존성 업데이트
+; - 코드 리뷰 필수
+
+; ---
+; *이 규칙은 Running Cafe 프로젝트의 코드 품질과 일관성을 위해 작성되었습니다.*
+; ```
+
+; ## 설명
+
+; 제가 생성한 `.cursorrules` 파일은 다음과 같은 특징을 가집니다:
+
+; ### 1. **프로젝트 맞춤형 설정**
+;   - React 19.1.1 기반 프로젝트에 최적화
+;   - Running Cafe라는 프로젝트명에 맞는 예시 포함
+;   - Create React App 환경 고려
+
+; ### 2. **포괄적인 개발 가이드라인**
+;   - 코드 품질, 파일 구조, 네이밍 컨벤션
+;   - React 모범 사례 및 성능 최적화
+;   - 테스트, 보안, 접근성 고려사항
+
+; ### 3. **실용적인 규칙들**
+;   - 구체적인 예시와 함께 설명
+;   - 권장 라이브러리 목록 제공
+;   - 커밋 메시지 규칙 포함
+
+; ### 4. **확장 가능한 구조**
+;   - 프로젝트 성장에 따라 쉽게 수정 가능
+;   - 팀원들이 이해하기 쉬운 구조
+
+; 이 규칙 파일을 프로젝트 루트에 저장하시면, Cursor AI가 이 규칙들을 참고하여 더 일관성 있고 품질 높은 코드를 제안할 것입니다. 필요에 따라 프로젝트 특성에 맞게 수정하여 사용하시면 됩니다.
