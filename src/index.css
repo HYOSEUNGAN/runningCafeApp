@@ -79,9 +79,17 @@
     @apply bg-primary-gradient bg-clip-text text-transparent;
   }
 
-  /* 모바일 최적화 */
+  /* 모바일 앱 고정 규격 */
   .mobile-container {
-    @apply max-w-md mx-auto;
+    @apply max-w-sm mx-auto;
+  }
+
+  /* 앱 컨테이너 - 모바일 고정 너비 */
+  .app-container {
+    max-width: 390px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
   }
 
   .mobile-card {
@@ -112,6 +120,142 @@
 
   .safe-area-top {
     padding-top: env(safe-area-inset-top);
+  }
+
+  /* 스크롤바 숨기기 */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  /* 러닝 지도 관련 애니메이션 */
+  @keyframes running-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes cafe-bounce {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  @keyframes gps-locate {
+    0% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2) rotate(180deg);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(1) rotate(360deg);
+      opacity: 1;
+    }
+  }
+
+  @keyframes sheet-slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes marker-appear {
+    from {
+      transform: scale(0) translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* 러닝 관련 클래스 */
+  .running-marker {
+    animation: running-pulse 2s ease-in-out infinite;
+  }
+
+  .cafe-marker {
+    animation: cafe-bounce 3s ease-in-out infinite;
+  }
+
+  .gps-button:active {
+    animation: gps-locate 0.6s ease-in-out;
+  }
+
+  .bottom-sheet-enter {
+    animation: sheet-slide-up 0.3s ease-out;
+  }
+
+  .marker-enter {
+    animation: marker-appear 0.4s ease-out;
+  }
+
+  /* 3D 입체감 효과 */
+  .map-3d-shadow {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .running-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .cafe-gradient {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  .glass-morphism {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  /* 터치 피드백 향상 */
+  .touch-feedback {
+    transition: all 0.15s ease;
+  }
+
+  .touch-feedback:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  /* 네이버 지도 스타일 검색창 */
+  .naver-search-input {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .naver-search-input:focus {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
 
   /* 맵 관련 스타일 */
