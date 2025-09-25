@@ -111,4 +111,3 @@ const RunningIcon = ({
 };
 
 export default RunningIcon;
-
