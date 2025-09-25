@@ -14,6 +14,8 @@ export const ROUTES = {
   NAV: '/nav',
   CAFES: '/cafes',
   MY_RECORDS: '/records',
+  FEED: '/feed',
+  RECORD: '/record',
 };
 
 export const API_ENDPOINTS = {

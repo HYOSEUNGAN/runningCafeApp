@@ -1,4 +1,8 @@
 import { supabase } from './supabase';
+import {
+  createKakaoUserProfile,
+  createEmailUserProfile,
+} from './userProfileService';
 
 export const authService = {
   // 회원가입
@@ -13,6 +17,9 @@ export const authService = {
       });
 
       if (error) throw error;
+
+      // 회원가입 성공 시 프로필 생성 (이메일 인증 후에 처리됨)
+      // 실제 프로필 생성은 onAuthStateChange에서 처리
       return { data, error: null };
     } catch (error) {
       return { data: null, error: error.message };
@@ -128,6 +135,76 @@ export const authService = {
       return { user, error: null };
     } catch (error) {
       return { user: null, error: error.message };
+    }
+  },
+
+  // 카카오 로그인 후 프로필 생성
+  async handleKakaoLoginSuccess(user) {
+    try {
+      if (!user) {
+        throw new Error('사용자 정보가 없습니다.');
+      }
+
+      // 카카오 사용자 프로필 생성
+      const profileResult = await createKakaoUserProfile(user);
+
+      if (!profileResult.success) {
+        console.error('프로필 생성 실패:', profileResult.error);
+        // 프로필 생성 실패해도 로그인은 성공으로 처리
+        return {
+          success: true,
+          profileCreated: false,
+          error: profileResult.error,
+        };
+      }
+
+      return {
+        success: true,
+        profileCreated: true,
+        profile: profileResult.data,
+      };
+    } catch (error) {
+      console.error('카카오 로그인 후처리 중 오류:', error);
+      return {
+        success: false,
+        profileCreated: false,
+        error: error.message,
+      };
+    }
+  },
+
+  // 이메일 로그인/회원가입 후 프로필 생성
+  async handleEmailLoginSuccess(user, additionalData = {}) {
+    try {
+      if (!user) {
+        throw new Error('사용자 정보가 없습니다.');
+      }
+
+      // 이메일 사용자 프로필 생성
+      const profileResult = await createEmailUserProfile(user, additionalData);
+
+      if (!profileResult.success) {
+        console.error('프로필 생성 실패:', profileResult.error);
+        // 프로필 생성 실패해도 로그인은 성공으로 처리
+        return {
+          success: true,
+          profileCreated: false,
+          error: profileResult.error,
+        };
+      }
+
+      return {
+        success: true,
+        profileCreated: true,
+        profile: profileResult.data,
+      };
+    } catch (error) {
+      console.error('이메일 로그인 후처리 중 오류:', error);
+      return {
+        success: false,
+        profileCreated: false,
+        error: error.message,
+      };
     }
   },
 };

@@ -3,9 +3,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { ROUTES } from '../../constants/app';
 
+// 아이콘 컴포넌트 import
+import HomeIcon from '../../assets/icons/HomeIcon';
+import RecordIcon from '../../assets/icons/RecordIcon';
+import MapIcon from '../../assets/icons/MapIcon';
+import FeedIcon from '../../assets/icons/FeedIcon';
+import ProfileIcon from '../../assets/icons/ProfileIcon';
+
 /**
  * 하단 GNB 네비게이션 컴포넌트
- * Figma 디자인에 맞춰 검색 제거, 홈/지도/마이 3개 탭만
+ * 홈/기록/지도/피드/마이 5개 탭
  */
 const BottomNavigation = () => {
   const navigate = useNavigate();
@@ -16,23 +23,34 @@ const BottomNavigation = () => {
     {
       id: 'home',
       label: '홈',
-      icon: '🏠',
       path: ROUTES.HOME,
-      activeIcon: '🏠',
+      Icon: HomeIcon,
+    },
+    {
+      id: 'record',
+      label: '기록',
+      path: ROUTES.RECORD,
+      Icon: RecordIcon,
+      requireAuth: true,
     },
     {
       id: 'map',
       label: '지도',
-      icon: '🗺️',
       path: ROUTES.MAP,
-      activeIcon: '🗺️',
+      Icon: MapIcon,
+    },
+    {
+      id: 'feed',
+      label: '피드',
+      path: ROUTES.FEED,
+      Icon: FeedIcon,
     },
     {
       id: 'profile',
       label: '마이',
-      icon: '👤',
       path: ROUTES.PROFILE,
-      activeIcon: '👤',
+      Icon: ProfileIcon,
+      requireAuth: true,
     },
   ];
 
@@ -51,42 +69,31 @@ const BottomNavigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 safe-area-bottom z-50">
-      <div className="flex justify-around items-center h-16 px-4">
+      <div className="flex justify-around items-center h-16 px-2">
         {navItems.map(item => {
           const active = isActive(item.path);
+          const { Icon } = item;
 
           return (
             <button
               key={item.id}
               onClick={() => handleNavigation(item)}
-              className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[50px] transition-colors ${
-                active ? 'text-gray-800' : 'text-gray-400 hover:text-gray-600'
+              className={`mobile-nav-item min-w-[60px] ${
+                active ? 'active' : ''
               }`}
               aria-label={item.label}
             >
               {/* 아이콘 */}
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  active ? 'bg-gray-600' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`text-lg ${
-                    active ? 'text-white' : 'text-gray-600'
-                  }`}
-                >
-                  {active ? item.activeIcon : item.icon}
-                </span>
+              <div className="flex items-center justify-center">
+                <Icon
+                  size={22}
+                  color={active ? '#a259ff' : '#9ca3af'}
+                  filled={active}
+                />
               </div>
 
               {/* 라벨 */}
-              <span
-                className={`text-xs font-bold ${
-                  active ? 'text-gray-800' : 'text-gray-400'
-                }`}
-              >
-                {item.label}
-              </span>
+              <span className="text-xs font-medium">{item.label}</span>
             </button>
           );
         })}

@@ -11,6 +11,8 @@ import NavigationPage from '../pages/NavigationPage';
 import ProfilePage from '../pages/ProfilePage';
 import LoginPage from '../pages/LoginPage';
 import AuthCallbackPage from '../pages/AuthCallbackPage';
+import FeedPage from '../pages/FeedPage';
+import RecordPage from '../pages/RecordPage';
 // import SignupPage from '../pages/SignupPage';
 // import RunningCoursesPage from '../pages/RunningCoursesPage';
 // import CafesPage from '../pages/CafesPage';
@@ -55,6 +57,8 @@ const AppRoutes = () => {
           path={ROUTES.MY_RECORDS}
           element={<TempPage title="내 기록" />}
         />
+        <Route path={ROUTES.FEED} element={<FeedPage />} />
+        <Route path={ROUTES.RECORD} element={<RecordPage />} />
         {/* 404 페이지 */}
         <Route
           path="*"

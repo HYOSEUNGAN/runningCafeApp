@@ -6,6 +6,7 @@ export const useAuthStore = create((set, get) => ({
   // 상태
   user: null,
   session: null,
+  userProfile: null,
   isLoading: true,
   error: null,
 
@@ -25,12 +26,17 @@ export const useAuthStore = create((set, get) => ({
       });
 
       // 인증 상태 변화 리스너 설정
-      supabase.auth.onAuthStateChange((event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
         set({
           session,
           user: session?.user || null,
           isLoading: false,
         });
+
+        // 로그인 성공 시 프로필 처리
+        if (event === 'SIGNED_IN' && session?.user) {
+          await get().handleLoginSuccess(session.user);
+        }
       });
     } catch (error) {
       set({
@@ -39,6 +45,35 @@ export const useAuthStore = create((set, get) => ({
         user: null,
         session: null,
       });
+    }
+  },
+
+  // 로그인 성공 후처리 (프로필 생성 등)
+  handleLoginSuccess: async user => {
+    try {
+      if (!user) return;
+
+      let result;
+
+      // 로그인 제공자에 따라 프로필 생성
+      if (user.app_metadata?.provider === 'kakao') {
+        // 카카오 로그인인 경우
+        result = await authService.handleKakaoLoginSuccess(user);
+        console.log('카카오 로그인 후처리 완료');
+      } else {
+        // 이메일 로그인인 경우 (기본값)
+        result = await authService.handleEmailLoginSuccess(user);
+        console.log('이메일 로그인 후처리 완료');
+      }
+
+      if (result?.success && result?.profileCreated) {
+        set({ userProfile: result.profile });
+        console.log('사용자 프로필 생성/업데이트 완료:', result.profile);
+      } else if (result?.error) {
+        console.warn('프로필 생성 실패 (로그인은 성공):', result.error);
+      }
+    } catch (error) {
+      console.error('로그인 후처리 중 오류:', error);
     }
   },
 
@@ -90,6 +125,7 @@ export const useAuthStore = create((set, get) => ({
       set({
         user: null,
         session: null,
+        userProfile: null,
         isLoading: false,
       });
       return { success: true };
@@ -133,12 +169,20 @@ export const useAuthStore = create((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  // 사용자 프로필 설정
+  setUserProfile: profile => set({ userProfile: profile }),
+
   // 셀렉터
   isAuthenticated: () => !!get().user,
   getUserId: () => get().user?.id,
   getUserEmail: () => get().user?.email,
   getUserName: () =>
-    get().user?.user_metadata?.name || get().user?.user_metadata?.full_name,
+    get().userProfile?.name ||
+    get().user?.user_metadata?.name ||
+    get().user?.user_metadata?.full_name,
   getUserAvatar: () =>
-    get().user?.user_metadata?.avatar_url || get().user?.user_metadata?.picture,
+    get().userProfile?.avatar_url ||
+    get().user?.user_metadata?.avatar_url ||
+    get().user?.user_metadata?.picture,
+  getUserProfile: () => get().userProfile,
 }));

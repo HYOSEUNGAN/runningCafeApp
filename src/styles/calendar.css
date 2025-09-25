@@ -1,0 +1,235 @@
+/* React Calendar 커스텀 스타일 - Running Cafe 브랜드 컬러 적용 */
+.custom-calendar {
+  width: 100%;
+  border: none;
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.custom-calendar .react-calendar__navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  height: auto;
+  margin-bottom: 0;
+}
+
+.custom-calendar .react-calendar__navigation button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: white;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.custom-calendar .react-calendar__navigation button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.custom-calendar .react-calendar__navigation button:disabled {
+  opacity: 0.5;
+}
+
+.custom-calendar .react-calendar__navigation__label {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex: none;
+}
+
+.custom-calendar .react-calendar__navigation__label:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.custom-calendar .react-calendar__month-view__weekdays {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #80868b;
+  padding: 1rem 0 0.5rem 0;
+  background: #f5f6fa;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.custom-calendar .react-calendar__month-view__weekdays__weekday {
+  padding: 0.75rem 0.5rem;
+}
+
+.custom-calendar .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.custom-calendar .react-calendar__month-view__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e8eaed;
+  padding: 1px;
+}
+
+.custom-calendar .react-calendar__tile {
+  background: white;
+  border: none;
+  padding: 1rem 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #3c4043;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  transition: all 0.2s ease;
+}
+
+.custom-calendar .react-calendar__tile:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(162, 89, 255, 0.1) 0%,
+    rgba(106, 130, 251, 0.1) 100%
+  );
+  color: #a259ff;
+  transform: scale(0.95);
+}
+
+.custom-calendar .react-calendar__tile--active {
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%) !important;
+  color: white !important;
+  font-weight: 700;
+  transform: scale(0.95);
+  box-shadow: 0 4px 8px rgba(162, 89, 255, 0.3);
+}
+
+.custom-calendar .react-calendar__tile.today {
+  background: #f3f0ff;
+  color: #a259ff;
+  font-weight: 700;
+  border: 2px solid #a259ff;
+}
+
+.custom-calendar .react-calendar__tile.selected {
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  color: white;
+  font-weight: 700;
+  transform: scale(0.95);
+  box-shadow: 0 4px 8px rgba(162, 89, 255, 0.3);
+}
+
+.custom-calendar .react-calendar__tile.has-record {
+  background: linear-gradient(
+    135deg,
+    rgba(162, 89, 255, 0.1) 0%,
+    rgba(106, 130, 251, 0.1) 100%
+  );
+  color: #a259ff;
+  font-weight: 600;
+  position: relative;
+}
+
+.custom-calendar .react-calendar__tile.has-record.selected {
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  color: white;
+}
+
+.custom-calendar .react-calendar__tile--neighboringMonth {
+  color: #bdc1c6;
+  background: #f5f6fa;
+}
+
+.custom-calendar .react-calendar__tile--now {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+}
+
+.custom-calendar .react-calendar__tile--now.selected {
+  background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+  color: white;
+}
+
+/* 기록이 있는 날짜의 점 표시 */
+.custom-calendar .react-calendar__tile.has-record::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(162, 89, 255, 0.4);
+}
+
+.custom-calendar .react-calendar__tile.has-record.selected::after {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.custom-calendar .react-calendar__tile.today.has-record::after {
+  background: #a259ff;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 640px) {
+  .custom-calendar .react-calendar__tile {
+    padding: 0.75rem 0.25rem;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+
+  .custom-calendar .react-calendar__navigation {
+    padding: 0.75rem;
+  }
+
+  .custom-calendar .react-calendar__navigation button {
+    font-size: 1rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .custom-calendar .react-calendar__navigation__label {
+    font-size: 1.125rem;
+  }
+
+  .custom-calendar .react-calendar__month-view__weekdays {
+    padding: 0.75rem 0 0.5rem 0;
+    font-size: 0.8rem;
+  }
+
+  .custom-calendar .react-calendar__month-view__weekdays__weekday {
+    padding: 0.5rem 0.25rem;
+  }
+}
+
+/* 터치 친화적 스타일 */
+@media (hover: none) and (pointer: coarse) {
+  .custom-calendar .react-calendar__tile {
+    min-height: 48px;
+  }
+
+  .custom-calendar .react-calendar__tile:active {
+    background: linear-gradient(
+      135deg,
+      rgba(162, 89, 255, 0.2) 0%,
+      rgba(106, 130, 251, 0.2) 100%
+    );
+    transform: scale(0.95);
+  }
+}
