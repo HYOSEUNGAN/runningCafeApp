@@ -2,6 +2,24 @@ export const APP_CONFIG = {
   NAME: 'Running Cafe',
   VERSION: '1.0.0',
   DESCRIPTION: '러닝과 카페를 연결하는 플랫폼',
+  // 환경 감지 함수
+  isProduction: () => {
+    return (
+      process.env.NODE_ENV === 'production' &&
+      !window.location.hostname.includes('localhost') &&
+      !window.location.hostname.includes('127.0.0.1')
+    );
+  },
+  isDevelopment: () => {
+    return (
+      process.env.NODE_ENV === 'development' ||
+      window.location.hostname.includes('localhost') ||
+      window.location.hostname.includes('127.0.0.1')
+    );
+  },
+  getCurrentOrigin: () => {
+    return window.location.origin;
+  },
 };
 
 export const ROUTES = {

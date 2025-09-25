@@ -12,5 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    // OAuth 리다이렉트 후 자동으로 세션 처리
+    flowType: 'implicit',
   },
 });

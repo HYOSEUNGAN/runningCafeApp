@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { APP_CONFIG } from '../constants/app';
 
 export const authService = {
   // 회원가입
@@ -76,29 +77,32 @@ export const authService = {
   // 카카오 소셜 로그인
   async signInWithKakao() {
     try {
-      // 개발환경과 프로덕션환경에 따라 리다이렉트 URI 결정
-      const isDevelopment =
-        process.env.REACT_APP_ENVIRONMENT === 'development' ||
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
+      // 현재 환경에 맞는 리다이렉트 URL 결정
+      const currentOrigin = APP_CONFIG.getCurrentOrigin();
+      const isDevelopment = APP_CONFIG.isDevelopment();
+      const isProduction = APP_CONFIG.isProduction();
 
-      const redirectTo = isDevelopment
-        ? `${window.location.origin}/auth/callback`
-        : 'https://hdummdjaakiihhwfroub.supabase.co/auth/v1/callback';
+      // 항상 현재 도메인의 콜백 페이지로 리다이렉트
+      const redirectTo = `${currentOrigin}/auth/callback`;
+
+      console.log('OAuth 설정 정보:');
+      console.log('- 현재 Origin:', currentOrigin);
+      console.log('- 개발 환경:', isDevelopment);
+      console.log('- 프로덕션 환경:', isProduction);
+      console.log('- 리다이렉트 URL:', redirectTo);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
           redirectTo,
-          // scopes: 'profile_nickname, profile_image',
-          // 카카오는 Supabase에서 자동으로 적절한 스코프를 설정하므로
-          // 추가 옵션 없이 기본 설정 사용
+          // 카카오는 Supabase에서 자동으로 적절한 스코프를 설정
         },
       });
 
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
+      console.error('카카오 로그인 오류:', error);
       return { data: null, error: error.message };
     }
   },

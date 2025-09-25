@@ -14,26 +14,53 @@ const AuthCallbackPage = () => {
       try {
         setStatus('processing');
 
-        // Supabase가 URL 해시에서 토큰을 자동으로 처리
-        // 인증 상태를 다시 초기화하여 사용자 정보 업데이트
-        await initialize();
+        console.log('AuthCallback: 현재 URL:', window.location.href);
+        console.log('AuthCallback: URL Hash:', window.location.hash);
 
-        // 잠시 대기 후 인증 상태 확인
-        setTimeout(() => {
-          if (isAuthenticated()) {
-            setStatus('success');
-            // 성공 메시지 표시 후 홈으로 이동
-            setTimeout(() => {
-              navigate(ROUTES.HOME, { replace: true });
-            }, 1500);
-          } else {
-            setStatus('error');
-            // 에러 시 로그인 페이지로 이동
-            setTimeout(() => {
-              navigate(ROUTES.LOGIN, { replace: true });
-            }, 2000);
-          }
-        }, 1000);
+        // URL에서 토큰 정보 확인
+        const hashParams = new URLSearchParams(
+          window.location.hash.substring(1)
+        );
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        console.log('AuthCallback: Access Token 존재:', !!accessToken);
+        console.log('AuthCallback: Refresh Token 존재:', !!refreshToken);
+
+        if (accessToken) {
+          // 토큰이 있으면 Supabase가 자동으로 처리할 때까지 대기
+          // 인증 상태를 다시 초기화하여 사용자 정보 업데이트
+          await initialize();
+
+          // 잠시 대기 후 인증 상태 확인
+          setTimeout(() => {
+            if (isAuthenticated()) {
+              setStatus('success');
+              // URL 해시 제거 (보안을 위해)
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname
+              );
+              // 성공 메시지 표시 후 홈으로 이동
+              setTimeout(() => {
+                navigate(ROUTES.HOME, { replace: true });
+              }, 1500);
+            } else {
+              console.error('AuthCallback: 토큰은 있지만 인증 상태가 false');
+              setStatus('error');
+              setTimeout(() => {
+                navigate(ROUTES.LOGIN, { replace: true });
+              }, 2000);
+            }
+          }, 1500); // 대기 시간을 늘려서 Supabase가 토큰을 처리할 시간 확보
+        } else {
+          console.error('AuthCallback: URL에 토큰이 없음');
+          setStatus('error');
+          setTimeout(() => {
+            navigate(ROUTES.LOGIN, { replace: true });
+          }, 2000);
+        }
       } catch (error) {
         console.error('OAuth 콜백 처리 중 오류:', error);
         setStatus('error');
