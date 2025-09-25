@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { APP_CONFIG } from '../constants/app';
 
 export const authService = {
   // 회원가입
@@ -77,29 +76,36 @@ export const authService = {
   // 카카오 소셜 로그인
   async signInWithKakao() {
     try {
-      // 현재 환경에 맞는 리다이렉트 URL 결정
-      const currentOrigin = APP_CONFIG.getCurrentOrigin();
-      const isDevelopment = APP_CONFIG.isDevelopment();
-      const isProduction = APP_CONFIG.isProduction();
+      // 환경에 따른 리다이렉트 URL 설정
+      const getRedirectUrl = () => {
+        // Vercel 배포 환경 (Create React App용)
+        if (process.env.REACT_APP_VERCEL_URL) {
+          return `https://${process.env.REACT_APP_VERCEL_URL}/auth/callback`;
+        }
 
-      // 항상 현재 도메인의 콜백 페이지로 리다이렉트
-      const redirectTo = `${currentOrigin}/auth/callback`;
+        // 프로덕션 환경에서 running-cafe-app.vercel.app 도메인 감지
+        if (window.location.hostname.includes('running-cafe-app.vercel.app')) {
+          return 'https://running-cafe-app.vercel.app/auth/callback';
+        }
 
-      console.log('=== OAuth 설정 정보 ===');
-      console.log('- 현재 Origin:', currentOrigin);
-      console.log('- 현재 Hostname:', window.location.hostname);
-      console.log('- NODE_ENV:', process.env.NODE_ENV);
-      console.log('- 개발 환경:', isDevelopment);
-      console.log('- 프로덕션 환경:', isProduction);
-      console.log('- 리다이렉트 URL:', redirectTo);
-      console.log('- Supabase URL:', process.env.REACT_APP_SUPABASE_URL);
-      console.log('========================');
+        // 로컬 개발 환경
+        if (
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1'
+        ) {
+          return 'http://localhost:3000/auth/callback';
+        }
+
+        // 기본적으로 현재 origin 사용
+        return `${window.location.origin}/auth/callback`;
+      };
+
+      const redirectTo = getRedirectUrl();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
           redirectTo,
-          // 카카오는 Supabase에서 자동으로 적절한 스코프를 설정
         },
       });
 

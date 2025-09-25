@@ -5,7 +5,6 @@ import { ROUTES } from '../constants/app';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import DebugInfo from '../components/DebugInfo';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -127,9 +126,6 @@ const LoginPage = () => {
           <p>로그인하면 개인화된 서비스를 이용할 수 있습니다</p>
         </div>
       </div>
-
-      {/* 디버그 정보 (개발 환경에서만 표시) */}
-      <DebugInfo />
     </div>
   );
 };

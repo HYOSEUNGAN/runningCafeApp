@@ -14,18 +14,12 @@ const AuthCallbackPage = () => {
       try {
         setStatus('processing');
 
-        console.log('AuthCallback: 현재 URL:', window.location.href);
-        console.log('AuthCallback: URL Hash:', window.location.hash);
-
         // URL에서 토큰 정보 확인
         const hashParams = new URLSearchParams(
           window.location.hash.substring(1)
         );
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
-
-        console.log('AuthCallback: Access Token 존재:', !!accessToken);
-        console.log('AuthCallback: Refresh Token 존재:', !!refreshToken);
 
         if (accessToken) {
           // 토큰이 있으면 Supabase가 자동으로 처리할 때까지 대기
@@ -47,7 +41,6 @@ const AuthCallbackPage = () => {
                 navigate(ROUTES.HOME, { replace: true });
               }, 1500);
             } else {
-              console.error('AuthCallback: 토큰은 있지만 인증 상태가 false');
               setStatus('error');
               setTimeout(() => {
                 navigate(ROUTES.LOGIN, { replace: true });
@@ -55,7 +48,6 @@ const AuthCallbackPage = () => {
             }
           }, 1500); // 대기 시간을 늘려서 Supabase가 토큰을 처리할 시간 확보
         } else {
-          console.error('AuthCallback: URL에 토큰이 없음');
           setStatus('error');
           setTimeout(() => {
             navigate(ROUTES.LOGIN, { replace: true });
