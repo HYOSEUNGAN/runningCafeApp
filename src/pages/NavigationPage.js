@@ -26,6 +26,7 @@ import {
 import { searchNearbyCafesWithNaver } from '../services/cafeService';
 import { saveRunningRecord, compressPath } from '../services/runningService';
 import { createFeedPost } from '../services/feedService';
+import { createRunningRecordMapImage } from '../services/mapImageService';
 import CreatePostModal from '../components/feed/CreatePostModal';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
@@ -620,6 +621,11 @@ const NavigationPage = () => {
   // 피드에 러닝 기록 공유
   const handleShareToFeed = async savedRecord => {
     try {
+      showToast({
+        type: 'info',
+        message: '지도 이미지를 생성하고 있습니다...',
+      });
+
       // 자동 생성된 캡션
       const distance = (savedRecord.distance / 1000).toFixed(1);
       const duration = formatTime(savedRecord.duration);
@@ -629,21 +635,44 @@ const NavigationPage = () => {
 
       const caption = `오늘 ${distance}km 러닝 완주! 🏃‍♀️\n시간: ${duration}\n페이스: ${pace}'00"/km\n\n#러닝 #운동 #건강 #러닝기록 #RunningCafe`;
 
+      // 지도 이미지 생성
+      let mapImage = null;
+      try {
+        if (savedRecord.path && savedRecord.path.length > 0) {
+          console.log('지도 이미지 생성 시작...');
+          mapImage = await createRunningRecordMapImage({
+            path: savedRecord.path,
+            nearbyCafes: savedRecord.nearbyCafes || [],
+            distance: savedRecord.distance,
+            duration: savedRecord.duration,
+          });
+          console.log('지도 이미지 생성 완료:', mapImage);
+        }
+      } catch (imageError) {
+        console.warn('지도 이미지 생성 실패, 텍스트만 공유합니다:', imageError);
+        // 이미지 생성 실패해도 포스트는 계속 진행
+      }
+
       const postData = {
         user_id: user.id,
         running_record_id: savedRecord.id,
         caption: caption,
+        images: mapImage ? [mapImage] : [], // 생성된 지도 이미지 포함
         hashtags: ['러닝', '운동', '건강', '러닝기록', 'RunningCafe'],
         location: nearbyCafes.length > 0 ? nearbyCafes[0].address : '',
         is_achievement: savedRecord.distance >= 5000, // 5km 이상이면 달성 기록으로 표시
       };
+
+      console.log('피드 포스트 데이터:', postData);
 
       const result = await createFeedPost(postData);
 
       if (result.success) {
         showToast({
           type: 'success',
-          message: '피드에 공유되었습니다! 🎉',
+          message: mapImage 
+            ? '지도 이미지와 함께 피드에 공유되었습니다! 🎉' 
+            : '피드에 공유되었습니다! 🎉',
         });
       } else {
         throw new Error(result.error);

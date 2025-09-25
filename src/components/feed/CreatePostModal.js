@@ -14,6 +14,7 @@ import {
   revokeImagePreview,
   compressImage,
 } from '../../services/imageUploadService';
+import { createRunningRecordMapImage } from '../../services/mapImageService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -39,7 +40,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 러닝 기록이 있는 경우 초기 캡션 설정
+  // 러닝 기록이 있는 경우 초기 캡션 설정 및 지도 이미지 생성
   useEffect(() => {
     if (runningRecord && isOpen) {
       const distance = (runningRecord.distance / 1000).toFixed(1);
@@ -56,6 +57,11 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
       if (runningRecord.location) {
         setLocation(runningRecord.location);
       }
+
+      // 러닝 경로가 있으면 지도 이미지 자동 생성
+      if (runningRecord.path && runningRecord.path.length > 0) {
+        generateMapImage();
+      }
     } else if (!runningRecord && isOpen) {
       // 수기 작성의 경우 빈 상태로 시작
       setCaption('');
@@ -63,6 +69,48 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
       setLocation('');
     }
   }, [runningRecord, isOpen]);
+
+  // 러닝 기록용 지도 이미지 생성
+  const generateMapImage = async () => {
+    try {
+      showToast({
+        type: 'info',
+        message: '러닝 경로 지도를 생성하고 있습니다...',
+      });
+
+      const mapImageFile = await createRunningRecordMapImage({
+        path: runningRecord.path,
+        nearbyCafes: runningRecord.nearbyCafes || [],
+        distance: runningRecord.distance,
+        duration: runningRecord.duration,
+      });
+
+      // 생성된 이미지를 선택된 이미지 목록에 추가
+      const previewUrl = createImagePreview(mapImageFile);
+      if (previewUrl) {
+        const newPreview = {
+          id: Date.now(),
+          url: previewUrl,
+          file: mapImageFile,
+          name: mapImageFile.name,
+        };
+
+        setSelectedImages(prev => [mapImageFile, ...prev]);
+        setImagePreviews(prev => [newPreview, ...prev]);
+
+        showToast({
+          type: 'success',
+          message: '러닝 경로 지도가 추가되었습니다! 🗺️',
+        });
+      }
+    } catch (error) {
+      console.error('지도 이미지 생성 실패:', error);
+      showToast({
+        type: 'warning',
+        message: '지도 이미지 생성에 실패했습니다. 다른 이미지를 추가해주세요.',
+      });
+    }
+  };
 
   // 모달이 닫힐 때 상태 초기화
   useEffect(() => {
@@ -344,7 +392,18 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
                 <h4 className="text-sm font-semibold text-gray-700">
                   🏃‍♀️ 러닝 기록
                 </h4>
-                <span className="text-xs text-gray-500">자동 연결됨</span>
+                <div className="flex items-center space-x-2">
+                  {runningRecord.path && runningRecord.path.length > 0 && (
+                    <button
+                      onClick={generateMapImage}
+                      className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      disabled={isSubmitting}
+                    >
+                      🗺️ 지도 추가
+                    </button>
+                  )}
+                  <span className="text-xs text-gray-500">자동 연결됨</span>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3 text-center text-sm">
                 <div>
