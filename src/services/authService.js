@@ -85,11 +85,15 @@ export const authService = {
       // 항상 현재 도메인의 콜백 페이지로 리다이렉트
       const redirectTo = `${currentOrigin}/auth/callback`;
 
-      console.log('OAuth 설정 정보:');
+      console.log('=== OAuth 설정 정보 ===');
       console.log('- 현재 Origin:', currentOrigin);
+      console.log('- 현재 Hostname:', window.location.hostname);
+      console.log('- NODE_ENV:', process.env.NODE_ENV);
       console.log('- 개발 환경:', isDevelopment);
       console.log('- 프로덕션 환경:', isProduction);
       console.log('- 리다이렉트 URL:', redirectTo);
+      console.log('- Supabase URL:', process.env.REACT_APP_SUPABASE_URL);
+      console.log('========================');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
