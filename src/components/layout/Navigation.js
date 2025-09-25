@@ -47,9 +47,9 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* 로고 */}
           <Link to={ROUTES.HOME} className="flex items-center space-x-2">
-            <span className="text-2xl">🏃‍♀️☕</span>
+            <span className="text-2xl">🏃</span>
             <span className="text-h4 font-bold text-gradient">
-              Running Cafe
+              Running View
             </span>
           </Link>
 

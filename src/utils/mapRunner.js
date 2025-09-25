@@ -238,7 +238,7 @@ export const calculateMapBounds = (path, padding = 0.001) => {
 export const generateSNSShareText = (summary, nearbyCafes = []) => {
   const { distance, duration, avgSpeed, calories } = summary;
 
-  let shareText = `🏃‍♂️ Running Cafe에서 달렸어요!\n\n`;
+  let shareText = `🏃‍♂️ Running View에서 달렸어요!\n\n`;
   shareText += `⏱️ 시간: ${duration}\n`;
   shareText += `📏 거리: ${distance}\n`;
   shareText += `🔥 칼로리: ${calories}\n`;

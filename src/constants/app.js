@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  NAME: 'Running Cafe',
+  NAME: 'Running View',
   VERSION: '1.0.0',
   DESCRIPTION: '러닝과 카페를 연결하는 플랫폼',
 };

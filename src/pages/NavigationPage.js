@@ -722,7 +722,7 @@ const NavigationPage = () => {
     const shareText = generateSNSShareText(summary, nearbyCafes);
 
     const shareData = {
-      title: 'Running Cafe - 내 러닝 기록',
+      title: 'Running View - 내 러닝 기록',
       text: shareText,
       url: window.location.href,
     };
