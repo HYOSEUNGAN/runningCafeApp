@@ -8,7 +8,6 @@ import {
   getMonthlyRunningStats,
 } from '../services/runningRecordService';
 import { useNavigate } from 'react-router-dom';
-import RunningShareModal from '../components/feed/RunningShareModal';
 
 const RecordPage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,10 +24,6 @@ const RecordPage = () => {
   const [recordsByDate, setRecordsByDate] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [shareModal, setShareModal] = useState({
-    isOpen: false,
-    selectedRecord: null,
-  });
 
   const { user, isAuthenticated, getUserId } = useAuthStore();
   const navigate = useNavigate();
@@ -173,22 +168,6 @@ const RecordPage = () => {
         setCurrentYear(newYear);
       }
     }
-  };
-
-  // 공유 모달 열기
-  const handleShareRecord = record => {
-    setShareModal({
-      isOpen: true,
-      selectedRecord: record,
-    });
-  };
-
-  // 공유 모달 닫기
-  const handleCloseShareModal = () => {
-    setShareModal({
-      isOpen: false,
-      selectedRecord: null,
-    });
   };
 
   // 날짜 선택 처리
@@ -438,54 +417,26 @@ const RecordPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleShareRecord(record)}
-                      className="touch-button text-primary-500 hover:text-primary-600 p-2 rounded-full hover:bg-primary-50 transition-colors"
-                      title="피드에 공유하기"
+                  <button className="touch-button text-neutral-400 hover:text-primary-500">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                        />
-                      </svg>
-                    </button>
-                    <button className="touch-button text-neutral-400 hover:text-primary-500">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-
-        {/* 공유 모달 */}
-        <RunningShareModal
-          isOpen={shareModal.isOpen}
-          onClose={handleCloseShareModal}
-          runningRecord={shareModal.selectedRecord}
-        />
       </div>
     </div>
   );
