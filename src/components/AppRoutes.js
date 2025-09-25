@@ -1,7 +1,8 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { ROUTES } from '../constants/app';
 import Navigation from './layout/Navigation';
+import BottomNavigation from './layout/BottomNavigation';
 
 // 페이지 컴포넌트들
 import HomePage from '../pages/HomePage';
@@ -26,9 +27,17 @@ const TempPage = ({ title }) => (
 );
 
 const AppRoutes = () => {
+  const location = useLocation();
+  const isNavigationPage = location.pathname === ROUTES.NAV;
+  const isLoginPage =
+    location.pathname === ROUTES.LOGIN ||
+    location.pathname === '/auth/callback';
+
   return (
     <>
-      <Navigation />
+      {/* 네비게이션 페이지가 아닐 때만 상단 네비게이션 표시 */}
+      {!isNavigationPage && !isLoginPage && <Navigation />}
+
       <Routes>
         <Route path={ROUTES.HOME} element={<HomePage />} />
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
@@ -52,6 +61,9 @@ const AppRoutes = () => {
           element={<TempPage title="페이지를 찾을 수 없습니다" />}
         />
       </Routes>
+
+      {/* 네비게이션 페이지가 아닐 때만 하단 네비게이션 표시 */}
+      {!isNavigationPage && !isLoginPage && <BottomNavigation />}
     </>
   );
 };

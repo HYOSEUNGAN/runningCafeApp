@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Play,
   Pause,
@@ -7,8 +7,22 @@ import {
   MapPin,
   Coffee,
   Save,
+  ZoomIn,
+  ZoomOut,
+  Layers,
+  Navigation,
+  Target,
+  Settings,
 } from 'lucide-react';
 import { formatDistance, formatTime, formatCalories } from '../utils/format';
+import {
+  calculateDistance,
+  calculateCalories,
+  generateSNSShareText,
+  evaluateGPSAccuracy,
+  calculateGoalAchievement,
+  compressPath as compressPathUtil,
+} from '../utils/mapRunner';
 import { searchNearbyCafesWithNaver } from '../services/cafeService';
 import { saveRunningRecord, compressPath } from '../services/runningService';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -28,6 +42,14 @@ const NavigationPage = () => {
   const [nearbyCafes, setNearbyCafes] = useState([]);
   const [currentPosition, setCurrentPosition] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(15);
+  const [mapType, setMapType] = useState('normal'); // 'normal', 'satellite', 'hybrid'
+  const [showCafeInfo, setShowCafeInfo] = useState(true);
+  const [selectedCafe, setSelectedCafe] = useState(null);
+  const [cafeMarkers, setCafeMarkers] = useState([]);
+  const [userMarker, setUserMarker] = useState(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null);
+  const [speedHistory, setSpeedHistory] = useState([]);
 
   // 스토어
   const { user, isAuthenticated } = useAuthStore();
@@ -39,6 +61,8 @@ const NavigationPage = () => {
   const polylineRef = useRef(null);
   const watchIdRef = useRef(null);
   const intervalIdRef = useRef(null);
+  const markersRef = useRef([]);
+  const infoWindowsRef = useRef([]);
 
   // 네이버 지도 초기화
   useEffect(() => {
@@ -74,16 +98,39 @@ const NavigationPage = () => {
               naverMapRef.current.setCenter(currentPos);
 
               // 현재 위치 마커 추가
-              new window.naver.maps.Marker({
+              const currentUserMarker = new window.naver.maps.Marker({
                 position: currentPos,
                 map: naverMapRef.current,
+                title: '현재 위치',
                 icon: {
-                  content:
-                    '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg"></div>',
-                  size: new window.naver.maps.Size(16, 16),
-                  anchor: new window.naver.maps.Point(8, 8),
+                  content: `
+                    <div style="
+                      width: 20px; 
+                      height: 20px; 
+                      background: #3B82F6; 
+                      border: 3px solid white; 
+                      border-radius: 50%; 
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                      position: relative;
+                    ">
+                      <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 8px;
+                        height: 8px;
+                        background: white;
+                        border-radius: 50%;
+                      "></div>
+                    </div>
+                  `,
+                  anchor: new window.naver.maps.Point(10, 10),
                 },
               });
+
+              setUserMarker(currentUserMarker);
+              markersRef.current.push(currentUserMarker);
 
               // 주변 카페 검색
               searchNearbyCafes(
@@ -138,58 +185,209 @@ const NavigationPage = () => {
     };
   }, [isTracking, isPaused, startTime]);
 
-  // 주변 카페 검색
-  const searchNearbyCafes = async (lat, lng) => {
-    try {
-      // 네이버 검색 API를 통한 카페 검색 (1km 반경)
-      const cafes = await searchNearbyCafesWithNaver(lat, lng, 1000, '카페');
+  // 기존 마커들 제거
+  const clearMarkers = useCallback(() => {
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+    infoWindowsRef.current.forEach(infoWindow => infoWindow.close());
+    infoWindowsRef.current = [];
+  }, []);
 
-      setNearbyCafes(cafes);
+  // 개선된 카페 마커 생성
+  const createCafeMarkers = useCallback(
+    cafes => {
+      if (!naverMapRef.current || !window.naver?.maps) return;
 
-      // 지도에 카페 마커 추가
+      // 기존 카페 마커들만 제거 (사용자 마커는 유지)
+      markersRef.current
+        .filter(marker => marker.getTitle() !== '현재 위치')
+        .forEach(marker => marker.setMap(null));
+
+      markersRef.current = markersRef.current.filter(
+        marker => marker.getTitle() === '현재 위치'
+      );
+
       cafes.forEach(cafe => {
-        new window.naver.maps.Marker({
+        const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(
             cafe.coordinates.lat,
             cafe.coordinates.lng
           ),
           map: naverMapRef.current,
+          title: cafe.name,
           icon: {
             content: `
-              <div class="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-full shadow-lg">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
-                </svg>
-              </div>
-            `,
-            size: new window.naver.maps.Size(32, 32),
-            anchor: new window.naver.maps.Point(16, 32),
+            <div style="
+              width: 40px; 
+              height: 40px; 
+              background: linear-gradient(135deg, #FF6B35, #F97316); 
+              border: 3px solid white; 
+              border-radius: 50%; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              cursor: pointer;
+              position: relative;
+              transition: all 0.2s ease;
+            " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+              <span style="color: white; font-size: 18px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">☕</span>
+              <div style="
+                position: absolute;
+                top: -3px;
+                right: -3px;
+                width: 12px;
+                height: 12px;
+                background: #10B981;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              "></div>
+            </div>
+          `,
+            anchor: new window.naver.maps.Point(20, 20),
           },
-          title: cafe.name,
         });
+
+        // 정보창 생성
+        const infoWindow = new window.naver.maps.InfoWindow({
+          content: `
+          <div style="
+            padding: 12px; 
+            min-width: 200px; 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          ">
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #1F2937; flex: 1;">${cafe.name}</h4>
+              <span style="background: #10B981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">OPEN</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="color: #F59E0B; margin-right: 4px;">⭐</span>
+              <span style="font-size: 13px; font-weight: 600; color: #374151; margin-right: 8px;">4.5</span>
+              <span style="font-size: 13px; color: #6B7280;">${cafe.distanceText || '거리 정보 없음'}</span>
+            </div>
+            
+            ${
+              cafe.address
+                ? `
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #6B7280; line-height: 1.4;">
+                📍 ${cafe.address}
+              </p>
+            `
+                : ''
+            }
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+              <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 500;">WiFi</span>
+              <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 500;">러너 친화</span>
+            </div>
+            
+            <div style="
+              margin-top: 8px; 
+              padding: 6px 0; 
+              border-top: 1px solid #E5E7EB; 
+              font-size: 11px; 
+              color: #6B7280; 
+              text-align: center;
+            ">
+              클릭하여 상세 정보 보기 ☕
+            </div>
+          </div>
+        `,
+          borderWidth: 0,
+          anchorSize: new window.naver.maps.Size(0, 0),
+          pixelOffset: new window.naver.maps.Point(0, -15),
+        });
+
+        // 마커 클릭 이벤트
+        window.naver.maps.Event.addListener(marker, 'click', () => {
+          setSelectedCafe(cafe);
+          showToast({
+            type: 'info',
+            message: `${cafe.name} 정보를 확인하세요.`,
+          });
+        });
+
+        // 마커 호버 이벤트
+        window.naver.maps.Event.addListener(marker, 'mouseover', () => {
+          infoWindow.open(naverMapRef.current, marker);
+        });
+
+        window.naver.maps.Event.addListener(marker, 'mouseout', () => {
+          infoWindow.close();
+        });
+
+        markersRef.current.push(marker);
+        infoWindowsRef.current.push(infoWindow);
       });
-    } catch (error) {
-      console.error('카페 검색 실패:', error);
-      // 실패 시 샘플 데이터 사용
-      const sampleCafes = [
-        {
-          id: 'sample_1',
-          name: '스타벅스 강남점',
-          address: '서울특별시 강남구 테헤란로',
-          coordinates: { lat: lat + 0.001, lng: lng + 0.001 },
-          distanceText: '100m',
-        },
-        {
-          id: 'sample_2',
-          name: '블루보틀 청담점',
-          address: '서울특별시 강남구 청담동',
-          coordinates: { lat: lat - 0.001, lng: lng + 0.002 },
-          distanceText: '200m',
-        },
-      ];
-      setNearbyCafes(sampleCafes);
-    }
-  };
+    },
+    [showToast]
+  );
+
+  // 주변 카페 검색
+  const searchNearbyCafes = useCallback(
+    async (lat, lng) => {
+      try {
+        // 네이버 검색 API를 통한 카페 검색 (1km 반경)
+        const cafes = await searchNearbyCafesWithNaver(lat, lng, 1000, '카페');
+
+        setNearbyCafes(cafes);
+        createCafeMarkers(cafes);
+
+        showToast({
+          type: 'success',
+          message: `주변 카페 ${cafes.length}곳을 찾았습니다.`,
+        });
+      } catch (error) {
+        console.error('카페 검색 실패:', error);
+        // 실패 시 샘플 데이터 사용
+        const sampleCafes = [
+          {
+            id: 'sample_1',
+            name: '스타벅스 강남점',
+            address: '서울특별시 강남구 테헤란로',
+            coordinates: { lat: lat + 0.001, lng: lng + 0.001 },
+            distanceText: '100m',
+            phone: '02-1234-5678',
+            rating: 4.5,
+            isOpen: true,
+          },
+          {
+            id: 'sample_2',
+            name: '블루보틀 청담점',
+            address: '서울특별시 강남구 청담동',
+            coordinates: { lat: lat - 0.001, lng: lng + 0.002 },
+            distanceText: '200m',
+            phone: '02-2345-6789',
+            rating: 4.7,
+            isOpen: true,
+          },
+          {
+            id: 'sample_3',
+            name: '러너스 카페',
+            address: '서울특별시 강남구 역삼동',
+            coordinates: { lat: lat + 0.002, lng: lng - 0.001 },
+            distanceText: '150m',
+            phone: '02-3456-7890',
+            rating: 4.8,
+            isOpen: true,
+          },
+        ];
+        setNearbyCafes(sampleCafes);
+        createCafeMarkers(sampleCafes);
+
+        showToast({
+          type: 'warning',
+          message: '카페 검색 실패. 샘플 데이터를 표시합니다.',
+        });
+      }
+    },
+    [createCafeMarkers, showToast]
+  );
 
   // 위치 추적 시작
   const startTracking = () => {
@@ -218,19 +416,35 @@ const NavigationPage = () => {
         );
 
         setCurrentPosition(newPos);
+
+        // GPS 정확도 업데이트
+        const accuracy = position.coords.accuracy;
+        setGpsAccuracy(accuracy);
+
         const speed = position.coords.speed || 0;
         setCurrentSpeed(speed);
         setMaxSpeed(prev => Math.max(prev, speed));
+
+        // 속도 히스토리 업데이트
+        setSpeedHistory(prev => {
+          const newHistory = [...prev, speed];
+          // 최근 100개 데이터만 유지
+          return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
+        });
 
         if (!isPaused) {
           setPath(prevPath => {
             const newPath = [...prevPath, newPos];
 
-            // 거리 계산
+            // 거리 계산 (네이버 지도 LatLng 객체용 함수 사용)
             if (prevPath.length > 0) {
               const lastPos = prevPath[prevPath.length - 1];
-              const distance = calculateDistance(lastPos, newPos);
-              setTotalDistance(prev => prev + distance);
+              const distance = calculateDistanceForNaverMap(lastPos, newPos);
+
+              // GPS 정확도가 낮을 때는 거리 계산을 더 보수적으로
+              if (accuracy <= 20) {
+                setTotalDistance(prev => prev + distance);
+              }
             }
 
             // 폴리라인 업데이트
@@ -239,8 +453,8 @@ const NavigationPage = () => {
             return newPath;
           });
 
-          // 지도 중심을 현재 위치로 이동
-          naverMapRef.current.setCenter(newPos);
+          // 지도 중심을 현재 위치로 이동 (부드럽게)
+          naverMapRef.current.panTo(newPos);
         }
       },
       error => {
@@ -299,7 +513,7 @@ const NavigationPage = () => {
         endTime: new Date(endTime || Date.now()).toISOString(),
         duration: elapsedTime,
         distance: totalDistance,
-        calories: Math.round(calculateCalories()),
+        calories: getCalculatedCalories(),
         averageSpeed:
           totalDistance > 0 ? totalDistance / (elapsedTime / 1000) : 0,
         maxSpeed: maxSpeed,
@@ -351,6 +565,8 @@ const NavigationPage = () => {
     setCurrentSpeed(0);
     setMaxSpeed(0);
     setPath([]);
+    setSpeedHistory([]);
+    setGpsAccuracy(null);
 
     // 폴리라인 제거
     if (polylineRef.current) {
@@ -376,13 +592,20 @@ const NavigationPage = () => {
     }
   };
 
-  // 두 지점 간 거리 계산 (미터)
-  const calculateDistance = (pos1, pos2) => {
+  // 두 지점 간 거리 계산 (미터) - 네이버 지도 LatLng 객체용
+  const calculateDistanceForNaverMap = (pos1, pos2) => {
     const R = 6371e3; // 지구 반지름 (미터)
-    const φ1 = (pos1.lat() * Math.PI) / 180;
-    const φ2 = (pos2.lat() * Math.PI) / 180;
-    const Δφ = ((pos2.lat() - pos1.lat()) * Math.PI) / 180;
-    const Δλ = ((pos2.lng() - pos1.lng()) * Math.PI) / 180;
+
+    // 네이버 지도 LatLng 객체인지 확인하고 적절히 처리
+    const lat1 = typeof pos1.lat === 'function' ? pos1.lat() : pos1.lat;
+    const lng1 = typeof pos1.lng === 'function' ? pos1.lng() : pos1.lng;
+    const lat2 = typeof pos2.lat === 'function' ? pos2.lat() : pos2.lat;
+    const lng2 = typeof pos2.lng === 'function' ? pos2.lng() : pos2.lng;
+
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lng2 - lng1) * Math.PI) / 180;
 
     const a =
       Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
@@ -392,12 +615,84 @@ const NavigationPage = () => {
     return R * c;
   };
 
-  // 칼로리 계산 (간단한 추정)
-  const calculateCalories = () => {
-    // 평균 체중 70kg, 러닝 시 km당 70칼로리 소모 기준
-    const caloriesPerKm = 70;
-    return (totalDistance / 1000) * caloriesPerKm;
-  };
+  // 개선된 칼로리 계산
+  const getCalculatedCalories = useCallback(() => {
+    return calculateCalories(totalDistance, 70, 'running');
+  }, [totalDistance]);
+
+  // 지도 줌 컨트롤
+  const handleZoomIn = useCallback(() => {
+    if (naverMapRef.current && currentZoom < 19) {
+      const newZoom = currentZoom + 1;
+      naverMapRef.current.setZoom(newZoom, true);
+      setCurrentZoom(newZoom);
+    }
+  }, [currentZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    if (naverMapRef.current && currentZoom > 10) {
+      const newZoom = currentZoom - 1;
+      naverMapRef.current.setZoom(newZoom, true);
+      setCurrentZoom(newZoom);
+    }
+  }, [currentZoom]);
+
+  // 지도 타입 변경
+  const handleMapTypeChange = useCallback(() => {
+    if (!naverMapRef.current) return;
+
+    const nextType = {
+      normal: 'satellite',
+      satellite: 'hybrid',
+      hybrid: 'normal',
+    };
+
+    const newMapType = nextType[mapType];
+    setMapType(newMapType);
+
+    // 네이버 지도 타입 설정
+    const naverMapType = {
+      normal: window.naver.maps.MapTypeId.NORMAL,
+      satellite: window.naver.maps.MapTypeId.SATELLITE,
+      hybrid: window.naver.maps.MapTypeId.HYBRID,
+    };
+
+    naverMapRef.current.setMapTypeId(naverMapType[newMapType]);
+
+    const typeNames = {
+      normal: '일반 지도',
+      satellite: '위성 지도',
+      hybrid: '하이브리드 지도',
+    };
+
+    showToast({
+      type: 'info',
+      message: `${typeNames[newMapType]}로 변경되었습니다.`,
+    });
+  }, [mapType, showToast]);
+
+  // 현재 위치로 이동
+  const moveToCurrentLocation = useCallback(() => {
+    if (naverMapRef.current && currentPosition) {
+      naverMapRef.current.setCenter(currentPosition);
+      naverMapRef.current.setZoom(16, true);
+      showToast({
+        type: 'info',
+        message: '현재 위치로 이동했습니다.',
+      });
+    }
+  }, [currentPosition, showToast]);
+
+  // 카페 정보 토글
+  const toggleCafeInfo = useCallback(() => {
+    setShowCafeInfo(!showCafeInfo);
+    showToast({
+      type: 'info',
+      message: showCafeInfo
+        ? '카페 정보를 숨겼습니다.'
+        : '카페 정보를 표시합니다.',
+    });
+  }, [showCafeInfo, showToast]);
 
   // SNS 공유
   const shareToSNS = async () => {
@@ -411,15 +706,24 @@ const NavigationPage = () => {
 
     const runningTime = formatTime(elapsedTime);
     const distance = formatDistance(totalDistance);
-    const calories = Math.round(calculateCalories());
+    const calories = getCalculatedCalories();
     const avgSpeed =
       totalDistance > 0
         ? (totalDistance / 1000 / (elapsedTime / 3600000)).toFixed(1)
         : '0.0';
 
+    const summary = {
+      distance,
+      duration: runningTime,
+      avgSpeed: `${avgSpeed}km/h`,
+      calories: `${calories}kcal`,
+    };
+
+    const shareText = generateSNSShareText(summary, nearbyCafes);
+
     const shareData = {
       title: 'Running Cafe - 내 러닝 기록',
-      text: `🏃‍♂️ Running Cafe에서 달렸어요!\n\n⏱️ 시간: ${runningTime}\n📏 거리: ${distance}\n🔥 칼로리: ${calories}kcal\n⚡ 평균 속도: ${avgSpeed}km/h\n\n${nearbyCafes.length > 0 ? `☕ 주변 카페 ${nearbyCafes.length}곳 발견!\n` : ''}#러닝 #운동 #RunningCafe`,
+      text: shareText,
       url: window.location.href,
     };
 
@@ -459,7 +763,7 @@ const NavigationPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 relative">
       {/* 헤더 */}
       <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">러닝 네비게이션</h1>
@@ -477,8 +781,92 @@ const NavigationPage = () => {
       <div className="flex-1 relative">
         <div ref={mapRef} className="w-full h-full" />
 
+        {/* 지도 컨트롤 버튼들 */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
+          {/* 줌 컨트롤 */}
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <button
+              onClick={handleZoomIn}
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors border-b"
+              disabled={currentZoom >= 19}
+            >
+              <ZoomIn
+                size={18}
+                className={
+                  currentZoom >= 19 ? 'text-gray-300' : 'text-gray-700'
+                }
+              />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              disabled={currentZoom <= 10}
+            >
+              <ZoomOut
+                size={18}
+                className={
+                  currentZoom <= 10 ? 'text-gray-300' : 'text-gray-700'
+                }
+              />
+            </button>
+          </div>
+
+          {/* 지도 타입 변경 */}
+          <button
+            onClick={handleMapTypeChange}
+            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            title={`현재: ${mapType === 'normal' ? '일반' : mapType === 'satellite' ? '위성' : '하이브리드'}`}
+          >
+            <Layers size={18} className="text-gray-700" />
+          </button>
+
+          {/* 현재 위치로 이동 */}
+          <button
+            onClick={moveToCurrentLocation}
+            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            disabled={!currentPosition}
+          >
+            <Target
+              size={18}
+              className={!currentPosition ? 'text-gray-300' : 'text-blue-600'}
+            />
+          </button>
+
+          {/* 카페 정보 토글 */}
+          <button
+            onClick={toggleCafeInfo}
+            className={`w-10 h-10 rounded-lg shadow-lg flex items-center justify-center transition-colors ${
+              showCafeInfo
+                ? 'bg-orange-500 text-white hover:bg-orange-600'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Coffee size={18} />
+          </button>
+        </div>
+
         {/* 통계 카드 */}
         <div className="absolute top-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4">
+          {/* GPS 정확도 표시 */}
+          {gpsAccuracy !== null && (
+            <div className="mb-3 flex items-center justify-center">
+              {(() => {
+                const accuracyInfo = evaluateGPSAccuracy(gpsAccuracy);
+                return (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: accuracyInfo.color }}
+                    ></div>
+                    <span className="text-gray-600">
+                      GPS: {accuracyInfo.message} ({Math.round(gpsAccuracy)}m)
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">
@@ -494,7 +882,7 @@ const NavigationPage = () => {
             </div>
             <div>
               <div className="text-2xl font-bold text-orange-600">
-                {Math.round(calculateCalories())}
+                {getCalculatedCalories()}
               </div>
               <div className="text-xs text-gray-500">칼로리</div>
             </div>
@@ -507,32 +895,151 @@ const NavigationPage = () => {
           </div>
         </div>
 
+        {/* 선택된 카페 상세 정보 */}
+        {selectedCafe && (
+          <div className="absolute bottom-20 left-4 right-4 bg-white rounded-lg shadow-lg">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Coffee size={20} className="text-orange-500" />
+                  <h3 className="font-bold text-lg">{selectedCafe.name}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedCafe(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-500">⭐</span>
+                  <span className="font-medium">
+                    {selectedCafe.rating || '4.5'}
+                  </span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-sm text-gray-600">
+                    {selectedCafe.distanceText || '거리 정보 없음'}
+                  </span>
+                </div>
+
+                {selectedCafe.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin size={16} className="text-gray-400 mt-0.5" />
+                    <span className="text-sm text-gray-600">
+                      {selectedCafe.address}
+                    </span>
+                  </div>
+                )}
+
+                {selectedCafe.phone && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">📞</span>
+                    <span className="text-sm text-blue-600">
+                      {selectedCafe.phone}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                {selectedCafe.phone && (
+                  <button
+                    onClick={() => window.open(`tel:${selectedCafe.phone}`)}
+                    className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+                  >
+                    📞 전화하기
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const url = `https://map.naver.com/v5/search/${encodeURIComponent(selectedCafe.name)}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                >
+                  🗺️ 네이버지도
+                </button>
+                <button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator
+                        .share({
+                          title: selectedCafe.name,
+                          text: `${selectedCafe.name} - 러닝 후 추천 카페`,
+                          url: window.location.href,
+                        })
+                        .catch(console.error);
+                    } else {
+                      navigator.clipboard.writeText(
+                        `${selectedCafe.name} - ${selectedCafe.address}`
+                      );
+                      showToast({
+                        type: 'success',
+                        message: '카페 정보가 클립보드에 복사되었습니다.',
+                      });
+                    }
+                  }}
+                  className="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
+                >
+                  <Share2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 주변 카페 리스트 */}
-        {nearbyCafes.length > 0 && (
-          <div className="absolute bottom-20 left-4 right-4 bg-white rounded-lg shadow-lg max-h-32 overflow-y-auto">
+        {!selectedCafe && nearbyCafes.length > 0 && showCafeInfo && (
+          <div className="absolute bottom-20 left-4 right-4 bg-white rounded-lg shadow-lg max-h-40 overflow-y-auto">
             <div className="p-3 border-b">
-              <div className="flex items-center gap-2">
-                <Coffee size={16} className="text-orange-500" />
-                <span className="font-medium text-sm">주변 카페</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coffee size={16} className="text-orange-500" />
+                  <span className="font-medium text-sm">
+                    주변 카페 ({nearbyCafes.length}곳)
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowCafeInfo(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  ✕
+                </button>
               </div>
             </div>
             {nearbyCafes.map(cafe => (
-              <div key={cafe.id} className="p-3 border-b last:border-b-0">
+              <div
+                key={cafe.id}
+                className="p-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setSelectedCafe(cafe)}
+              >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="font-medium text-sm">{cafe.name}</div>
-                    <div className="text-xs text-gray-500">{cafe.address}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {cafe.address}
+                    </div>
                     {cafe.phone && (
                       <div className="text-xs text-blue-500 mt-1">
                         {cafe.phone}
                       </div>
                     )}
                   </div>
-                  {cafe.distanceText && (
-                    <div className="text-xs text-gray-400 ml-2">
-                      {cafe.distanceText}
+                  <div className="ml-2 text-right">
+                    {cafe.distanceText && (
+                      <div className="text-xs text-gray-400 mb-1">
+                        {cafe.distanceText}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <span className="text-yellow-400 text-xs">⭐</span>
+                      <span className="text-xs text-gray-600">
+                        {cafe.rating || '4.5'}
+                      </span>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -540,48 +1047,133 @@ const NavigationPage = () => {
         )}
       </div>
 
-      {/* 컨트롤 버튼 */}
-      <div className="bg-white border-t p-4">
-        <div className="flex items-center justify-center gap-3">
+      {/* 러닝 컨트롤 하단바 */}
+      <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 safe-area-bottom z-50">
+        {/* 디버깅용 상태 표시 */}
+        <div className="text-xs text-gray-500 text-center py-2 border-b border-gray-100">
+          상태: {isTracking ? (isPaused ? '일시정지됨' : '추적중') : '대기중'} |
+          거리: {totalDistance.toFixed(0)}m | 시간:{' '}
+          {Math.floor(elapsedTime / 1000)}초
+        </div>
+
+        <div className="flex justify-around items-center h-16 px-4">
           {!isTracking ? (
             <>
+              {/* 시작 버튼 */}
               <button
                 onClick={startTracking}
-                className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-full font-medium"
+                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-green-600 hover:text-green-800"
+                aria-label="러닝 시작"
               >
-                <Play size={20} />
-                시작
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500 hover:bg-green-600 transition-colors">
+                  <Play size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">시작</span>
               </button>
+
+              {/* 공유 버튼 */}
+              <button
+                onClick={shareToSNS}
+                disabled={totalDistance === 0}
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                  totalDistance === 0
+                    ? 'text-gray-300'
+                    : 'text-blue-600 hover:text-blue-800'
+                }`}
+                aria-label="SNS 공유"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    totalDistance === 0
+                      ? 'bg-gray-200'
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  <Share2 size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">공유</span>
+              </button>
+
+              {/* 저장 버튼 */}
               {totalDistance > 0 && (
                 <button
                   onClick={saveRecord}
                   disabled={isSaving}
-                  className="flex items-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-indigo-600 hover:text-indigo-800"
+                  aria-label="기록 저장"
                 >
-                  <Save size={18} />
-                  {isSaving ? '저장 중...' : '저장'}
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 transition-colors">
+                    <Save size={20} className="text-white" />
+                  </div>
+                  <span className="text-xs font-bold">
+                    {isSaving ? '저장중' : '저장'}
+                  </span>
                 </button>
               )}
             </>
           ) : (
             <>
+              {/* 일시정지/재개 버튼 */}
               <button
                 onClick={togglePause}
-                className={`flex items-center gap-2 px-5 py-3 rounded-full font-medium ${
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
                   isPaused
-                    ? 'bg-green-500 text-white'
-                    : 'bg-yellow-500 text-white'
+                    ? 'text-green-600 hover:text-green-800'
+                    : 'text-yellow-600 hover:text-yellow-800'
                 }`}
+                aria-label={isPaused ? '러닝 재개' : '러닝 일시정지'}
               >
-                {isPaused ? <Play size={18} /> : <Pause size={18} />}
-                {isPaused ? '재개' : '일시정지'}
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    isPaused
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : 'bg-yellow-500 hover:bg-yellow-600'
+                  }`}
+                >
+                  {isPaused ? (
+                    <Play size={20} className="text-white" />
+                  ) : (
+                    <Pause size={20} className="text-white" />
+                  )}
+                </div>
+                <span className="text-xs font-bold">
+                  {isPaused ? '재개' : '일시정지'}
+                </span>
               </button>
+
+              {/* 정지 버튼 */}
               <button
                 onClick={stopTracking}
-                className="flex items-center gap-2 px-5 py-3 bg-red-500 text-white rounded-full font-medium"
+                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-red-600 hover:text-red-800"
+                aria-label="러닝 정지"
               >
-                <Square size={18} />
-                정지
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 transition-colors">
+                  <Square size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">정지</span>
+              </button>
+
+              {/* 현재 위치로 이동 버튼 */}
+              <button
+                onClick={moveToCurrentLocation}
+                disabled={!currentPosition}
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                  !currentPosition
+                    ? 'text-gray-300'
+                    : 'text-blue-600 hover:text-blue-800'
+                }`}
+                aria-label="현재 위치로 이동"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    !currentPosition
+                      ? 'bg-gray-200'
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  <Target size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">위치</span>
               </button>
             </>
           )}
@@ -589,13 +1181,13 @@ const NavigationPage = () => {
 
         {/* 추가 정보 표시 */}
         {totalDistance > 0 && !isTracking && (
-          <div className="mt-3 text-center">
-            <div className="text-sm text-gray-600">
-              운동을 완료했습니다! 기록을 저장하거나 SNS에 공유해보세요.
+          <div className="px-4 py-2 text-center border-t border-gray-100">
+            <div className="text-xs text-gray-600">
+              운동 완료! 기록을 저장하거나 SNS에 공유해보세요 🎉
             </div>
           </div>
         )}
-      </div>
+      </nav>
     </div>
   );
 };
