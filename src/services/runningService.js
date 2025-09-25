@@ -299,10 +299,16 @@ export const compressPath = (path, tolerance = 0.0001) => {
  * @returns {number} 수직 거리
  */
 const getPerpendicularDistance = (point, lineStart, lineEnd) => {
-  const A = point.lat() - lineStart.lat();
-  const B = point.lng() - lineStart.lng();
-  const C = lineEnd.lat() - lineStart.lat();
-  const D = lineEnd.lng() - lineStart.lng();
+  // 안전하게 lat/lng 값 추출 (Google Maps LatLng 객체 또는 일반 객체 모두 지원)
+  const getLatValue = obj =>
+    typeof obj.lat === 'function' ? obj.lat() : obj.lat;
+  const getLngValue = obj =>
+    typeof obj.lng === 'function' ? obj.lng() : obj.lng;
+
+  const A = getLatValue(point) - getLatValue(lineStart);
+  const B = getLngValue(point) - getLngValue(lineStart);
+  const C = getLatValue(lineEnd) - getLatValue(lineStart);
+  const D = getLngValue(lineEnd) - getLngValue(lineStart);
 
   const dot = A * C + B * D;
   const lenSq = C * C + D * D;
@@ -313,18 +319,18 @@ const getPerpendicularDistance = (point, lineStart, lineEnd) => {
   let xx, yy;
 
   if (param < 0) {
-    xx = lineStart.lat();
-    yy = lineStart.lng();
+    xx = getLatValue(lineStart);
+    yy = getLngValue(lineStart);
   } else if (param > 1) {
-    xx = lineEnd.lat();
-    yy = lineEnd.lng();
+    xx = getLatValue(lineEnd);
+    yy = getLngValue(lineEnd);
   } else {
-    xx = lineStart.lat() + param * C;
-    yy = lineStart.lng() + param * D;
+    xx = getLatValue(lineStart) + param * C;
+    yy = getLngValue(lineStart) + param * D;
   }
 
-  const dx = point.lat() - xx;
-  const dy = point.lng() - yy;
+  const dx = getLatValue(point) - xx;
+  const dy = getLngValue(point) - yy;
 
   return Math.sqrt(dx * dx + dy * dy);
 };

@@ -60,7 +60,7 @@ const MapHeader = ({
   return (
     <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
       {/* 상단 필터 버튼들 */}
-      <div className="pt-16 px-4 pointer-events-auto">
+      <div className="pt-4 px-4 pointer-events-auto">
         <div className="flex flex-wrap gap-2 mb-3">
           {filterOptions.map(filter => (
             <button

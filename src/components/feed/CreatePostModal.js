@@ -286,7 +286,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       {/* 배경 오버레이 */}
       <div
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -294,7 +294,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
       />
 
       {/* 모달 컨텐츠 */}
-      <div className="relative bg-white w-full max-w-md mx-4 rounded-t-lg sm:rounded-lg shadow-xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-white w-full max-w-md mx-4 rounded-t-lg sm:rounded-lg shadow-xl max-h-[90vh] flex flex-col mb-16 sm:mb-0">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900">

@@ -44,7 +44,7 @@ export const createRunningRecord = async recordData => {
       is_public = true,
     } = recordData;
 
-    if (!user_id || !distance || !duration) {
+    if (!user_id || distance == null || !duration) {
       throw new Error(
         '필수 필드가 누락되었습니다: user_id, distance, duration'
       );

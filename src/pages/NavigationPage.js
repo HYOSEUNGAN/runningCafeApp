@@ -508,10 +508,12 @@ const NavigationPage = () => {
       return;
     }
 
-    if (totalDistance === 0 || path.length < 2) {
+    // 경로가 없거나 너무 짧은 경우만 체크 (거리 0은 허용)
+    if (path.length < 2) {
       showToast({
         type: 'error',
-        message: '저장할 러닝 기록이 없습니다.',
+        message:
+          '러닝 경로가 기록되지 않았습니다. 최소 2개 이상의 위치가 필요합니다.',
       });
       return;
     }
@@ -531,8 +533,8 @@ const NavigationPage = () => {
         maxSpeed: maxSpeed,
         path: compressPath(
           path.map(pos => ({
-            lat: pos.lat(),
-            lng: pos.lng(),
+            lat: typeof pos.lat === 'function' ? pos.lat() : pos.lat,
+            lng: typeof pos.lng === 'function' ? pos.lng() : pos.lng,
           }))
         ),
         nearbyCafes: nearbyCafes.map(cafe => ({

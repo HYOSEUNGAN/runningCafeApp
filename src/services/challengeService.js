@@ -326,7 +326,12 @@ export const updateChallengeProgress = async (
           continue;
       }
 
-      if (contributedValue <= 0) continue;
+      // 거리 챌린지의 경우 0km도 허용, 다른 타입은 기존 로직 유지
+      if (
+        contributedValue < 0 ||
+        (challenge.target_type !== 'distance' && contributedValue === 0)
+      )
+        continue;
 
       // 챌린지 기록 생성
       const { error: recordError } = await supabase
