@@ -263,18 +263,16 @@ export const generateSNSShareText = (summary, nearbyCafes = []) => {
  * @returns {string} 포맷된 시간 문자열
  */
 export const formatDuration = milliseconds => {
-  const seconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  const remainingMinutes = minutes % 60;
-  const remainingSeconds = seconds % 60;
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
 
   if (hours > 0) {
-    return `${hours}:${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
-  return `${remainingMinutes}:${String(remainingSeconds).padStart(2, '0')}`;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
 /**

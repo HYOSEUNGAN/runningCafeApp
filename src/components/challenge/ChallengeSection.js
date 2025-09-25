@@ -28,7 +28,22 @@ const ChallengeSection = () => {
       // 현재 월의 활성 챌린지 조회
       const challengesResult = await getCurrentMonthlyChallenges();
       if (challengesResult.success) {
-        setChallenges(challengesResult.data);
+        // 9월 챌린지에서 매일러닝 챌린지만 필터링
+        const filteredChallenges = challengesResult.data.filter(challenge => {
+          // 현재 9월이고, 제목에 "매일 러닝"이 포함된 챌린지만 표시
+          const now = new Date();
+          const currentMonth = now.getMonth() + 1; // 1-12
+          const currentYear = now.getFullYear();
+
+          if (currentYear === 2025 && currentMonth === 9) {
+            return challenge.title.includes('매일 러닝');
+          }
+
+          // 9월이 아닌 경우 모든 챌린지 표시
+          return true;
+        });
+
+        setChallenges(filteredChallenges);
       }
 
       // 로그인한 경우 참여 현황 조회
@@ -150,12 +165,12 @@ const ChallengeSection = () => {
         <h2 className="text-xl font-bold text-gray-900">
           {new Date().getMonth() + 1}월 챌린지
         </h2>
-        <button
+        {/* <button
           onClick={loadChallenges}
           className="text-blue-500 hover:text-blue-600 transition-colors text-sm"
         >
           새로고침
-        </button>
+        </button> */}
       </div>
 
       {challenges.map(challenge => (

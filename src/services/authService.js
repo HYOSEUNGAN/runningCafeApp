@@ -85,6 +85,20 @@ export const authService = {
     try {
       // 환경에 따른 리다이렉트 URL 설정
       const getRedirectUrl = () => {
+        // 개발 환경 감지 (Node.js 환경변수 확인)
+        const isDevelopment = process.env.NODE_ENV === 'development';
+
+        // 로컬 개발 환경 우선 체크 (가장 높은 우선순위)
+        if (
+          isDevelopment ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.port === '3000' ||
+          window.location.origin.includes('localhost')
+        ) {
+          return 'http://localhost:3000/auth/callback';
+        }
+
         // Vercel 배포 환경 (Create React App용)
         if (process.env.REACT_APP_VERCEL_URL) {
           return `https://${process.env.REACT_APP_VERCEL_URL}/auth/callback`;
@@ -95,19 +109,25 @@ export const authService = {
           return 'https://running-cafe-app.vercel.app/auth/callback';
         }
 
-        // 로컬 개발 환경
-        if (
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1'
-        ) {
-          return 'http://localhost:3000/auth/callback';
-        }
-
         // 기본적으로 현재 origin 사용
         return `${window.location.origin}/auth/callback`;
       };
 
       const redirectTo = getRedirectUrl();
+
+      // 디버깅용 로그
+      console.log('=== 카카오 로그인 리다이렉트 URL 설정 ===');
+      console.log('최종 리다이렉트 URL:', redirectTo);
+      console.log('현재 환경 정보:', {
+        nodeEnv: process.env.NODE_ENV,
+        hostname: window.location.hostname,
+        port: window.location.port,
+        origin: window.location.origin,
+        href: window.location.href,
+        vercelUrl: process.env.REACT_APP_VERCEL_URL,
+        isDevelopment: process.env.NODE_ENV === 'development',
+      });
+      console.log('=======================================');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',

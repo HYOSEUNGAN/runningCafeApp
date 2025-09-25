@@ -22,6 +22,8 @@ const RecordPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [recordsByDate, setRecordsByDate] = useState({});
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const { user, isAuthenticated, getUserId } = useAuthStore();
   const navigate = useNavigate();
@@ -55,11 +57,10 @@ const RecordPage = () => {
       }
 
       // 월별 통계 조회
-      const now = new Date();
       const statsResult = await getMonthlyRunningStats(
         userId,
-        now.getFullYear(),
-        now.getMonth() + 1
+        currentYear,
+        currentMonth
       );
       if (statsResult.success) {
         setMonthlyStats(statsResult.data);
@@ -73,7 +74,7 @@ const RecordPage = () => {
 
   useEffect(() => {
     loadRunningRecords();
-  }, [user]);
+  }, [user, currentMonth, currentYear]);
 
   // 날짜를 YYYY-MM-DD 형식으로 변환
   const formatDateKey = date => {
@@ -90,7 +91,7 @@ const RecordPage = () => {
   const formatDuration = seconds => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
 
     if (hours > 0) {
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -106,14 +107,16 @@ const RecordPage = () => {
     return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
   };
 
-  // 달력에서 러닝 기록이 있는 날짜 표시
+  // 달력에서 러닝 기록이 있는 날짜 표시 - 러닝 도장 아이콘 추가
   const tileContent = ({ date, view }) => {
     if (view === 'month') {
-      const record = getRecordForDate(date);
-      if (record) {
+      const records = getRecordForDate(date);
+      const hasRecord = records && records.length > 0;
+
+      if (hasRecord) {
         return (
-          <div className="flex justify-center">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
+          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+            <span className="text-xs">🏃</span>
           </div>
         );
       }
@@ -124,13 +127,14 @@ const RecordPage = () => {
   // 달력 날짜 클래스명 설정
   const tileClassName = ({ date, view }) => {
     if (view === 'month') {
-      const record = getRecordForDate(date);
+      const records = getRecordForDate(date);
+      const hasRecord = records && records.length > 0;
       const isToday = date.toDateString() === new Date().toDateString();
       const isSelected = date.toDateString() === selectedDate.toDateString();
 
       let classes = [];
 
-      if (record) {
+      if (hasRecord) {
         classes.push('has-record');
       }
       if (isToday) {
@@ -151,6 +155,33 @@ const RecordPage = () => {
   const getDayOfWeek = date => {
     const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     return days[date.getDay()];
+  };
+
+  // 달력 네비게이션 변경 처리
+  const handleActiveStartDateChange = ({ activeStartDate }) => {
+    if (activeStartDate) {
+      const newMonth = activeStartDate.getMonth() + 1;
+      const newYear = activeStartDate.getFullYear();
+
+      if (newMonth !== currentMonth || newYear !== currentYear) {
+        setCurrentMonth(newMonth);
+        setCurrentYear(newYear);
+      }
+    }
+  };
+
+  // 날짜 선택 처리
+  const handleDateChange = date => {
+    setSelectedDate(date);
+
+    // 선택한 날짜의 월이 현재 보고 있는 월과 다르면 월도 변경
+    const selectedMonth = date.getMonth() + 1;
+    const selectedYear = date.getFullYear();
+
+    if (selectedMonth !== currentMonth || selectedYear !== currentYear) {
+      setCurrentMonth(selectedMonth);
+      setCurrentYear(selectedYear);
+    }
   };
 
   // 로그인 안 된 경우
@@ -193,7 +224,7 @@ const RecordPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pt-16 pb-20">
+    <div className="min-h-screen bg-neutral-50 pt-4 pb-20">
       <div className="app-container bg-white">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
@@ -225,18 +256,21 @@ const RecordPage = () => {
               <svg
                 className="w-6 h-6"
                 fill="none"
-                stroke="currentColor"
+                stroke="#ef4444"
                 viewBox="0 0 24 24"
+                style={{ filter: 'drop-shadow(0 0 2px #ef4444)' }}
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="2"
+                  strokeWidth="3"
                   d="M9 19V6l12 6-12 6z"
+                  fill="#ef4444"
+                  stroke="#ef4444"
                 />
               </svg>
             </button>
-            <button className="touch-button text-neutral-600 hover:text-primary-500">
+            {/* <button className="touch-button text-neutral-600 hover:text-primary-500">
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -250,12 +284,12 @@ const RecordPage = () => {
                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                 />
               </svg>
-            </button>
+            </button> */}
           </div>
         </div>
 
         {/* 런데이 업데이트 알림 */}
-        <div className="mx-4 mt-4 p-4 bg-primary-gradient rounded-card text-white text-sm flex items-center justify-between shadow-card">
+        {/* <div className="mx-4 mt-4 p-4 bg-primary-gradient rounded-card text-white text-sm flex items-center justify-between shadow-card">
           <span className="flex-1 mr-3">
             런데이 어워드가 새롭게 개설되었습니다. 운동 후 어워드를 획득하여
             모아보세요.
@@ -275,7 +309,7 @@ const RecordPage = () => {
               />
             </svg>
           </button>
-        </div>
+        </div> */}
 
         {/* 현재 러닝 통계 */}
         <div className="px-4 py-6 text-center bg-white">
@@ -307,18 +341,33 @@ const RecordPage = () => {
         {/* 달력 */}
         <div className="px-4">
           <Calendar
-            onChange={setSelectedDate}
+            onChange={handleDateChange}
             value={selectedDate}
+            onActiveStartDateChange={handleActiveStartDateChange}
             tileContent={tileContent}
             tileClassName={tileClassName}
             formatDay={(locale, date) => date.getDate().toString()}
-            showNeighboringMonth={true}
+            showNeighboringMonth={false}
             calendarType="gregory"
             next2Label={null}
             prev2Label={null}
             nextLabel="›"
             prevLabel="‹"
             className="custom-calendar"
+            locale="ko-KR"
+            showFixedNumberOfWeeks={false}
+            minDetail="month"
+            tileDisabled={({ date, view }) => {
+              if (view === 'month') {
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+                return (
+                  date.getMonth() !== currentMonth ||
+                  date.getFullYear() !== currentYear
+                );
+              }
+              return false;
+            }}
           />
         </div>
 
@@ -326,7 +375,7 @@ const RecordPage = () => {
         <div className="px-4 py-4">
           <div className="mobile-card bg-neutral-50">
             <h3 className="text-h4 font-bold text-neutral-900 mb-2">
-              {new Date().getMonth() + 1}월 분석
+              {currentMonth}월 분석
             </h3>
             <div className="text-body text-neutral-600">
               {monthlyStats.totalDistance.toFixed(1)}km /{' '}

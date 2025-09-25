@@ -172,7 +172,7 @@ const ProfilePage = () => {
   const formatDuration = seconds => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
 
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -218,53 +218,141 @@ const ProfilePage = () => {
         onEditToggle={() => setIsEditing(!isEditing)}
       />
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="max-w-md mx-auto px-6 py-6 space-y-6">
         {/* 프로필 카드 */}
         <Card>
           <div className="relative overflow-hidden">
             {/* 배경 그라데이션 */}
             <div className="absolute top-0 left-0 right-0 h-24 bg-primary-gradient opacity-10 rounded-t-card"></div>
 
-            <div className="relative flex items-center space-x-4 mb-6 pt-4">
-              <div className="w-20 h-20 bg-primary-gradient rounded-full flex items-center justify-center shadow-lg overflow-hidden">
-                {isLoggedIn && getUserAvatar() ? (
-                  <img
-                    src={getUserAvatar()}
-                    alt="프로필"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-3xl text-white">🏃‍♀️</span>
+            <div className="relative flex items-start space-x-4 mb-6 pt-4">
+              {/* 프로필 이미지 */}
+              <div className="relative flex-shrink-0">
+                <div className="w-24 h-24 bg-primary-gradient rounded-2xl flex items-center justify-center shadow-xl overflow-hidden transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                  {isLoggedIn && getUserAvatar() ? (
+                    <img
+                      src={getUserAvatar()}
+                      alt="프로필"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-4xl text-white">🏃‍♀️</span>
+                  )}
+                </div>
+                {/* 온라인 상태 표시 */}
+                {isLoggedIn && (
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 border-3 border-white rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  </div>
                 )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-1">
-                  {isLoggedIn
-                    ? profileData?.display_name ||
-                      profileData?.username ||
-                      getUserName() ||
-                      'Runner'
-                    : '게스트'}
-                </h2>
-                <p className="text-sm text-gray-600 mb-2">
+
+              {/* 사용자 정보 */}
+              <div className="flex-1 min-w-0">
+                {/* 닉네임과 인증 배지 */}
+                <div className="flex items-center space-x-2 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900 truncate">
+                    {isLoggedIn
+                      ? profileData?.display_name ||
+                        profileData?.username ||
+                        getUserName() ||
+                        'Runner'
+                      : '게스트'}
+                  </h2>
+                  {isLoggedIn && (
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* 자기소개 */}
+                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                   {isLoggedIn
                     ? profileData?.bio || '러닝을 사랑하는 러너입니다! 🏃‍♀️'
                     : '로그인하여 더 많은 기능을 이용해보세요'}
                 </p>
-                <div className="flex items-center space-x-2 flex-wrap gap-1">
+
+                {/* 레벨과 배지 */}
+                <div className="space-y-3">
                   {isLoggedIn ? (
                     <>
-                      <span className="text-xs bg-primary-100 text-primary-700 px-3 py-1 rounded-full font-medium">
-                        러닝 레벨 3
-                      </span>
-                      <span className="text-xs bg-secondary-mint bg-opacity-20 text-secondary-mint px-3 py-1 rounded-full font-medium">
-                        활동적인 러너
-                      </span>
+                      {/* 러닝 레벨 */}
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-xl shadow-lg">
+                          <div className="w-5 h-5 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-2">
+                            <span className="text-xs font-bold">3</span>
+                          </div>
+                          <span className="text-sm font-bold">러닝 레벨 3</span>
+                        </div>
+                        {/* 레벨 진행도 */}
+                        <div className="flex-1 max-w-20">
+                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-primary-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: '65%' }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-500 mt-1 block">
+                            65%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 활동 배지 */}
+                      <div className="flex items-center space-x-2">
+                        <div className="inline-flex items-center bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-3 py-1.5 rounded-lg shadow-md">
+                          <span className="text-xs mr-1">🔥</span>
+                          <span className="text-xs font-semibold">
+                            활동적인 러너
+                          </span>
+                        </div>
+                        <div className="inline-flex items-center bg-gradient-to-r from-amber-400 to-amber-500 text-white px-3 py-1.5 rounded-lg shadow-md">
+                          <span className="text-xs mr-1">⭐</span>
+                          <span className="text-xs font-semibold">
+                            신규 회원
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 간단한 통계 */}
+                      <div className="flex items-center space-x-4 pt-2">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-primary-600">
+                            {userStats.totalRuns}
+                          </div>
+                          <div className="text-xs text-gray-500">러닝</div>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200"></div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-secondary-orange">
+                            {userStats.totalDistance.toFixed(1)}km
+                          </div>
+                          <div className="text-xs text-gray-500">총 거리</div>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200"></div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-secondary-mint">
+                            {completedChallenges.length}
+                          </div>
+                          <div className="text-xs text-gray-500">배지</div>
+                        </div>
+                      </div>
                     </>
                   ) : (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">
-                      게스트 사용자
-                    </span>
+                    <div className="inline-flex items-center bg-gray-100 text-gray-600 px-4 py-2 rounded-xl">
+                      <span className="text-sm font-medium">게스트 사용자</span>
+                    </div>
                   )}
                 </div>
               </div>

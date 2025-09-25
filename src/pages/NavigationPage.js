@@ -26,6 +26,7 @@ import {
 import { searchNearbyCafesWithNaver } from '../services/cafeService';
 import { saveRunningRecord, compressPath } from '../services/runningService';
 import { createFeedPost } from '../services/feedService';
+import CreatePostModal from '../components/feed/CreatePostModal';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
 
@@ -51,6 +52,10 @@ const NavigationPage = () => {
   const [userMarker, setUserMarker] = useState(null);
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [speedHistory, setSpeedHistory] = useState([]);
+  const [createPostModal, setCreatePostModal] = useState({
+    isOpen: false,
+    runningRecord: null,
+  });
 
   // 스토어
   const { user, isAuthenticated } = useAuthStore();
@@ -550,12 +555,17 @@ const NavigationPage = () => {
           message: '러닝 기록이 저장되었습니다!',
         });
 
-        // 피드 공유 여부 확인
-        const shouldShare = window.confirm(
-          '러닝 기록을 피드에 공유하시겠습니까?\n다른 러너들과 성과를 나눠보세요! 🏃‍♀️'
-        );
+        // 피드 공유 옵션 제공
+        const shareOptions = await showShareOptions(savedRecord);
 
-        if (shouldShare) {
+        if (shareOptions === 'modal') {
+          // 모달을 통한 커스텀 포스트 작성
+          setCreatePostModal({
+            isOpen: true,
+            runningRecord: savedRecord,
+          });
+        } else if (shareOptions === 'auto') {
+          // 자동 생성된 포스트로 공유
           await handleShareToFeed(savedRecord);
         }
 
@@ -574,6 +584,35 @@ const NavigationPage = () => {
       setIsSaving(false);
       console.log('=== 러닝 기록 저장 완료 ===');
     }
+  };
+
+  // 공유 옵션 선택 모달
+  const showShareOptions = savedRecord => {
+    return new Promise(resolve => {
+      // 커스텀 모달 대신 confirm을 사용하여 간단하게 구현
+      const shareChoice = window.confirm(
+        `🎉 러닝 기록이 저장되었습니다!\n\n피드에 공유하시겠습니까?\n\n✅ 확인: 사진과 함께 커스텀 포스트 작성\n❌ 취소: 공유하지 않음`
+      );
+
+      if (shareChoice) {
+        // 추가 옵션 선택
+        const customPost = window.confirm(
+          `공유 방법을 선택해주세요:\n\n✅ 확인: 사진과 글을 직접 작성 (추천)\n❌ 취소: 자동 생성된 포스트로 바로 공유`
+        );
+
+        resolve(customPost ? 'modal' : 'auto');
+      } else {
+        resolve('none');
+      }
+    });
+  };
+
+  // 포스트 작성 모달 닫기
+  const handleCloseCreatePostModal = () => {
+    setCreatePostModal({
+      isOpen: false,
+      runningRecord: null,
+    });
   };
 
   // 피드에 러닝 기록 공유
@@ -872,15 +911,17 @@ const NavigationPage = () => {
     <div className="flex flex-col h-screen bg-gray-50 relative">
       {/* 헤더 */}
       <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">러닝 네비게이션</h1>
+        <h1 className="text-xl font-bold text-[#4c1d95]">Running Map</h1>
+        {/* 
         <button
           onClick={shareToSNS}
           disabled={totalDistance === 0}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-3 py-1.5 bg-[#FF6B35] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Share2 size={16} />
           공유
-        </button>
+        </button> 
+        */}
       </div>
 
       {/* 지도 */}
@@ -1306,6 +1347,13 @@ const NavigationPage = () => {
           </div>
         )}
       </nav>
+
+      {/* 포스트 작성 모달 */}
+      <CreatePostModal
+        isOpen={createPostModal.isOpen}
+        onClose={handleCloseCreatePostModal}
+        runningRecord={createPostModal.runningRecord}
+      />
     </div>
   );
 };

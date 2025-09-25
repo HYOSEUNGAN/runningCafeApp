@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { uploadMultipleImages, deleteImage } from './imageUploadService';
 
 /**
  * 피드 관련 API 서비스
@@ -6,12 +7,13 @@ import { supabase } from './supabase';
  */
 
 /**
- * 피드 포스트 생성
+ * 피드 포스트 생성 (이미지 업로드 포함)
  * @param {Object} postData - 포스트 데이터
  * @param {string} postData.user_id - 사용자 ID
- * @param {string} postData.running_record_id - 러닝 기록 ID
+ * @param {string} postData.running_record_id - 러닝 기록 ID (선택사항)
  * @param {string} postData.caption - 캡션
- * @param {string[]} postData.image_urls - 이미지 URL 배열
+ * @param {File[]} postData.images - 업로드할 이미지 파일 배열
+ * @param {string[]} postData.image_urls - 이미지 URL 배열 (기존 이미지)
  * @param {string[]} postData.hashtags - 해시태그 배열
  * @param {string} postData.location - 위치
  * @param {boolean} postData.is_achievement - 달성 기록 여부
@@ -21,16 +23,38 @@ export const createFeedPost = async postData => {
   try {
     const {
       user_id,
-      running_record_id,
+      running_record_id = null,
       caption,
+      images = [],
       image_urls = [],
       hashtags = [],
       location,
       is_achievement = false,
     } = postData;
 
-    if (!user_id || !running_record_id) {
-      throw new Error('필수 필드가 누락되었습니다: user_id, running_record_id');
+    if (!user_id) {
+      throw new Error('필수 필드가 누락되었습니다: user_id');
+    }
+
+    let finalImageUrls = [...image_urls];
+
+    // 새로운 이미지 파일이 있는 경우 업로드
+    if (images && images.length > 0) {
+      console.log(`${images.length}개의 이미지 업로드 시작`);
+
+      const uploadResult = await uploadMultipleImages(images, user_id, 'posts');
+
+      if (uploadResult.success && uploadResult.data.uploaded.length > 0) {
+        const uploadedUrls = uploadResult.data.uploaded.map(
+          img => img.imageUrl
+        );
+        finalImageUrls = [...finalImageUrls, ...uploadedUrls];
+
+        console.log('이미지 업로드 성공:', uploadedUrls);
+      } else {
+        console.warn('이미지 업로드 실패:', uploadResult.error);
+        // 이미지 업로드 실패해도 포스트는 생성 진행
+      }
     }
 
     const { data, error } = await supabase
@@ -39,7 +63,7 @@ export const createFeedPost = async postData => {
         user_id,
         running_record_id,
         caption: caption || '',
-        image_urls,
+        image_urls: finalImageUrls,
         hashtags,
         location: location || '',
         is_achievement,

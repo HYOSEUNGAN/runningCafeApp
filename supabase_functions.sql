@@ -225,5 +225,54 @@ INSERT INTO monthly_challenges (
 )
 ON CONFLICT DO NOTHING;
 
+-- 9. Storage 버킷 및 정책 설정
+-- 이미지 저장용 버킷 생성 (Supabase 콘솔에서 수동으로 생성하거나 아래 명령 사용)
+-- 버킷명: 'images'
+-- 공개 액세스: true
+-- 파일 크기 제한: 10MB
+-- 허용 파일 타입: image/*
+
+-- Storage 정책 설정 (버킷 생성 후 적용)
+-- 1. 인증된 사용자만 업로드 가능
+-- 2. 모든 사용자가 이미지 조회 가능
+-- 3. 사용자는 자신의 이미지만 삭제 가능
+
+-- 버킷 생성 (수동으로 실행 필요)
+/*
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('images', 'images', true)
+ON CONFLICT DO NOTHING;
+*/
+
+-- Storage RLS 정책 설정
+-- 인증된 사용자만 자신의 폴더에 업로드 가능
+/*
+CREATE POLICY "Users can upload to own folder" ON storage.objects
+  FOR INSERT WITH CHECK (
+    auth.role() = 'authenticated' AND
+    bucket_id = 'images' AND
+    (storage.foldername(name))[1] = 'users' AND
+    (storage.foldername(name))[2] = auth.uid()::text
+  );
+*/
+
+-- 모든 사용자가 이미지 조회 가능
+/*
+CREATE POLICY "Images are publicly viewable" ON storage.objects
+  FOR SELECT USING (bucket_id = 'images');
+*/
+
+-- 사용자는 자신의 이미지만 삭제 가능
+/*
+CREATE POLICY "Users can delete own images" ON storage.objects
+  FOR DELETE USING (
+    auth.role() = 'authenticated' AND
+    bucket_id = 'images' AND
+    (storage.foldername(name))[1] = 'users' AND
+    (storage.foldername(name))[2] = auth.uid()::text
+  );
+*/
+
 -- 완료 메시지
 SELECT 'Supabase 데이터베이스 설정이 완료되었습니다!' as message;
+SELECT 'Storage 버킷 "images"를 Supabase 콘솔에서 수동으로 생성하고 위의 정책들을 적용해주세요.' as storage_notice;
