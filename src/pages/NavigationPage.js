@@ -25,6 +25,7 @@ import {
 } from '../utils/mapRunner';
 import { searchNearbyCafesWithNaver } from '../services/cafeService';
 import { saveRunningRecord, compressPath } from '../services/runningService';
+import { createFeedPost } from '../services/feedService';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
 
@@ -540,6 +541,15 @@ const NavigationPage = () => {
           message: '러닝 기록이 저장되었습니다!',
         });
 
+        // 피드 공유 여부 확인
+        const shouldShare = window.confirm(
+          '러닝 기록을 피드에 공유하시겠습니까?\n다른 러너들과 성과를 나눠보세요! 🏃‍♀️'
+        );
+
+        if (shouldShare) {
+          await handleShareToFeed(savedRecord);
+        }
+
         // 상태 초기화
         resetTrackingState();
       } else {
@@ -553,6 +563,46 @@ const NavigationPage = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 피드에 러닝 기록 공유
+  const handleShareToFeed = async savedRecord => {
+    try {
+      // 자동 생성된 캡션
+      const distance = (savedRecord.distance / 1000).toFixed(1);
+      const duration = formatTime(savedRecord.duration);
+      const pace = Math.round(
+        savedRecord.duration / 1000 / 60 / (savedRecord.distance / 1000)
+      );
+
+      const caption = `오늘 ${distance}km 러닝 완주! 🏃‍♀️\n시간: ${duration}\n페이스: ${pace}'00"/km\n\n#러닝 #운동 #건강 #러닝기록 #RunningCafe`;
+
+      const postData = {
+        user_id: user.id,
+        running_record_id: savedRecord.id,
+        caption: caption,
+        hashtags: ['러닝', '운동', '건강', '러닝기록', 'RunningCafe'],
+        location: nearbyCafes.length > 0 ? nearbyCafes[0].address : '',
+        is_achievement: savedRecord.distance >= 5000, // 5km 이상이면 달성 기록으로 표시
+      };
+
+      const result = await createFeedPost(postData);
+
+      if (result.success) {
+        showToast({
+          type: 'success',
+          message: '피드에 공유되었습니다! 🎉',
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('피드 공유 실패:', error);
+      showToast({
+        type: 'error',
+        message: '피드 공유에 실패했습니다.',
+      });
     }
   };
 

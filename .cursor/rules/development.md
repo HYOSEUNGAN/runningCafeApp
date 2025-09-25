@@ -1,5 +1,155 @@
 ## 주요 변경사항 및 특징
 
+### 0. ** 데이터 스미카 **
+
+-- 러닝 앱 데이터베이스 설계 (Supabase)
+
+-- 1. 사용자 테이블 (프로필 확장)
+CREATE TABLE profiles (
+id UUID REFERENCES auth.users(id) PRIMARY KEY,
+username VARCHAR(50) UNIQUE NOT NULL,
+display_name VARCHAR(100),
+avatar_url TEXT,
+bio TEXT,
+total_distance DECIMAL(10,2) DEFAULT 0,
+total_runs INTEGER DEFAULT 0,
+created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+    -- 2. 러닝 기록 테이블
+    CREATE TABLE running_records (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    title VARCHAR(200),
+    distance DECIMAL(8,2) NOT NULL, -- km 단위
+    duration INTEGER NOT NULL, -- 초 단위
+    pace DECIMAL(5,2), -- 분/km
+    calories_burned INTEGER,
+    route_data JSONB, -- GPS 좌표 데이터
+    elevation_gain DECIMAL(8,2), -- 고도 상승 (m)
+    average_heart_rate INTEGER,
+    max_heart_rate INTEGER,
+    weather_condition VARCHAR(50),
+    temperature DECIMAL(4,1),
+    notes TEXT,
+    is_public BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- 3. 피드 포스트 테이블 (인스타그램 스타일)
+    CREATE TABLE feed_posts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    running_record_id UUID REFERENCES running_records(id) ON DELETE CASCADE,
+    caption TEXT,
+    image_urls TEXT[], -- 여러 이미지 지원
+    hashtags TEXT[],
+    location VARCHAR(200),
+    is_achievement BOOLEAN DEFAULT false, -- 달성 기록인지 여부
+    likes_count INTEGER DEFAULT 0,
+    comments_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- 4. 팔로우 관계 테이블
+    CREATE TABLE follows (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    follower_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    following_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(follower_id, following_id),
+    CHECK (follower_id != following_id)
+    );
+
+    -- 5. 좋아요 테이블
+    CREATE TABLE post_likes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    post_id UUID REFERENCES feed_posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, post_id)
+    );
+
+    -- 6. 댓글 테이블
+    CREATE TABLE post_comments (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    post_id UUID REFERENCES feed_posts(id) ON DELETE CASCADE,
+    parent_comment_id UUID REFERENCES post_comments(id) ON DELETE CASCADE, -- 대댓글 지원
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- 7. 월별 챌린지 테이블
+    CREATE TABLE monthly_challenges (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('distance', 'runs_count', 'duration')),
+    target_value DECIMAL(10,2) NOT NULL,
+    target_unit VARCHAR(20) NOT NULL, -- km, runs, minutes 등
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    badge_image_url TEXT,
+    reward_points INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(year, month, target_type)
+    );
+
+    -- 8. 챌린지 참여 테이블
+    CREATE TABLE challenge_participations (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    challenge_id UUID REFERENCES monthly_challenges(id) ON DELETE CASCADE,
+    current_progress DECIMAL(10,2) DEFAULT 0,
+    is_completed BOOLEAN DEFAULT false,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, challenge_id)
+    );
+
+    -- 9. 챌린지 기록 연결 테이블 (러닝 기록이 어떤 챌린지에 기여하는지)
+    CREATE TABLE challenge_records (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    participation_id UUID REFERENCES challenge_participations(id) ON DELETE CASCADE,
+    running_record_id UUID REFERENCES running_records(id) ON DELETE CASCADE,
+    contributed_value DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(participation_id, running_record_id)
+    );
+
+    -- 10. 알림 테이블
+    CREATE TABLE notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL, -- follow, like, comment, challenge_complete 등
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    reference_id UUID, -- 관련된 포스트나 챌린지 ID
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- 인덱스 생성
+    CREATE INDEX idx_running_records_user_id ON running_records(user_id);
+    CREATE INDEX idx_running_records_created_at ON running_records(created_at DESC);
+    CREATE INDEX idx_feed_posts_user_id ON feed_posts(user_id);
+    CREATE INDEX idx_feed_posts_created_at ON feed_posts(created_at DESC);
+    CREATE INDEX idx_follows_follower ON follows(follower_id);
+    CREATE INDEX idx_follows_following ON follows(following_id);
+    CREATE INDEX idx_post_likes_post_id ON post_likes(post_id);
+    CREATE INDEX idx_post_comments_post_id ON post_comments(post_id);
+    CREATE INDEX idx_challenge_participations_user_id ON challenge_participations(user_id);
+    CREATE INDEX idx_challenge_participations_challenge_id ON challenge_participations(challenge_id);
+    CREATE INDEX idx_notifications_user_id_unread ON notifications(user_id, is_read);
+
 ### 1. **Supabase 통합 규칙**
 
 - **환경 설정**: 환경변수를 통한 안전한 설정 관리
@@ -270,13 +420,3 @@
 ; - Tailwind CSS 클래스 최적화로 번들 크기 관리
 ; - 정기적인 의존성 업데이트
 ; - 코드 리뷰 필수 -->
-
-; ---
-; _이 규칙은 Running Cafe 프로젝트의 Supabase + Zustand + Tailwind CSS 기술 스택에 최적화되었습니다._
-
-## 프로젝트 개요
-
-- **프로젝트명**: Running Cafe
-- **기술 스택**: React 19.1.1, JavaScript, CSS
-- **빌드 도구**: Create React App (react-scripts 5.0.1)
-- **테스팅**: Jest, React Testing Library

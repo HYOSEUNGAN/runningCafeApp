@@ -177,9 +177,11 @@ export const useAuthStore = create((set, get) => ({
   getUserId: () => get().user?.id,
   getUserEmail: () => get().user?.email,
   getUserName: () =>
-    get().userProfile?.name ||
+    get().userProfile?.display_name ||
+    get().userProfile?.username ||
     get().user?.user_metadata?.name ||
-    get().user?.user_metadata?.full_name,
+    get().user?.user_metadata?.full_name ||
+    get().user?.email?.split('@')[0],
   getUserAvatar: () =>
     get().userProfile?.avatar_url ||
     get().user?.user_metadata?.avatar_url ||

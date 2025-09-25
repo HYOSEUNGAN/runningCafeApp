@@ -1,55 +1,79 @@
 import { supabase } from './supabase';
+import {
+  createRunningRecord,
+  updateChallengeProgress,
+} from './runningRecordService';
+import { updateChallengeProgress as updateChallenge } from './challengeService';
 
 /**
- * 러닝 기록 관련 API 서비스
- * Supabase에서 러닝 기록 데이터를 관리하는 함수들
+ * 러닝 기록 관련 API 서비스 (NavigationPage용 레거시 함수들)
+ * 새로운 스키마에 맞게 업데이트된 함수들
  */
 
 /**
- * 러닝 기록을 저장하는 함수
+ * 러닝 기록을 저장하는 함수 (NavigationPage 호환)
  * @param {Object} runningData - 러닝 기록 데이터
  * @returns {Promise<Object|null>} 저장된 러닝 기록 데이터
  */
 export const saveRunningRecord = async runningData => {
   try {
-    const { data, error } = await supabase
-      .from('running_records')
-      .insert([
-        {
-          user_id: runningData.userId,
-          start_time: runningData.startTime,
-          end_time: runningData.endTime,
-          duration: runningData.duration, // milliseconds
-          distance: runningData.distance, // meters
-          calories: runningData.calories,
-          average_speed: runningData.averageSpeed, // m/s
-          max_speed: runningData.maxSpeed, // m/s
-          path_data: JSON.stringify(runningData.path), // 경로 좌표 배열
-          nearby_cafes: JSON.stringify(runningData.nearbyCafes), // 주변 카페 정보
-          created_at: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single();
+    // 새로운 스키마에 맞게 데이터 변환
+    const recordData = {
+      user_id: runningData.userId,
+      title: `${(runningData.distance / 1000).toFixed(1)}km 러닝`,
+      distance: runningData.distance / 1000, // 미터를 킬로미터로 변환
+      duration: Math.round(runningData.duration / 1000), // 밀리초를 초로 변환
+      pace:
+        runningData.distance > 0
+          ? Math.round(runningData.duration / 1000 / 60) /
+            (runningData.distance / 1000)
+          : 0, // 분/km
+      calories_burned:
+        runningData.calories || Math.round((runningData.distance / 1000) * 60), // 대략적인 칼로리 계산
+      route_data: {
+        path: runningData.path || [],
+        nearbyCafes: runningData.nearbyCafes || [],
+        startTime: runningData.startTime,
+        endTime: runningData.endTime,
+        averageSpeed: runningData.averageSpeed,
+        maxSpeed: runningData.maxSpeed,
+      },
+      notes: `최고 속도: ${(runningData.maxSpeed * 3.6).toFixed(1)}km/h, 평균 속도: ${(runningData.averageSpeed * 3.6).toFixed(1)}km/h`,
+      is_public: true,
+    };
 
-    if (error) {
-      console.error('러닝 기록 저장 실패:', error);
-      throw error;
+    // 새로운 서비스 함수 사용
+    const result = await createRunningRecord(recordData);
+
+    if (!result.success) {
+      throw new Error(result.error);
     }
 
+    // 챌린지 진행률 업데이트
+    try {
+      await updateChallenge(runningData.userId, result.data.id, {
+        distance: recordData.distance,
+        duration: recordData.duration,
+      });
+    } catch (challengeError) {
+      console.error('챌린지 업데이트 실패:', challengeError);
+      // 챌린지 업데이트 실패해도 러닝 기록 저장은 성공으로 처리
+    }
+
+    // 레거시 형식으로 반환 (NavigationPage 호환성)
     return {
-      id: data.id,
-      userId: data.user_id,
-      startTime: data.start_time,
-      endTime: data.end_time,
-      duration: data.duration,
-      distance: data.distance,
-      calories: data.calories,
-      averageSpeed: data.average_speed,
-      maxSpeed: data.max_speed,
-      path: JSON.parse(data.path_data),
-      nearbyCafes: JSON.parse(data.nearby_cafes),
-      createdAt: data.created_at,
+      id: result.data.id,
+      userId: result.data.user_id,
+      startTime: runningData.startTime,
+      endTime: runningData.endTime,
+      duration: runningData.duration,
+      distance: runningData.distance,
+      calories: result.data.calories_burned,
+      averageSpeed: runningData.averageSpeed,
+      maxSpeed: runningData.maxSpeed,
+      path: runningData.path,
+      nearbyCafes: runningData.nearbyCafes,
+      createdAt: result.data.created_at,
     };
   } catch (error) {
     console.error('러닝 기록 저장 중 오류:', error);

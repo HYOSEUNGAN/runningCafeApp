@@ -1,6 +1,7 @@
 import React from 'react';
 import HomeHeader from '../components/layout/HomeHeader';
 import BottomNavigation from '../components/layout/BottomNavigation';
+import ChallengeSection from '../components/challenge/ChallengeSection';
 import {
   BannerCarousel,
   RankingSection,
@@ -22,6 +23,11 @@ const HomePage = () => {
       <main className="pb-20">
         {/* 배너 섹션 - 이번주 오픈 카페 */}
         <BannerCarousel />
+
+        {/* 월별 챌린지 섹션 */}
+        <div className="px-4 py-6">
+          <ChallengeSection />
+        </div>
 
         {/* 랭킹 섹션 - 이번주 러너스픽 */}
         <RankingSection />

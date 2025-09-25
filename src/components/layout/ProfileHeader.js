@@ -18,7 +18,7 @@ const ProfileHeader = ({
     <header className="bg-white border-b border-gray-200 px-6 py-4 safe-area-top w-full max-w-[390px] mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-        {showEditButton && (
+        {/* {showEditButton && (
           <button
             onClick={onEditToggle}
             className="touch-button text-primary-500 hover:text-primary-600 transition-colors"
@@ -26,7 +26,7 @@ const ProfileHeader = ({
           >
             <span className="text-lg">{isEditing ? '✓' : '✏️'}</span>
           </button>
-        )}
+        )} */}
       </div>
     </header>
   );

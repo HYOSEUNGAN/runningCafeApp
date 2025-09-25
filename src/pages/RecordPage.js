@@ -3,41 +3,77 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import '../styles/calendar.css';
 import { useAuthStore } from '../stores/useAuthStore';
-
-// 샘플 기록 데이터 (날짜별로 정리)
-const runningRecords = {
-  '2025-09-19': {
-    distance: 10.2,
-    time: '02:23:39',
-    pace: '18\'31"',
-    calories: 488,
-    route: '한강공원 러닝',
-    notes: '컨디션이 좋았던 날! 목표했던 10km를 완주했다.',
-    dayOfWeek: 'THU',
-  },
-  '2025-09-25': {
-    distance: 0,
-    time: '00:34',
-    pace: '--\'--"',
-    calories: 0,
-    route: '30분 달리기 도전',
-    notes: '30분 달리기 도전!',
-    dayOfWeek: 'WED',
-  },
-};
-
-// 이번 달 통계
-const monthlyStats = {
-  totalDistance: '0.00km',
-  totalTime: '00:34',
-  avgPace: '--\'--"',
-  totalCalories: 0,
-};
+import {
+  getUserRunningRecords,
+  getMonthlyRunningStats,
+} from '../services/runningRecordService';
+import { useNavigate } from 'react-router-dom';
 
 const RecordPage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { user } = useAuthStore();
+  const [runningRecords, setRunningRecords] = useState([]);
+  const [monthlyStats, setMonthlyStats] = useState({
+    totalDistance: 0,
+    totalDuration: 0,
+    totalCalories: 0,
+    totalRuns: 0,
+    averagePace: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [recordsByDate, setRecordsByDate] = useState({});
+
+  const { user, isAuthenticated, getUserId } = useAuthStore();
+  const navigate = useNavigate();
+
+  // 데이터 로드
+  const loadRunningRecords = async () => {
+    if (!isAuthenticated()) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const userId = getUserId();
+
+      // 러닝 기록 조회
+      const recordsResult = await getUserRunningRecords(userId, { limit: 100 });
+      if (recordsResult.success) {
+        setRunningRecords(recordsResult.data);
+
+        // 날짜별로 기록 정리
+        const recordsMap = {};
+        recordsResult.data.forEach(record => {
+          const dateKey = record.created_at.split('T')[0];
+          if (!recordsMap[dateKey]) {
+            recordsMap[dateKey] = [];
+          }
+          recordsMap[dateKey].push(record);
+        });
+        setRecordsByDate(recordsMap);
+      }
+
+      // 월별 통계 조회
+      const now = new Date();
+      const statsResult = await getMonthlyRunningStats(
+        userId,
+        now.getFullYear(),
+        now.getMonth() + 1
+      );
+      if (statsResult.success) {
+        setMonthlyStats(statsResult.data);
+      }
+    } catch (error) {
+      console.error('러닝 기록 로드 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRunningRecords();
+  }, [user]);
 
   // 날짜를 YYYY-MM-DD 형식으로 변환
   const formatDateKey = date => {
@@ -47,7 +83,27 @@ const RecordPage = () => {
   // 선택된 날짜의 기록 가져오기
   const getRecordForDate = date => {
     const dateKey = formatDateKey(date);
-    return runningRecords[dateKey] || null;
+    return recordsByDate[dateKey] || null;
+  };
+
+  // 시간 포맷팅 (초를 HH:MM:SS로 변환)
+  const formatDuration = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // 페이스 포맷팅 (분/km)
+  const formatPace = pace => {
+    if (!pace || pace === 0) return '--\'--"';
+    const minutes = Math.floor(pace);
+    const seconds = Math.round((pace - minutes) * 60);
+    return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
   };
 
   // 달력에서 러닝 기록이 있는 날짜 표시
@@ -89,7 +145,7 @@ const RecordPage = () => {
     return null;
   };
 
-  const selectedRecord = getRecordForDate(selectedDate);
+  const selectedRecords = getRecordForDate(selectedDate);
 
   // 요일 가져오기
   const getDayOfWeek = date => {
@@ -97,12 +153,54 @@ const RecordPage = () => {
     return days[date.getDay()];
   };
 
+  // 로그인 안 된 경우
+  if (!isAuthenticated()) {
+    return (
+      <div className="min-h-screen bg-neutral-50 pt-16 pb-20">
+        <div className="app-container bg-white">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl text-gray-400">📊</span>
+              </div>
+              <p className="text-gray-500 mb-4">
+                로그인하면 러닝 기록을 확인할 수 있어요
+              </p>
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors"
+              >
+                로그인하기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 pt-16 pb-20">
+        <div className="app-container bg-white">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 pt-16 pb-20">
       <div className="app-container bg-white">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
-          <button className="touch-button text-neutral-600 hover:text-primary-500">
+          <button
+            onClick={() => navigate(-1)}
+            className="touch-button text-neutral-600 hover:text-primary-500"
+          >
             <svg
               className="w-6 h-6"
               fill="none"
@@ -119,7 +217,11 @@ const RecordPage = () => {
           </button>
           <h1 className="text-lg font-bold text-neutral-900">전체 기록</h1>
           <div className="flex space-x-1">
-            <button className="touch-button text-neutral-600 hover:text-primary-500">
+            <button
+              onClick={() => navigate('/navigation')}
+              className="touch-button text-neutral-600 hover:text-primary-500"
+              title="러닝 시작"
+            >
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -177,22 +279,26 @@ const RecordPage = () => {
 
         {/* 현재 러닝 통계 */}
         <div className="px-4 py-6 text-center bg-white">
-          <div className="text-h3 font-bold text-gradient mb-4">거리(km)</div>
+          <div className="text-h3 font-bold text-gradient mb-4">
+            총 {monthlyStats.totalDistance.toFixed(1)}km
+          </div>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="text-center p-3 bg-neutral-50 rounded-card">
               <div className="text-h4 font-bold text-neutral-900 mb-1">
-                02:23:39
+                {formatDuration(monthlyStats.totalDuration)}
               </div>
               <div className="text-caption text-neutral-600">시간</div>
             </div>
             <div className="text-center p-3 bg-neutral-50 rounded-card">
               <div className="text-h4 font-bold text-neutral-900 mb-1">
-                18'31"
+                {formatPace(monthlyStats.averagePace)}
               </div>
               <div className="text-caption text-neutral-600">페이스</div>
             </div>
             <div className="text-center p-3 bg-neutral-50 rounded-card">
-              <div className="text-h4 font-bold text-neutral-900 mb-1">488</div>
+              <div className="text-h4 font-bold text-neutral-900 mb-1">
+                {monthlyStats.totalCalories}
+              </div>
               <div className="text-caption text-neutral-600">칼로리</div>
             </div>
           </div>
@@ -219,56 +325,66 @@ const RecordPage = () => {
         <div className="px-4 py-4">
           <div className="mobile-card bg-neutral-50">
             <h3 className="text-h4 font-bold text-neutral-900 mb-2">
-              9월 분석
+              {new Date().getMonth() + 1}월 분석
             </h3>
             <div className="text-body text-neutral-600">
-              {monthlyStats.totalDistance} / {monthlyStats.totalTime} /{' '}
-              {monthlyStats.avgPace} / --kcal
+              {monthlyStats.totalDistance.toFixed(1)}km /{' '}
+              {formatDuration(monthlyStats.totalDuration)} /{' '}
+              {formatPace(monthlyStats.averagePace)} /{' '}
+              {monthlyStats.totalCalories}kcal
             </div>
           </div>
         </div>
 
         {/* 선택된 날짜의 기록 */}
-        {selectedRecord && (
-          <div className="px-4 pb-4">
-            <div className="mobile-card border border-neutral-200 hover:shadow-card-hover transition-all">
-              <div className="flex items-center justify-between">
-                <div className="text-primary-500 font-medium text-center">
-                  <div className="text-caption font-semibold">
-                    {getDayOfWeek(selectedDate)}
+        {selectedRecords && selectedRecords.length > 0 && (
+          <div className="px-4 pb-4 space-y-3">
+            {selectedRecords.map((record, index) => (
+              <div
+                key={record.id}
+                className="mobile-card border border-neutral-200 hover:shadow-card-hover transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-primary-500 font-medium text-center">
+                    <div className="text-caption font-semibold">
+                      {getDayOfWeek(selectedDate)}
+                    </div>
+                    <div className="text-h3 font-bold">
+                      {selectedDate.getDate()}
+                    </div>
                   </div>
-                  <div className="text-h3 font-bold">
-                    {selectedDate.getDate()}
+                  <div className="flex-1 ml-4">
+                    <h4 className="font-semibold text-neutral-900 mb-1">
+                      {record.title || `${record.distance}km 러닝`}
+                    </h4>
+                    <div className="text-body text-neutral-600">
+                      {formatDuration(record.duration)} / {record.distance}km /{' '}
+                      {formatPace(record.pace)}
+                    </div>
+                    {record.notes && (
+                      <div className="text-sm text-neutral-500 mt-1">
+                        {record.notes}
+                      </div>
+                    )}
                   </div>
+                  <button className="touch-button text-neutral-400 hover:text-primary-500">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
                 </div>
-                <div className="flex-1 ml-4">
-                  <h4 className="font-semibold text-neutral-900 mb-1">
-                    {selectedRecord.route}
-                  </h4>
-                  <div className="text-body text-neutral-600">
-                    {selectedRecord.time} /{' '}
-                    {selectedRecord.distance > 0
-                      ? `${selectedRecord.distance}km`
-                      : '0.00km'}
-                  </div>
-                </div>
-                <button className="touch-button text-neutral-400 hover:text-primary-500">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
               </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
