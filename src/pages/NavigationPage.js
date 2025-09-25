@@ -489,6 +489,12 @@ const NavigationPage = () => {
 
   // 러닝 기록 저장
   const saveRecord = async () => {
+    console.log('=== 러닝 기록 저장 시작 ===');
+    console.log('인증 상태:', isAuthenticated());
+    console.log('사용자 정보:', user);
+    console.log('총 거리:', totalDistance);
+    console.log('경로 점 개수:', path.length);
+
     if (!isAuthenticated() || !user) {
       showToast({
         type: 'error',
@@ -533,7 +539,10 @@ const NavigationPage = () => {
         })),
       };
 
+      console.log('저장할 러닝 데이터:', runningData);
+
       const savedRecord = await saveRunningRecord(runningData);
+      console.log('저장된 기록:', savedRecord);
 
       if (savedRecord) {
         showToast({
@@ -559,10 +568,11 @@ const NavigationPage = () => {
       console.error('러닝 기록 저장 실패:', error);
       showToast({
         type: 'error',
-        message: '러닝 기록 저장에 실패했습니다.',
+        message: `러닝 기록 저장에 실패했습니다: ${error.message}`,
       });
     } finally {
       setIsSaving(false);
+      console.log('=== 러닝 기록 저장 완료 ===');
     }
   };
 
@@ -602,6 +612,52 @@ const NavigationPage = () => {
       showToast({
         type: 'error',
         message: '피드 공유에 실패했습니다.',
+      });
+    }
+  };
+
+  // 테스트용 더미 데이터 생성 (개발용)
+  const createTestRecord = async () => {
+    if (!isAuthenticated() || !user) {
+      showToast({
+        type: 'error',
+        message: '로그인이 필요합니다.',
+      });
+      return;
+    }
+
+    try {
+      const testData = {
+        userId: user.id,
+        startTime: new Date(Date.now() - 1800000).toISOString(), // 30분 전
+        endTime: new Date().toISOString(),
+        duration: 1800000, // 30분 (밀리초)
+        distance: 5000, // 5km (미터)
+        calories: 300,
+        averageSpeed: 2.78, // 약 10km/h
+        maxSpeed: 4.17, // 약 15km/h
+        path: [
+          { lat: 37.5665, lng: 126.978 },
+          { lat: 37.5675, lng: 126.979 },
+          { lat: 37.5685, lng: 126.98 },
+        ],
+        nearbyCafes: [],
+      };
+
+      console.log('테스트 데이터 생성 중...');
+      const savedRecord = await saveRunningRecord(testData);
+
+      if (savedRecord) {
+        showToast({
+          type: 'success',
+          message: '테스트 러닝 기록이 생성되었습니다!',
+        });
+      }
+    } catch (error) {
+      console.error('테스트 기록 생성 실패:', error);
+      showToast({
+        type: 'error',
+        message: `테스트 기록 생성 실패: ${error.message}`,
       });
     }
   };
@@ -1235,6 +1291,18 @@ const NavigationPage = () => {
             <div className="text-xs text-gray-600">
               운동 완료! 기록을 저장하거나 SNS에 공유해보세요 🎉
             </div>
+          </div>
+        )}
+
+        {/* 개발용 테스트 버튼 */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="px-4 py-2 text-center border-t border-gray-100">
+            <button
+              onClick={createTestRecord}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors"
+            >
+              테스트 기록 생성
+            </button>
           </div>
         )}
       </nav>

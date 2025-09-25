@@ -218,7 +218,7 @@ const RecordPage = () => {
           <h1 className="text-lg font-bold text-neutral-900">전체 기록</h1>
           <div className="flex space-x-1">
             <button
-              onClick={() => navigate('/navigation')}
+              onClick={() => navigate('/nav')}
               className="touch-button text-neutral-600 hover:text-primary-500"
               title="러닝 시작"
             >
@@ -312,7 +312,8 @@ const RecordPage = () => {
             tileContent={tileContent}
             tileClassName={tileClassName}
             formatDay={(locale, date) => date.getDate().toString()}
-            showNeighboringMonth={false}
+            showNeighboringMonth={true}
+            calendarType="gregory"
             next2Label={null}
             prev2Label={null}
             nextLabel="›"

@@ -220,7 +220,7 @@ const FeedPage = () => {
                 아직 피드에 게시된 러닝 기록이 없어요
               </p>
               <button
-                onClick={() => navigate('/navigation')}
+                onClick={() => navigate('/nav')}
                 className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors"
               >
                 첫 러닝 시작하기

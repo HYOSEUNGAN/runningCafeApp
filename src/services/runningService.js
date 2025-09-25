@@ -17,6 +17,13 @@ import { updateChallengeProgress as updateChallenge } from './challengeService';
  */
 export const saveRunningRecord = async runningData => {
   try {
+    console.log('=== runningService.saveRunningRecord 시작 ===');
+    console.log('받은 러닝 데이터:', runningData);
+
+    if (!runningData || !runningData.userId) {
+      throw new Error('사용자 정보가 없습니다.');
+    }
+
     // 새로운 스키마에 맞게 데이터 변환
     const recordData = {
       user_id: runningData.userId,
@@ -42,8 +49,11 @@ export const saveRunningRecord = async runningData => {
       is_public: true,
     };
 
+    console.log('변환된 기록 데이터:', recordData);
+
     // 새로운 서비스 함수 사용
     const result = await createRunningRecord(recordData);
+    console.log('createRunningRecord 결과:', result);
 
     if (!result.success) {
       throw new Error(result.error);
@@ -51,17 +61,19 @@ export const saveRunningRecord = async runningData => {
 
     // 챌린지 진행률 업데이트
     try {
+      console.log('챌린지 진행률 업데이트 시작...');
       await updateChallenge(runningData.userId, result.data.id, {
         distance: recordData.distance,
         duration: recordData.duration,
       });
+      console.log('챌린지 진행률 업데이트 완료');
     } catch (challengeError) {
       console.error('챌린지 업데이트 실패:', challengeError);
       // 챌린지 업데이트 실패해도 러닝 기록 저장은 성공으로 처리
     }
 
     // 레거시 형식으로 반환 (NavigationPage 호환성)
-    return {
+    const returnData = {
       id: result.data.id,
       userId: result.data.user_id,
       startTime: runningData.startTime,
@@ -75,9 +87,13 @@ export const saveRunningRecord = async runningData => {
       nearbyCafes: runningData.nearbyCafes,
       createdAt: result.data.created_at,
     };
+
+    console.log('반환할 데이터:', returnData);
+    console.log('=== runningService.saveRunningRecord 완료 ===');
+    return returnData;
   } catch (error) {
     console.error('러닝 기록 저장 중 오류:', error);
-    return null;
+    throw error; // null 대신 에러를 던져서 NavigationPage에서 더 구체적인 에러 메시지 표시
   }
 };
 
