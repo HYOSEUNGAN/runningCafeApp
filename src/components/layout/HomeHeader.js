@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { ROUTES } from '../../constants/app';
+import RunningIcon from '../../assets/icons/RunningIcon';
 
 /**
  * 홈페이지 전용 헤더 컴포넌트
@@ -45,16 +46,16 @@ const HomeHeader = () => {
           {/* 프로필 버튼 */}
           <button
             onClick={handleProfileClick}
-            className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="프로필"
           >
-            <span className="text-xs text-gray-600">👤</span>
+            <RunningIcon size={20} gradient={false} color="#6B7280" />
           </button>
 
           {/* 편성표 버튼 */}
           <button
             onClick={handleScheduleClick}
-            className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="편성표"
           >
             <span className="text-xs text-gray-600">📋</span>
