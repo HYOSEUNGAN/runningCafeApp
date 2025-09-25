@@ -11,6 +11,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   RUNNING_COURSES: '/courses',
   MAP: '/map',
+  NAV: '/nav',
   CAFES: '/cafes',
   MY_RECORDS: '/records',
 };

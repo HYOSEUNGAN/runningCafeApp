@@ -13,32 +13,31 @@ export const useAuthStore = create((set, get) => ({
   initialize: async () => {
     try {
       set({ isLoading: true, error: null });
-      
+
       // 현재 세션 확인
       const { session, error } = await authService.getCurrentSession();
       if (error) throw new Error(error);
 
-      set({ 
-        session, 
-        user: session?.user || null, 
-        isLoading: false 
+      set({
+        session,
+        user: session?.user || null,
+        isLoading: false,
       });
 
       // 인증 상태 변화 리스너 설정
       supabase.auth.onAuthStateChange((event, session) => {
-        set({ 
-          session, 
+        set({
+          session,
           user: session?.user || null,
-          isLoading: false
+          isLoading: false,
         });
       });
-
     } catch (error) {
-      set({ 
-        error: error.message, 
+      set({
+        error: error.message,
         isLoading: false,
         user: null,
-        session: null
+        session: null,
       });
     }
   },
@@ -46,10 +45,14 @@ export const useAuthStore = create((set, get) => ({
   signUp: async (email, password, userData) => {
     try {
       set({ isLoading: true, error: null });
-      const { data, error } = await authService.signUp(email, password, userData);
-      
+      const { data, error } = await authService.signUp(
+        email,
+        password,
+        userData
+      );
+
       if (error) throw new Error(error);
-      
+
       set({ isLoading: false });
       return { success: true, data };
     } catch (error) {
@@ -62,13 +65,13 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const { data, error } = await authService.signIn(email, password);
-      
+
       if (error) throw new Error(error);
-      
-      set({ 
-        user: data.user, 
-        session: data.session, 
-        isLoading: false 
+
+      set({
+        user: data.user,
+        session: data.session,
+        isLoading: false,
       });
       return { success: true, data };
     } catch (error) {
@@ -81,13 +84,13 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const { error } = await authService.signOut();
-      
+
       if (error) throw new Error(error);
-      
-      set({ 
-        user: null, 
-        session: null, 
-        isLoading: false 
+
+      set({
+        user: null,
+        session: null,
+        isLoading: false,
       });
       return { success: true };
     } catch (error) {
@@ -96,14 +99,31 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  updateProfile: async (updates) => {
+  updateProfile: async updates => {
     try {
       set({ isLoading: true, error: null });
       const { data, error } = await authService.updateProfile(updates);
-      
+
       if (error) throw new Error(error);
-      
+
       set({ user: data.user, isLoading: false });
+      return { success: true, data };
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      return { success: false, error: error.message };
+    }
+  },
+
+  // 카카오 소셜 로그인
+  signInWithKakao: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const { data, error } = await authService.signInWithKakao();
+
+      if (error) throw new Error(error);
+
+      // OAuth는 리다이렉트되므로 여기서 상태 업데이트하지 않음
+      // 리다이렉트 후 onAuthStateChange에서 처리됨
       return { success: true, data };
     } catch (error) {
       set({ error: error.message, isLoading: false });
@@ -117,4 +137,8 @@ export const useAuthStore = create((set, get) => ({
   isAuthenticated: () => !!get().user,
   getUserId: () => get().user?.id,
   getUserEmail: () => get().user?.email,
+  getUserName: () =>
+    get().user?.user_metadata?.name || get().user?.user_metadata?.full_name,
+  getUserAvatar: () =>
+    get().user?.user_metadata?.avatar_url || get().user?.user_metadata?.picture,
 }));

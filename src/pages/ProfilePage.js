@@ -13,13 +13,14 @@ import ProfileHeader from '../components/layout/ProfileHeader';
  */
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, signOut, isAuthenticated, getUserName, getUserAvatar } =
+    useAuthStore();
   const { showToast } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       showToast({
         type: 'success',
         message: '로그아웃되었습니다.',
@@ -104,18 +105,26 @@ const ProfilePage = () => {
             <div className="absolute top-0 left-0 right-0 h-24 bg-primary-gradient opacity-10 rounded-t-card"></div>
 
             <div className="relative flex items-center space-x-4 mb-6 pt-4">
-              <div className="w-20 h-20 bg-primary-gradient rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-3xl text-white">🏃‍♀️</span>
+              <div className="w-20 h-20 bg-primary-gradient rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                {isLoggedIn && getUserAvatar() ? (
+                  <img
+                    src={getUserAvatar()}
+                    alt="프로필"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl text-white">🏃‍♀️</span>
+                )}
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-1">
                   {isLoggedIn
-                    ? user?.email?.split('@')[0] || 'Runner'
+                    ? getUserName() || user?.email?.split('@')[0] || 'Runner'
                     : '게스트'}
                 </h2>
                 <p className="text-sm text-gray-600 mb-2">
                   {isLoggedIn
-                    ? user?.email || 'runner@example.com'
+                    ? user?.email || '카카오 로그인 사용자'
                     : '로그인하여 더 많은 기능을 이용해보세요'}
                 </p>
                 <div className="flex items-center space-x-2 flex-wrap gap-1">
@@ -392,9 +401,9 @@ const ProfilePage = () => {
           </div>
         </Card>
 
-        {/* 로그아웃 버튼 */}
-        {isLoggedIn && (
-          <div className="pt-4">
+        {/* 로그인/로그아웃 버튼 */}
+        <div className="pt-4 space-y-3">
+          {isLoggedIn ? (
             <Button
               variant="ghost"
               size="lg"
@@ -403,8 +412,17 @@ const ProfilePage = () => {
             >
               로그아웃
             </Button>
-          </div>
-        )}
+          ) : (
+            <Button
+              size="lg"
+              className="w-full bg-primary-gradient text-white hover:opacity-90 transition-opacity"
+              onClick={() => navigate(ROUTES.LOGIN)}
+            >
+              <span className="mr-2">🏃‍♀️</span>
+              로그인하고 시작하기
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 하단 네비게이션 */}

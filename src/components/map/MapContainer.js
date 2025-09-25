@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sortCafesByDistance, enrichCafeData } from '../../utils/location';
+import { getAllCafes, getNearbyCafes } from '../../services/cafeService';
+import {
+  getWalkingDirections,
+  convertPathToNaverLatLng,
+  formatRouteInfo,
+} from '../../services/naverDirectionsService';
 
 /**
  * 메인 지도 컨테이너 컴포넌트
@@ -11,14 +17,27 @@ const MapContainer = ({
   onMarkerClick,
   userLocation,
   mapCenter,
+  selectedFilters = [],
+  searchRadius = 5,
+  onReSearchArea,
+  currentZoom: propCurrentZoom,
+  mapType: propMapType,
+  onZoomChange,
+  onMapTypeChange,
 }) => {
   const mapRef = useRef(null);
   const naverMapRef = useRef(null);
   const markersRef = useRef([]);
+  const polylinesRef = useRef([]);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [supabaseCafes, setSupabaseCafes] = useState([]);
+  const [showRoute, setShowRoute] = useState(false);
+  const [selectedCafe, setSelectedCafe] = useState(null);
+  const [currentZoom, setCurrentZoom] = useState(propCurrentZoom || 15);
+  const [mapType, setMapType] = useState(propMapType || 'normal'); // 'normal', 'satellite', 'hybrid'
 
   // 샘플 러닝 코스 데이터
   const sampleRunningCourses = [
@@ -107,9 +126,81 @@ const MapContainer = ({
     },
   ];
 
-  // 사용자 위치 기반으로 거리 계산된 카페 데이터
+  // Supabase에서 카페 데이터 가져오기
+  useEffect(() => {
+    const fetchCafes = async () => {
+      try {
+        let cafeData = [];
+
+        if (userLocation) {
+          // 사용자 위치가 있으면 설정된 반경 내 카페만 가져오기
+          cafeData = await getNearbyCafes(
+            userLocation.lat,
+            userLocation.lng,
+            searchRadius
+          );
+        } else {
+          // 사용자 위치가 없으면 모든 카페 가져오기
+          cafeData = await getAllCafes();
+        }
+
+        setSupabaseCafes(cafeData);
+      } catch (error) {
+        console.error('카페 데이터 로딩 실패:', error);
+        // 에러 발생 시 기본 데이터 사용
+        const enrichedCafes = enrichCafeData(baseCafeData, userLocation);
+        const sortedCafes = sortCafesByDistance(enrichedCafes, userLocation);
+        setSupabaseCafes(sortedCafes);
+      }
+    };
+
+    fetchCafes();
+  }, [userLocation, searchRadius]);
+
+  // 카페 필터링 함수
+  const applyFilters = useCallback((cafes, filters) => {
+    if (!filters || filters.length === 0) {
+      return cafes;
+    }
+
+    return cafes.filter(cafe => {
+      return filters.every(filter => {
+        switch (filter) {
+          case 'open':
+            return cafe.isOpen === true;
+          case 'runner-friendly':
+            return (
+              cafe.features?.includes('러닝 후 추천') ||
+              cafe.features?.includes('샤워실') ||
+              cafe.features?.includes('러닝 클럽')
+            );
+          case 'partnership':
+            return (
+              cafe.features?.includes('제휴카페') ||
+              cafe.features?.includes('할인혜택')
+            );
+          case 'brunch':
+            return (
+              cafe.features?.includes('브런치') ||
+              cafe.features?.includes('건강식') ||
+              cafe.name.includes('브런치')
+            );
+          default:
+            return true;
+        }
+      });
+    });
+  }, []);
+
+  // 사용자 위치 기반으로 거리 계산된 카페 데이터 (폴백용)
   const enrichedCafes = enrichCafeData(baseCafeData, userLocation);
   const sortedCafes = sortCafesByDistance(enrichedCafes, userLocation);
+
+  // 실제 사용할 카페 데이터 (Supabase 데이터 우선, 없으면 기본 데이터)
+  const baseCafes = supabaseCafes.length > 0 ? supabaseCafes : sortedCafes;
+
+  // 필터 적용된 카페 데이터
+  const displayCafes = applyFilters(baseCafes, selectedFilters);
 
   // 네이버 지도 초기화
   const initializeMap = useCallback(() => {
@@ -131,19 +222,15 @@ const MapContainer = ({
         zoom: 15,
         minZoom: 10,
         maxZoom: 19,
-        mapTypeControl: true,
-        mapTypeControlOptions: {
-          style: window.naver.maps.MapTypeControlStyle.BUTTON,
-          position: window.naver.maps.Position.TOP_LEFT,
-        },
-        zoomControl: true,
-        zoomControlOptions: {
-          style: window.naver.maps.ZoomControlStyle.SMALL,
-          position: window.naver.maps.Position.TOP_RIGHT,
-        },
+        // 모든 기본 컨트롤 비활성화
+        mapTypeControl: false,
+        zoomControl: false,
         scaleControl: false,
         logoControl: false,
         mapDataControl: false,
+        // 지도 스타일을 더 모던하게
+        tileDuration: 200,
+        tileTransition: true,
       };
 
       naverMapRef.current = new window.naver.maps.Map(
@@ -158,6 +245,19 @@ const MapContainer = ({
         setIsLoading(false);
       });
 
+      // 줌 레벨 변경 이벤트 리스너
+      window.naver.maps.Event.addListener(
+        naverMapRef.current,
+        'zoom_changed',
+        () => {
+          const newZoom = naverMapRef.current.getZoom();
+          setCurrentZoom(newZoom);
+          if (onZoomChange) {
+            onZoomChange(newZoom);
+          }
+        }
+      );
+
       // 타임아웃으로 안전장치 추가
       setTimeout(() => {
         if (!mapReady) {
@@ -171,6 +271,162 @@ const MapContainer = ({
       setIsLoading(false);
     }
   }, [userLocation, mapReady]);
+
+  // 실제 경로 찾기 API를 사용한 경로 그리기 함수
+  const drawRoute = useCallback(async (startCoords, endCoords, cafe) => {
+    if (!naverMapRef.current || !window.naver?.maps) return;
+
+    // 기존 경로 제거
+    polylinesRef.current.forEach(polyline => polyline.setMap(null));
+    polylinesRef.current = [];
+
+    try {
+      // 네이버 Directions API를 사용한 실제 경로 검색
+      const routeData = await getWalkingDirections(startCoords, endCoords);
+
+      // API에서 받은 경로 좌표를 네이버 지도 LatLng 객체로 변환
+      const path = convertPathToNaverLatLng(routeData.path);
+
+      if (path.length === 0) {
+        console.warn('경로 데이터가 없습니다. 직선 경로를 사용합니다.');
+        // 폴백: 직선 경로
+        path.push(
+          new window.naver.maps.LatLng(startCoords.lat, startCoords.lng),
+          new window.naver.maps.LatLng(endCoords.lat, endCoords.lng)
+        );
+      }
+
+      // 실제 도로를 따라가는 Polyline 생성
+      const polyline = new window.naver.maps.Polyline({
+        map: naverMapRef.current,
+        path: path,
+        strokeColor: '#FF6B35', // 주황색 경로
+        strokeWeight: 5,
+        strokeOpacity: 0.8,
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
+        strokeStyle: 'solid',
+      });
+
+      polylinesRef.current.push(polyline);
+
+      // 경로 정보 포맷팅
+      const routeInfo = formatRouteInfo(routeData.distance, routeData.duration);
+
+      // 경로 중간 지점에 정보 표시
+      const midIndex = Math.floor(path.length / 2);
+      const midPoint = path[midIndex] || path[0];
+
+      const routeInfoWindow = new window.naver.maps.InfoWindow({
+        content: `
+          <div style="
+            padding: 10px 14px; 
+            background: linear-gradient(135deg, #FF6B35, #F97316); 
+            color: white; 
+            border-radius: 24px; 
+            font-size: 13px; 
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+            border: 2px solid white;
+          ">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>🚶‍♀️</span>
+              <span>${routeInfo.distance}</span>
+              <span style="opacity: 0.8;">•</span>
+              <span>${routeInfo.walkingTime}</span>
+            </div>
+          </div>
+        `,
+        position: midPoint,
+        borderWidth: 0,
+        anchorSize: new window.naver.maps.Size(0, 0),
+        pixelOffset: new window.naver.maps.Point(0, -15),
+      });
+
+      routeInfoWindow.open(naverMapRef.current);
+
+      // 지도 범위를 전체 경로에 맞게 조정
+      const bounds = new window.naver.maps.LatLngBounds();
+      path.forEach(point => bounds.extend(point));
+      naverMapRef.current.fitBounds(bounds, { padding: 80 });
+
+      return {
+        distance: routeData.distance,
+        duration: routeData.duration,
+        path: routeData.path,
+      };
+    } catch (error) {
+      console.error('경로 생성 오류:', error);
+
+      // 에러 시 직선 경로로 폴백
+      const fallbackPath = [
+        new window.naver.maps.LatLng(startCoords.lat, startCoords.lng),
+        new window.naver.maps.LatLng(endCoords.lat, endCoords.lng),
+      ];
+
+      const polyline = new window.naver.maps.Polyline({
+        map: naverMapRef.current,
+        path: fallbackPath,
+        strokeColor: '#FF6B35',
+        strokeWeight: 4,
+        strokeOpacity: 0.6,
+        strokeStyle: 'shortdash', // 점선으로 표시하여 추정 경로임을 나타냄
+      });
+
+      polylinesRef.current.push(polyline);
+
+      return { distance: 0, duration: 0, path: [] };
+    }
+  }, []);
+
+  // 경로 지우기 함수
+  const clearRoute = useCallback(() => {
+    polylinesRef.current.forEach(polyline => polyline.setMap(null));
+    polylinesRef.current = [];
+    setShowRoute(false);
+    setSelectedCafe(null);
+  }, []);
+
+  // 커스텀 줌 컨트롤 함수들
+  const handleZoomIn = useCallback(() => {
+    if (naverMapRef.current && currentZoom < 19) {
+      naverMapRef.current.setZoom(currentZoom + 1, true);
+    }
+  }, [currentZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    if (naverMapRef.current && currentZoom > 10) {
+      naverMapRef.current.setZoom(currentZoom - 1, true);
+    }
+  }, [currentZoom]);
+
+  // 지도 타입 변경 함수
+  const handleMapTypeChange = useCallback(() => {
+    if (!naverMapRef.current) return;
+
+    const nextType = {
+      normal: 'satellite',
+      satellite: 'hybrid',
+      hybrid: 'normal',
+    };
+
+    const newMapType = nextType[mapType];
+    setMapType(newMapType);
+
+    // 네이버 지도 타입 설정
+    const naverMapType = {
+      normal: window.naver.maps.MapTypeId.NORMAL,
+      satellite: window.naver.maps.MapTypeId.SATELLITE,
+      hybrid: window.naver.maps.MapTypeId.HYBRID,
+    };
+
+    naverMapRef.current.setMapTypeId(naverMapType[newMapType]);
+
+    // 부모 컴포넌트에 변경사항 전달
+    if (onMapTypeChange) {
+      onMapTypeChange(newMapType);
+    }
+  }, [mapType]);
 
   // 마커 생성 및 관리
   const createMarkers = useCallback(() => {
@@ -199,8 +455,8 @@ const MapContainer = ({
       markersRef.current.push(userMarker);
     }
 
-    // 카페 마커들 (거리순으로 정렬된 데이터 사용)
-    sortedCafes.forEach(cafe => {
+    // 카페 마커들 (Supabase 데이터 또는 기본 데이터 사용)
+    displayCafes.forEach(cafe => {
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(
           cafe.coordinates.lat,
@@ -211,71 +467,157 @@ const MapContainer = ({
         icon: {
           content: `
             <div style="
-              width: 40px; 
-              height: 40px; 
-              background: ${cafe.isOpen ? '#F97316' : '#6B7280'}; 
-              border: 2px solid white; 
+              width: 44px; 
+              height: 44px; 
+              background: linear-gradient(135deg, ${cafe.isOpen ? '#FF6B35, #F97316' : '#6B7280, #4B5563'}); 
+              border: 3px solid white; 
               border-radius: 50%; 
               display: flex; 
               align-items: center; 
               justify-content: center; 
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
               cursor: pointer;
               position: relative;
+              transition: all 0.2s ease;
             ">
-              <span style="color: white; font-size: 18px;">☕</span>
+              <span style="color: white; font-size: 20px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">☕</span>
               ${
                 cafe.isOpen
                   ? `
                 <div style="
                   position: absolute;
-                  top: -2px;
-                  right: -2px;
-                  width: 12px;
-                  height: 12px;
+                  top: -3px;
+                  right: -3px;
+                  width: 14px;
+                  height: 14px;
                   background: #10B981;
-                  border: 2px solid white;
+                  border: 3px solid white;
                   border-radius: 50%;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 "></div>
+              `
+                  : ''
+              }
+              ${
+                cafe.distance && cafe.distance < 1
+                  ? `
+                <div style="
+                  position: absolute;
+                  bottom: -8px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  background: #3B82F6;
+                  color: white;
+                  padding: 2px 6px;
+                  border-radius: 8px;
+                  font-size: 10px;
+                  font-weight: bold;
+                  white-space: nowrap;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                ">${cafe.distanceText || '가까움'}</div>
               `
                   : ''
               }
             </div>
           `,
-          anchor: new window.naver.maps.Point(20, 20),
+          anchor: new window.naver.maps.Point(22, 22),
         },
       });
 
-      // 마커 클릭 이벤트
+      // 마커 클릭 이벤트 (경로 표시 기능 포함)
       window.naver.maps.Event.addListener(marker, 'click', () => {
         handleMarkerClick('cafe', cafe);
+
+        // 사용자 위치가 있으면 경로 표시
+        if (userLocation) {
+          setSelectedCafe(cafe);
+          setShowRoute(true);
+          drawRoute(userLocation, cafe.coordinates, cafe);
+        }
       });
 
-      // 정보 창 (InfoWindow) 추가
+      // 정보 창 (InfoWindow) 추가 - 개선된 디자인
       const infoWindow = new window.naver.maps.InfoWindow({
         content: `
-          <div style="padding: 10px; min-width: 200px;">
-            <h4 style="margin: 0 0 5px 0; font-size: 14px; font-weight: bold;">${cafe.name}</h4>
-            <p style="margin: 0 0 3px 0; font-size: 12px; color: #666;">
-              ⭐ ${cafe.rating} · ${cafe.distanceText || '거리 정보 없음'}
-            </p>
-            <p style="margin: 0 0 5px 0; font-size: 12px; color: ${cafe.isOpen ? '#10B981' : '#EF4444'};">
-              ${cafe.isOpen ? '영업중' : '영업종료'}
-            </p>
+          <div style="
+            padding: 12px; 
+            min-width: 220px; 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          ">
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #1F2937; flex: 1;">${cafe.name}</h4>
+              ${
+                cafe.isOpen
+                  ? '<span style="background: #10B981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">OPEN</span>'
+                  : '<span style="background: #EF4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">CLOSED</span>'
+              }
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="color: #F59E0B; margin-right: 4px;">⭐</span>
+              <span style="font-size: 13px; font-weight: 600; color: #374151; margin-right: 8px;">${cafe.rating || '4.5'}</span>
+              <span style="font-size: 13px; color: #6B7280;">
+                ${cafe.distanceText || (cafe.distance ? `${cafe.distance.toFixed(1)}km` : '거리 정보 없음')}
+              </span>
+            </div>
+            
+            ${
+              cafe.address
+                ? `
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #6B7280; line-height: 1.4;">
+                📍 ${cafe.address}
+              </p>
+            `
+                : ''
+            }
+            
             ${
               cafe.features && cafe.features.length > 0
                 ? `
-              <p style="margin: 0; font-size: 11px; color: #888;">
-                ${cafe.features.slice(0, 2).join(', ')}
-              </p>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                ${cafe.features
+                  .slice(0, 3)
+                  .map(
+                    feature =>
+                      `<span style="
+                    background: #F3F4F6; 
+                    color: #4B5563; 
+                    padding: 2px 6px; 
+                    border-radius: 6px; 
+                    font-size: 10px; 
+                    font-weight: 500;
+                  ">${feature}</span>`
+                  )
+                  .join('')}
+              </div>
+            `
+                : ''
+            }
+            
+            ${
+              userLocation
+                ? `
+              <div style="
+                margin-top: 8px; 
+                padding: 6px 0; 
+                border-top: 1px solid #E5E7EB; 
+                font-size: 11px; 
+                color: #6B7280; 
+                text-align: center;
+              ">
+                클릭하여 경로 보기 🚶‍♀️
+              </div>
             `
                 : ''
             }
           </div>
         `,
         borderWidth: 0,
-        anchorSize: new window.naver.maps.Size(20, 10),
-        pixelOffset: new window.naver.maps.Point(0, -10),
+        anchorSize: new window.naver.maps.Size(0, 0),
+        pixelOffset: new window.naver.maps.Point(0, -15),
       });
 
       // 마커 호버 시 정보 창 표시
@@ -327,7 +669,14 @@ const MapContainer = ({
 
       markersRef.current.push(marker);
     });
-  }, [mapReady, userLocation]);
+  }, [
+    mapReady,
+    userLocation,
+    displayCafes,
+    drawRoute,
+    selectedFilters,
+    applyFilters,
+  ]);
 
   // 지도 초기화 useEffect
   useEffect(() => {
@@ -356,7 +705,7 @@ const MapContainer = ({
   // 마커 생성 useEffect
   useEffect(() => {
     createMarkers();
-  }, [createMarkers]);
+  }, [createMarkers, displayCafes]);
 
   // 사용자 위치 변경 시 지도 중심 이동
   useEffect(() => {
@@ -368,6 +717,32 @@ const MapContainer = ({
       naverMapRef.current.setCenter(newCenter);
     }
   }, [userLocation]);
+
+  // props에서 받은 줌 레벨 변경 시 지도 업데이트
+  useEffect(() => {
+    if (
+      naverMapRef.current &&
+      propCurrentZoom !== undefined &&
+      propCurrentZoom !== currentZoom
+    ) {
+      naverMapRef.current.setZoom(propCurrentZoom, true);
+      setCurrentZoom(propCurrentZoom);
+    }
+  }, [propCurrentZoom, currentZoom]);
+
+  // props에서 받은 지도 타입 변경 시 지도 업데이트
+  useEffect(() => {
+    if (naverMapRef.current && propMapType && propMapType !== mapType) {
+      const naverMapType = {
+        normal: window.naver.maps.MapTypeId.NORMAL,
+        satellite: window.naver.maps.MapTypeId.SATELLITE,
+        hybrid: window.naver.maps.MapTypeId.HYBRID,
+      };
+
+      naverMapRef.current.setMapTypeId(naverMapType[propMapType]);
+      setMapType(propMapType);
+    }
+  }, [propMapType, mapType]);
 
   const handleMarkerClick = (type, item) => {
     setSelectedMarker({ type, item });
@@ -416,6 +791,63 @@ const MapContainer = ({
         className="w-full h-full"
         style={{ minHeight: '400px' }}
       />
+
+      {/* 경로 제어 버튼들 */}
+      {showRoute && selectedCafe && (
+        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 max-w-xs">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-bold text-sm text-gray-800">
+              {selectedCafe.name}
+            </h4>
+            <button
+              onClick={clearRoute}
+              className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-gray-600 mb-2">
+            🚶‍♀️ 도보 경로가 표시되었습니다
+          </p>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                if (selectedCafe.phone) {
+                  window.open(`tel:${selectedCafe.phone}`);
+                }
+              }}
+              className="flex-1 bg-green-500 text-white text-xs py-2 px-3 rounded-md hover:bg-green-600 transition-colors"
+            >
+              📞 전화
+            </button>
+            <button
+              onClick={() => {
+                const url = `https://map.naver.com/v5/directions/${userLocation?.lng},${userLocation?.lat},,/${selectedCafe.coordinates.lng},${selectedCafe.coordinates.lat},,/walk`;
+                window.open(url, '_blank');
+              }}
+              className="flex-1 bg-blue-500 text-white text-xs py-2 px-3 rounded-md hover:bg-blue-600 transition-colors"
+            >
+              🗺️ 길찾기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 카페 개수 표시 */}
+      {displayCafes.length > 0 && (
+        <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg px-3 py-2">
+          <p className="text-sm font-medium text-gray-700">
+            ☕ {displayCafes.length}개 카페 발견
+          </p>
+          {userLocation && (
+            <p className="text-xs text-gray-500">
+              현재 위치 기준 {searchRadius}km 범위
+              {selectedFilters.length > 0 &&
+                ` • ${selectedFilters.length}개 필터 적용`}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 네이버 지도가 로드되지 않은 경우 또는 에러 상황 폴백 UI */}
       {(!mapReady || hasError) && !isLoading && (

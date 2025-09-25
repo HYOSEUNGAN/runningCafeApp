@@ -12,9 +12,9 @@ const CafeCard = ({
   onCallClick,
   onSaveClick,
   onShareClick,
+  isSaved = false,
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isSaved, setIsSaved] = useState(cafe.isSaved || false);
 
   // 샘플 이미지 데이터
   const sampleImages = [
@@ -36,7 +36,6 @@ const CafeCard = ({
   };
 
   const handleSaveClick = () => {
-    setIsSaved(!isSaved);
     if (onSaveClick) {
       onSaveClick(cafe.id, !isSaved);
     }
@@ -99,17 +98,23 @@ const CafeCard = ({
 
         {/* 이미지 갤러리 */}
         <div className="relative mb-4">
-          <div className="flex space-x-2 overflow-hidden">
+          <div className="flex space-x-2 overflow-x-auto custom-scrollbar pb-1">
             {sampleImages.map((image, index) => (
               <div
                 key={image.id}
-                className={`flex-shrink-0 w-24 h-24 bg-gray-200 rounded-lg overflow-hidden transition-all duration-300 ${
-                  index === currentImageIndex ? 'ring-2 ring-blue-500' : ''
+                className={`flex-shrink-0 w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 ${
+                  index === currentImageIndex
+                    ? 'ring-2 ring-blue-500 shadow-lg'
+                    : 'hover:ring-1 hover:ring-gray-300'
                 }`}
+                onClick={() => setCurrentImageIndex(index)}
               >
                 {/* 플레이스홀더 이미지 */}
-                <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-                  img
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-medium">
+                  <div className="text-center">
+                    <div className="text-lg mb-1">📸</div>
+                    <div>사진{index + 1}</div>
+                  </div>
                 </div>
               </div>
             ))}

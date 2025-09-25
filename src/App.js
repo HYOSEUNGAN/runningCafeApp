@@ -5,24 +5,30 @@ import AppRoutes from './components/AppRoutes';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
+import { setupSampleDataHelper } from './utils/sampleData';
 import './App.css';
 
 function App() {
-  // const { initialize, isLoading } = useAuthStore();
+  const { initialize, isLoading } = useAuthStore();
 
-  // useEffect(() => {
-  //   // 앱 초기화 - 인증 상태 확인
-  //   initialize();
-  // }, [initialize]);
+  useEffect(() => {
+    // 앱 초기화 - 인증 상태 확인
+    initialize();
 
-  // // 로딩 중일 때 표시할 컴포넌트
-  // if (isLoading) {
-  //   return (
-  //     <div className="flex items-center justify-center min-h-screen bg-neutral-50">
-  //       <LoadingSpinner size="lg" message="앱을 초기화하는 중..." />
-  //     </div>
-  //   );
-  // }
+    // 개발 환경에서만 샘플 데이터 헬퍼 등록
+    if (process.env.NODE_ENV === 'development') {
+      setupSampleDataHelper();
+    }
+  }, [initialize]);
+
+  // 로딩 중일 때 표시할 컴포넌트
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-neutral-50">
+        <LoadingSpinner size="lg" message="앱을 초기화하는 중..." />
+      </div>
+    );
+  }
 
   return (
     <Router>

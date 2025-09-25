@@ -48,11 +48,15 @@ REACT_APP_NAME=Running Cafe
 REACT_APP_VERSION=0.1.0
 REACT_APP_ENVIRONMENT=development
 
-# 네이버 지도 API (선택사항 - public/index.html에서도 설정 가능)
-REACT_APP_NAVER_MAP_CLIENT_ID=your_naver_client_id
+# 네이버 지도 API (필수)
+REACT_APP_NAVER_MAP_CLIENT_ID=your_naver_map_client_id
+
+# 네이버 검색 API (서버에서 사용, 주변 카페 검색용)
+NAVER_CLIENT_ID=your_naver_search_client_id
+NAVER_CLIENT_SECRET=your_naver_search_client_secret
 
 # Supabase 설정 (https://supabase.com에서 프로젝트 생성 후 설정)
-REACT_APP_SUPABASE_URL=your_supabase_project_url
+REACT_APP_SUPABASE_URL=https://hdummdjaakiihhwfroub.supabase.co
 REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # API 설정
@@ -62,9 +66,26 @@ REACT_APP_API_BASE_URL=http://localhost:3000/api
 REACT_APP_DEBUG=true
 REACT_APP_LOG_LEVEL=info
 GENERATE_SOURCEMAP=true
+
+# 카카오 OAuth 설정 (Supabase에서 자동 처리되므로 선택사항)
+# REACT_APP_KAKAO_CLIENT_ID=your_kakao_client_id
+# REACT_APP_KAKAO_REDIRECT_URI=https://hdummdjaakiihhwfroub.supabase.co/auth/v1/callback
 ```
 
-### 4. 개발 서버 실행
+> **중요**: 네이버 검색 API는 보안상 서버에서만 호출해야 합니다. 클라이언트 시크릿을 브라우저에 노출하면 안됩니다.
+
+### 4. 카카오 로그인 설정 (Supabase)
+
+카카오 소셜 로그인을 위해 Supabase에서 다음과 같이 설정하세요:
+
+1. **Supabase 대시보드**에서 Authentication > Providers로 이동
+2. **Kakao** 활성화
+3. **카카오 개발자 콘솔**에서 설정:
+   - Client ID: `MsbPUHKPdZ8pSlFKikKJdSOHrSg6OQFH` (예시)
+   - Client Secret: `MsbPUHKPdZ8pSlFKikKJdSOHrSg6OQFH` (예시)
+   - Redirect URI: `https://hdummdjaakiihhwfroub.supabase.co/auth/v1/callback`
+
+### 5. 개발 서버 실행
 
 ```bash
 npm start
@@ -74,15 +95,39 @@ npm run dev
 
 브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 앱을 확인하세요.
 
+## ✨ 주요 기능
+
+### 🏃‍♂️ 러닝 네비게이션 (`/nav`)
+
+- **실시간 GPS 추적**: 정확한 위치 기반 경로 추적
+- **경로 그리기**: 이동 경로를 지도에 실시간으로 표시
+- **운동 통계**: 거리, 시간, 칼로리, 속도 실시간 계산
+- **주변 카페 검색**: 네이버 검색 API를 활용한 1km 반경 카페 자동 검색
+- **러닝 기록 저장**: 완료된 운동 기록을 데이터베이스에 저장
+- **SNS 공유**: 운동 결과를 소셜 미디어에 공유
+
+### 🗺️ 지도 기능
+
+- **네이버 지도 통합**: 한국 지역에 최적화된 정확한 지도 서비스
+- **카페 마커 표시**: 주변 카페를 지도에 직관적으로 표시
+- **위치 기반 서비스**: 현재 위치 자동 감지 및 지도 중심 이동
+
+### 👤 사용자 관리
+
+- **카카오 소셜 로그인**: Supabase 통합 간편 로그인
+- **러닝 기록 관리**: 개인별 운동 기록 저장 및 조회
+- **사용자 프로필**: 개인 정보 및 운동 통계 관리
+
 ## 📦 기술 스택
 
 - **Frontend**: React 19.1.1, React Router DOM 7.9.1
 - **상태관리**: Zustand 5.0.8
 - **스타일링**: Tailwind CSS 3.4.17
-- **지도 서비스**: 네이버 지도 API
+- **지도 서비스**: 네이버 지도 API v3, 네이버 검색 API
 - **위치 서비스**: HTML5 Geolocation API
 - **폼 관리**: React Hook Form 7.63.0
-- **데이터베이스**: Supabase
+- **데이터베이스**: Supabase (PostgreSQL)
+- **인증**: Supabase Auth (카카오 OAuth)
 - **유틸리티**: date-fns, uuid, zod
 - **아이콘**: Lucide React
 - **테스팅**: React Testing Library, Jest
@@ -106,6 +151,9 @@ src/
 ├── pages/              # 페이지 컴포넌트
 │   ├── HomePage.js     # 홈 페이지
 │   ├── MapPage.js      # 지도 페이지 (GPS + 네이버 지도)
+│   ├── NavigationPage.js # 러닝 네비게이션 페이지
+│   ├── LoginPage.js    # 로그인 페이지
+│   ├── AuthCallbackPage.js # 인증 콜백 페이지
 │   └── ProfilePage.js  # 프로필 페이지
 ├── hooks/              # 커스텀 훅
 ├── stores/             # Zustand 스토어
@@ -113,7 +161,10 @@ src/
 │   └── useAuthStore.js # 인증 상태
 ├── services/           # API 서비스
 │   ├── supabase.js     # Supabase 클라이언트
-│   └── authService.js  # 인증 서비스
+│   ├── authService.js  # 인증 서비스
+│   ├── cafeService.js  # 카페 검색 서비스
+│   ├── runningService.js # 러닝 기록 서비스
+│   └── naverApiService.js # 네이버 API 서비스
 ├── utils/              # 유틸리티 함수
 │   ├── location.js     # GPS, 거리 계산, 위치 관련 유틸리티
 │   ├── format.js       # 데이터 포맷팅
@@ -232,12 +283,45 @@ fix: 주문 폼 유효성 검사 오류 수정
    - HTTPS 환경에서 테스트 (일부 브라우저는 HTTP에서 위치 서비스 제한)
    - 모바일에서는 위치 서비스 활성화 확인
 
+6. **러닝 기록이 저장되지 않음**
+   - 로그인 상태 확인 (로그인 필수)
+   - Supabase 데이터베이스 연결 상태 확인
+   - 브라우저 개발자 도구에서 API 호출 오류 확인
+
+7. **주변 카페가 표시되지 않음**
+   - 네이버 검색 API 키 설정 확인
+   - 서버 엔드포인트 구현 필요 (`/api/naver/search/local`)
+   - 현재 위치 권한 허용 확인
+
+## 🚀 사용법
+
+### 러닝 네비게이션 사용하기
+
+1. **네비게이션 페이지 접근**: 메뉴에서 "러닝 네비" 클릭 또는 `/nav` 경로로 이동
+2. **위치 권한 허용**: 브라우저에서 위치 정보 액세스 권한 허용
+3. **운동 시작**: "시작" 버튼을 눌러 GPS 추적 시작
+4. **실시간 모니터링**: 지도에서 이동 경로와 통계 정보 확인
+5. **일시정지/재개**: 필요 시 운동을 일시정지하고 재개 가능
+6. **운동 완료**: "정지" 버튼으로 운동 종료
+7. **기록 저장**: 로그인 후 "저장" 버튼으로 운동 기록 저장
+8. **SNS 공유**: "공유" 버튼으로 운동 결과를 소셜 미디어에 공유
+
+### 주요 화면 구성
+
+- **상단 헤더**: 페이지 제목, 공유 버튼
+- **통계 카드**: 시간, 거리, 칼로리, 속도 실시간 표시
+- **지도 영역**: 네이버 지도, 이동 경로, 카페 마커
+- **주변 카페 리스트**: 1km 반경 내 카페 정보 (이름, 주소, 거리)
+- **컨트롤 버튼**: 시작/정지/일시정지, 저장 버튼
+
 ## 📚 추가 자료
 
 - [React 공식 문서](https://reactjs.org/)
 - [네이버 지도 API 문서](https://navermaps.github.io/maps.js.ncp/)
+- [네이버 검색 API 문서](https://developers.naver.com/docs/serviceapi/search/)
 - [네이버 클라우드 플랫폼](https://www.ncloud.com/product/applicationService/maps)
 - [HTML5 Geolocation API](https://developer.mozilla.org/ko/docs/Web/API/Geolocation_API)
+- [Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API)
 - [Tailwind CSS 문서](https://tailwindcss.com/docs)
 - [Supabase 문서](https://supabase.com/docs)
 - [React Hook Form 문서](https://react-hook-form.com/)

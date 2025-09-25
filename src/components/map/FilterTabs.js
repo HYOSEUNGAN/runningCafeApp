@@ -4,21 +4,32 @@ import React, { useState } from 'react';
  * 지도 필터 탭 컴포넌트
  * "주변 10km", "즐겨찾기" 탭 전환
  */
-const FilterTabs = ({ onTabChange, activeTab = 'nearby' }) => {
+const FilterTabs = ({
+  onTabChange,
+  activeTab = 'nearby',
+  nearbyCount = 0,
+  favoritesCount = 0,
+  searchRadius = 5,
+}) => {
   const [selectedTab, setSelectedTab] = useState(activeTab);
+
+  // activeTab이 변경되면 selectedTab도 업데이트
+  React.useEffect(() => {
+    setSelectedTab(activeTab);
+  }, [activeTab]);
 
   const tabs = [
     {
       id: 'nearby',
-      label: '주변 10Km',
+      label: `주변 ${searchRadius}km`,
       icon: '📍',
-      count: 24,
+      count: nearbyCount,
     },
     {
       id: 'favorites',
       label: '즐겨찾기',
       icon: '⭐',
-      count: 8,
+      count: favoritesCount,
     },
   ];
 

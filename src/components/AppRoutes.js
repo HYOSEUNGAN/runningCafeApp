@@ -3,11 +3,13 @@ import { Routes, Route } from 'react-router-dom';
 import { ROUTES } from '../constants/app';
 import Navigation from './layout/Navigation';
 
-// 페이지 컴포넌트들 (나중에 생성될 예정)
+// 페이지 컴포넌트들
 import HomePage from '../pages/HomePage';
 import MapPage from '../pages/MapPage';
+import NavigationPage from '../pages/NavigationPage';
 import ProfilePage from '../pages/ProfilePage';
-// import LoginPage from '../pages/LoginPage';
+import LoginPage from '../pages/LoginPage';
+import AuthCallbackPage from '../pages/AuthCallbackPage';
 // import SignupPage from '../pages/SignupPage';
 // import RunningCoursesPage from '../pages/RunningCoursesPage';
 // import CafesPage from '../pages/CafesPage';
@@ -29,7 +31,8 @@ const AppRoutes = () => {
       <Navigation />
       <Routes>
         <Route path={ROUTES.HOME} element={<HomePage />} />
-        <Route path={ROUTES.LOGIN} element={<TempPage title="로그인" />} />
+        <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path={ROUTES.SIGNUP} element={<TempPage title="회원가입" />} />
         <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
         <Route
@@ -37,6 +40,7 @@ const AppRoutes = () => {
           element={<TempPage title="러닝 코스" />}
         />
         <Route path={ROUTES.MAP} element={<MapPage />} />
+        <Route path={ROUTES.NAV} element={<NavigationPage />} />
         <Route path={ROUTES.CAFES} element={<TempPage title="카페" />} />
         <Route
           path={ROUTES.MY_RECORDS}

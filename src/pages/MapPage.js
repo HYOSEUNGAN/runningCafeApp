@@ -15,6 +15,10 @@ const MapPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(true);
+  const [selectedFilters, setSelectedFilters] = useState([]);
+  const [searchRadius, setSearchRadius] = useState(5);
+  const [currentZoom, setCurrentZoom] = useState(15);
+  const [mapType, setMapType] = useState('normal');
 
   // 컴포넌트 마운트 시 현재 위치 가져오기
   useEffect(() => {
@@ -186,12 +190,101 @@ const MapPage = () => {
     }
   };
 
+  // 필터 변경 핸들러
+  const handleFilterChange = newFilters => {
+    setSelectedFilters(newFilters);
+    const filterNames = {
+      open: '영업중',
+      'runner-friendly': '러너친화',
+      partnership: '제휴카페',
+      brunch: '브런치',
+    };
+
+    if (newFilters.length > 0) {
+      const filterText = newFilters.map(f => filterNames[f]).join(', ');
+      showToast({
+        type: 'info',
+        message: `${filterText} 필터가 적용되었습니다.`,
+      });
+    } else {
+      showToast({
+        type: 'info',
+        message: '모든 필터가 해제되었습니다.',
+      });
+    }
+  };
+
+  // 검색 반경 변경 핸들러
+  const handleRadiusChange = newRadius => {
+    setSearchRadius(newRadius);
+    showToast({
+      type: 'info',
+      message: `검색 반경이 ${newRadius}km로 설정되었습니다.`,
+    });
+  };
+
+  // 현재 지역 재검색 핸들러
+  const handleReSearchArea = () => {
+    getCurrentLocation();
+    showToast({
+      type: 'info',
+      message: '현재 지역에서 카페를 다시 검색합니다.',
+    });
+  };
+
+  // 줌 인 핸들러
+  const handleZoomIn = () => {
+    if (currentZoom < 19) {
+      setCurrentZoom(currentZoom + 1);
+    }
+  };
+
+  // 줌 아웃 핸들러
+  const handleZoomOut = () => {
+    if (currentZoom > 10) {
+      setCurrentZoom(currentZoom - 1);
+    }
+  };
+
+  // 지도 타입 변경 핸들러
+  const handleMapTypeChange = () => {
+    const nextType = {
+      normal: 'satellite',
+      satellite: 'hybrid',
+      hybrid: 'normal',
+    };
+
+    const newMapType = nextType[mapType];
+    setMapType(newMapType);
+
+    const typeNames = {
+      normal: '일반 지도',
+      satellite: '위성 지도',
+      hybrid: '하이브리드 지도',
+    };
+
+    showToast({
+      type: 'info',
+      message: `${typeNames[newMapType]}로 변경되었습니다.`,
+    });
+  };
+
   return (
     <div className="app-container bg-gray-100 overflow-hidden">
       {/* 지도 헤더 */}
       <MapHeader
         onSearchFocus={handleSearchFocus}
         onLocationClick={handleLocationClick}
+        onFilterChange={handleFilterChange}
+        onRadiusChange={handleRadiusChange}
+        onReSearchArea={handleReSearchArea}
+        selectedFilters={selectedFilters}
+        selectedRadius={searchRadius}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onMapTypeChange={handleMapTypeChange}
+        currentZoom={currentZoom}
+        mapType={mapType}
       />
 
       {/* 메인 지도 */}
@@ -199,18 +292,28 @@ const MapPage = () => {
         <MapContainer
           userLocation={userLocation}
           onMarkerClick={handleMarkerClick}
+          selectedFilters={selectedFilters}
+          searchRadius={searchRadius}
+          onReSearchArea={handleReSearchArea}
+          currentZoom={currentZoom}
+          mapType={mapType}
+          onZoomChange={setCurrentZoom}
+          onMapTypeChange={setMapType}
         />
       </div>
 
       {/* 하단 바텀시트 */}
       <BottomSheet
         isOpen={isBottomSheetOpen}
+        userLocation={userLocation}
         onClose={() => setIsBottomSheetOpen(false)}
         onCafeSelect={handleCafeSelect}
         onRouteClick={handleRouteClick}
         onCallClick={handleCallClick}
         onSaveClick={handleSaveClick}
         onShareClick={handleShareClick}
+        selectedFilters={selectedFilters}
+        searchRadius={searchRadius}
       />
 
       {/* 하단 네비게이션 */}

@@ -34,8 +34,11 @@ const Navigation = () => {
   const navItems = [
     { path: ROUTES.HOME, label: '홈' },
     { path: ROUTES.RUNNING_COURSES, label: '러닝 코스' },
+    { path: ROUTES.NAV, label: '러닝 네비' },
     { path: ROUTES.CAFES, label: '카페' },
-    ...(isAuthenticated() ? [{ path: ROUTES.MY_RECORDS, label: '내 기록' }] : []),
+    ...(isAuthenticated()
+      ? [{ path: ROUTES.MY_RECORDS, label: '내 기록' }]
+      : []),
   ];
 
   return (
@@ -52,7 +55,7 @@ const Navigation = () => {
 
           {/* 데스크톱 네비게이션 */}
           <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
+            {navItems.map(item => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -114,7 +117,7 @@ const Navigation = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-neutral-200">
             <div className="space-y-4">
-              {navItems.map((item) => (
+              {navItems.map(item => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -128,7 +131,7 @@ const Navigation = () => {
                   {item.label}
                 </Link>
               ))}
-              
+
               {isAuthenticated() ? (
                 <div className="space-y-2 pt-4 border-t border-neutral-200">
                   <Link
@@ -138,9 +141,9 @@ const Navigation = () => {
                   >
                     {user?.email}
                   </Link>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       handleSignOut();
                       setIsMenuOpen(false);
