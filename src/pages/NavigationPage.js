@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Play,
   Pause,
@@ -63,6 +64,7 @@ const NavigationPage = () => {
   // 스토어
   const { user, isAuthenticated } = useAuthStore();
   const { showToast } = useAppStore();
+  const navigate = useNavigate();
 
   // 지도 관련 refs
   const mapRef = useRef(null);
@@ -643,12 +645,12 @@ const NavigationPage = () => {
       return;
     }
 
-    // 경로가 없거나 너무 짧은 경우만 체크 (거리 0은 허용)
-    if (path.length < 2) {
+    // 기본 유효성 검사 (거리 0도 허용, 경로 없어도 허용)
+    // 시간이 없으면 최소 기본값 설정
+    if (elapsedTime === 0 && (!startTime || !endTime)) {
       showToast({
         type: 'error',
-        message:
-          '러닝 경로가 기록되지 않았습니다. 최소 2개 이상의 위치가 필요합니다.',
+        message: '러닝 시간이 기록되지 않았습니다. 시작 버튼을 눌러주세요.',
       });
       return;
     }
@@ -656,29 +658,44 @@ const NavigationPage = () => {
     setIsSaving(true);
 
     try {
+      // 시간 및 거리 기본값 설정
+      const actualDuration =
+        elapsedTime || (endTime && startTime ? endTime - startTime : 30000); // 최소 30초
+      const actualDistance = totalDistance || 0; // 거리 0 허용
+      const actualPath = path && path.length > 0 ? path : []; // 경로 비어있어도 허용
+
       const runningData = {
         userId: user.id,
-        startTime: new Date(startTime).toISOString(),
+        startTime: new Date(
+          startTime || Date.now() - actualDuration
+        ).toISOString(),
         endTime: new Date(endTime || Date.now()).toISOString(),
-        duration: elapsedTime,
-        distance: totalDistance,
-        calories: getCalculatedCalories(),
+        duration: actualDuration,
+        distance: actualDistance,
+        calories: actualDistance > 0 ? getCalculatedCalories() : 50, // 기본 50 칼로리
         averageSpeed:
-          totalDistance > 0 ? totalDistance / (elapsedTime / 1000) : 0,
-        maxSpeed: maxSpeed,
-        path: compressPath(
-          path.map(pos => ({
-            lat: typeof pos.lat === 'function' ? pos.lat() : pos.lat,
-            lng: typeof pos.lng === 'function' ? pos.lng() : pos.lng,
-          }))
-        ),
-        nearbyCafes: nearbyCafes.map(cafe => ({
-          id: cafe.id,
-          name: cafe.name,
-          address: cafe.address,
-          coordinates: cafe.coordinates,
-          distanceText: cafe.distanceText,
-        })),
+          actualDistance > 0 && actualDuration > 0
+            ? actualDistance / (actualDuration / 1000)
+            : 0,
+        maxSpeed: maxSpeed || 0,
+        path:
+          actualPath.length > 0
+            ? compressPath(
+                actualPath.map(pos => ({
+                  lat: typeof pos.lat === 'function' ? pos.lat() : pos.lat,
+                  lng: typeof pos.lng === 'function' ? pos.lng() : pos.lng,
+                }))
+              )
+            : [],
+        nearbyCafes: nearbyCafes
+          ? nearbyCafes.map(cafe => ({
+              id: cafe.id,
+              name: cafe.name,
+              address: cafe.address,
+              coordinates: cafe.coordinates,
+              distanceText: cafe.distanceText,
+            }))
+          : [],
       };
 
       console.log('저장할 러닝 데이터:', runningData);
@@ -722,11 +739,23 @@ const NavigationPage = () => {
   };
 
   // 포스트 작성 모달 닫기
-  const handleCloseCreatePostModal = () => {
+  const handleCloseCreatePostModal = (isPosted = false) => {
     setCreatePostModal({
       isOpen: false,
       runningRecord: null,
     });
+
+    // 포스트가 성공적으로 작성되었으면 피드 페이지로 이동
+    if (isPosted) {
+      showToast({
+        type: 'success',
+        message: '🎉 피드에 성공적으로 공유되었습니다!',
+      });
+
+      setTimeout(() => {
+        navigate('/feed');
+      }, 1500); // 1.5초 후 이동
+    }
   };
 
   // 피드에 러닝 기록 공유
@@ -764,13 +793,18 @@ const NavigationPage = () => {
           console.log('지도 이미지 생성 완료:', mapImage);
           console.log('이미지 파일 크기:', mapImage.size, 'bytes');
         } else {
-          console.warn('경로 데이터가 비어있음 - 기본 이미지로 대체');
-          // 경로가 비어있어도 기본 이미지 생성
+          console.warn('경로 데이터가 비어있음 - 기본 이미지 생성');
+          // 경로가 비어있어도 의미있는 기본 이미지 생성
           mapImage = await createRunningRecordMapImage({
             path: [],
-            nearbyCafes: [],
+            nearbyCafes: savedRecord.nearbyCafes || [],
             distance: savedRecord.distance,
             duration: savedRecord.duration,
+            title:
+              savedRecord.distance > 0
+                ? `${(savedRecord.distance / 1000).toFixed(1)}km 러닝`
+                : '러닝 기록',
+            isEmptyPath: true, // 빈 경로 플래그
           });
         }
       } catch (imageError) {
@@ -798,6 +832,17 @@ const NavigationPage = () => {
         })),
       });
 
+      // 이미지가 제대로 생성되었는지 추가 검증
+      if (mapImage) {
+        console.log('지도 이미지 최종 검증:', {
+          isFile: mapImage instanceof File,
+          hasBlob: mapImage instanceof Blob,
+          size: mapImage.size,
+          type: mapImage.type,
+          name: mapImage.name,
+        });
+      }
+
       console.log('피드 포스트 데이터:', postData);
 
       const result = await createFeedPost(postData);
@@ -813,6 +858,11 @@ const NavigationPage = () => {
         });
 
         console.log('피드 공유 성공:', result);
+
+        // 피드 공유 성공 시 피드 페이지로 이동
+        setTimeout(() => {
+          navigate('/feed');
+        }, 1500); // 1.5초 후 이동 (토스트 메시지 확인 시간)
       } else {
         console.error('피드 공유 실패 결과:', result);
         throw new Error(result.error || '피드 공유에 실패했습니다.');
@@ -1021,7 +1071,7 @@ const NavigationPage = () => {
 
   // Instagram 공유를 위한 이미지 및 텍스트 준비
   const shareToInstagram = async () => {
-    if (totalDistance === 0) {
+    if (totalDistance === 0 && elapsedTime === 0) {
       showToast({
         type: 'error',
         message: '공유할 러닝 기록이 없습니다.',
@@ -1044,7 +1094,10 @@ const NavigationPage = () => {
           : '0.0';
 
       // Instagram용 해시태그와 쪽션 생성
-      const instagramCaption = `🏃‍♀️ 오늘 ${distance} 러닝 완주! 💪\n\n⏱️ 시간: ${runningTime}\n📏 거리: ${distance}\n🔥 칼로리: ${calories}kcal\n⚡ 평균 속도: ${avgSpeed}km/h\n\n${nearbyCafes.length > 0 ? `☕ 주변 카페 ${nearbyCafes.length}곳 발견!\n` : ''}🏃 #러닝 #운동 #건강 #러닝기록 #RunningCafe #오늘도달리기 #피트니스 #운동스타그램 #러닝맨 #러닝우먼`;
+      const instagramCaption =
+        totalDistance > 0
+          ? `🏃‍♀️ 오늘 ${distance} 러닝 완주! 💪\n\n⏱️ 시간: ${runningTime}\n📏 거리: ${distance}\n🔥 칼로리: ${calories}kcal\n⚡ 평균 속도: ${avgSpeed}km/h\n\n${nearbyCafes.length > 0 ? `☕ 주변 카페 ${nearbyCafes.length}곳 발견!\n` : ''}🏃 #러닝 #운동 #건강 #러닝기록 #RunningCafe #오늘도달리기 #피트니스 #운동스타그램 #러닝맨 #러닝우먼`
+          : `🏃‍♀️ 오늘 러닝 운동 완료! 💪\n\n⏱️ 시간: ${runningTime}\n💪 운동 기록을 남겼어요!\n\n${nearbyCafes.length > 0 ? `☕ 주변 카페 ${nearbyCafes.length}곳 발견!\n` : ''}🏃 #러닝 #운동 #건강 #러닝기록 #RunningCafe #오늘도달리기 #피트니스 #운동스타그램 #러닝맨 #러닝우먼`;
 
       // 클립보드에 쪽션 복사
       await navigator.clipboard.writeText(instagramCaption);
@@ -1071,7 +1124,10 @@ const NavigationPage = () => {
       console.error('Instagram 공유 준비 실패:', error);
 
       // 폴백: 수동 복사 안내
-      const fallbackText = `🏃‍♀️ 오늘 ${formatDistance(totalDistance)} 러닝 완주! 💪\n\n⏱️ ${formatTime(elapsedTime)} | 🔥 ${getCalculatedCalories()}kcal\n\n#러닝 #운동 #건강 #RunningCafe`;
+      const fallbackText =
+        totalDistance > 0
+          ? `🏃‍♀️ 오늘 ${formatDistance(totalDistance)} 러닝 완주! 💪\n\n⏱️ ${formatTime(elapsedTime)} | 🔥 ${getCalculatedCalories()}kcal\n\n#러닝 #운동 #건강 #RunningCafe`
+          : `🏃‍♀️ 오늘 러닝 운동! 💪\n\n⏱️ ${formatTime(elapsedTime)} 동안 운동했어요!\n\n#러닝 #운동 #건강 #RunningCafe`;
 
       if (window.prompt) {
         window.prompt(
@@ -1089,7 +1145,7 @@ const NavigationPage = () => {
 
   // 일반 SNS 공유 (기존 기능)
   const shareToSNS = async () => {
-    if (totalDistance === 0) {
+    if (totalDistance === 0 && elapsedTime === 0) {
       showToast({
         type: 'error',
         message: '공유할 러닝 기록이 없습니다.',
@@ -1471,9 +1527,9 @@ const NavigationPage = () => {
               {/* Instagram 공유 버튼 */}
               <button
                 onClick={shareToInstagram}
-                disabled={totalDistance === 0}
+                disabled={totalDistance === 0 && elapsedTime === 0}
                 className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  totalDistance === 0
+                  totalDistance === 0 && elapsedTime === 0
                     ? 'text-gray-300'
                     : 'text-pink-600 hover:text-pink-800'
                 }`}
@@ -1481,7 +1537,7 @@ const NavigationPage = () => {
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    totalDistance === 0
+                    totalDistance === 0 && elapsedTime === 0
                       ? 'bg-gray-200'
                       : 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600'
                   }`}
@@ -1494,9 +1550,9 @@ const NavigationPage = () => {
               {/* 일반 공유 버튼 */}
               <button
                 onClick={shareToSNS}
-                disabled={totalDistance === 0}
+                disabled={totalDistance === 0 && elapsedTime === 0}
                 className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  totalDistance === 0
+                  totalDistance === 0 && elapsedTime === 0
                     ? 'text-gray-300'
                     : 'text-blue-600 hover:text-blue-800'
                 }`}
@@ -1504,7 +1560,7 @@ const NavigationPage = () => {
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    totalDistance === 0
+                    totalDistance === 0 && elapsedTime === 0
                       ? 'bg-gray-200'
                       : 'bg-blue-500 hover:bg-blue-600'
                   }`}
@@ -1514,8 +1570,8 @@ const NavigationPage = () => {
                 <span className="text-xs font-bold">공유</span>
               </button>
 
-              {/* 저장 버튼 */}
-              {totalDistance > 0 && (
+              {/* 저장 버튼 - 거리 0이어도 저장 가능 */}
+              {(totalDistance > 0 || elapsedTime > 0) && (
                 <button
                   onClick={saveRecord}
                   disabled={isSaving}
@@ -1600,10 +1656,12 @@ const NavigationPage = () => {
         </div>
 
         {/* 추가 정보 표시 */}
-        {totalDistance > 0 && !isTracking && (
+        {(totalDistance > 0 || elapsedTime > 0) && !isTracking && (
           <div className="px-4 py-2 text-center border-t border-gray-100">
             <div className="text-xs text-gray-600">
-              운동 완료! 기록을 저장하거나 SNS에 공유해보세요 🎉
+              {totalDistance > 0
+                ? '운동 완료! 기록을 저장하거나 SNS에 공유해보세요 🎉'
+                : '운동 기록이 있습니다. 저장하시겠습니까? 💾'}
             </div>
           </div>
         )}

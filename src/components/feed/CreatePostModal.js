@@ -310,9 +310,10 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
           message: '포스트가 성공적으로 작성되었습니다! 🎉',
         });
 
-        onClose();
+        // 성공적으로 포스트가 작성되었음을 부모 컴포넌트에 알림
+        onClose(true);
 
-        // 페이지 새로고침 (피드 목록 갱신)
+        // 페이지 새로고침 (피드 목록 갱신) - NavigationPage에서 온 경우 제외
         if (window.location.pathname === '/feed') {
           window.location.reload();
         }
@@ -338,7 +339,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
       {/* 배경 오버레이 */}
       <div
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
+        onClick={() => onClose(false)}
       />
 
       {/* 모달 컨텐츠 */}
@@ -349,7 +350,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
             {runningRecord ? '러닝 기록 공유' : '새 포스트 작성'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={() => onClose(false)}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
             disabled={isSubmitting}
           >
@@ -586,7 +587,7 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
         <div className="p-4 border-t border-gray-200">
           <div className="flex space-x-3">
             <button
-              onClick={onClose}
+              onClick={() => onClose(false)}
               className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               disabled={isSubmitting}
             >

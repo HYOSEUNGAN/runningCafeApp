@@ -7,6 +7,7 @@ import {
   getUserRunningRecords,
   getMonthlyRunningStats,
 } from '../services/runningRecordService';
+import { getKSTDateKey, getLocalDateKey } from '../utils/format';
 import { useNavigate } from 'react-router-dom';
 
 const RecordPage = () => {
@@ -44,10 +45,11 @@ const RecordPage = () => {
       if (recordsResult.success) {
         setRunningRecords(recordsResult.data);
 
-        // 날짜별로 기록 정리
+        // 날짜별로 기록 정리 (한국 시간대로 변환)
         const recordsMap = {};
         recordsResult.data.forEach(record => {
-          const dateKey = record.created_at.split('T')[0];
+          // UTC 시간을 한국 시간대로 변환하여 날짜 키 생성
+          const dateKey = getKSTDateKey(record.created_at);
           if (!recordsMap[dateKey]) {
             recordsMap[dateKey] = [];
           }
@@ -76,9 +78,9 @@ const RecordPage = () => {
     loadRunningRecords();
   }, [user, currentMonth, currentYear]);
 
-  // 날짜를 YYYY-MM-DD 형식으로 변환
+  // 날짜를 YYYY-MM-DD 형식으로 변환 (한국 시간대 기준)
   const formatDateKey = date => {
-    return date.toISOString().split('T')[0];
+    return getLocalDateKey(date);
   };
 
   // 선택된 날짜의 기록 가져오기

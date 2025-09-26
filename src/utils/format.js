@@ -6,6 +6,21 @@ import {
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
+// UTC 시간을 한국 시간대(KST)로 변환하여 날짜 키 생성
+export const getKSTDateKey = utcDateString => {
+  const utcDate = new Date(utcDateString);
+  const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000); // UTC+9
+  return kstDate.toISOString().split('T')[0];
+};
+
+// 로컬 날짜를 YYYY-MM-DD 형식으로 변환 (시간대 변환 없이)
+export const getLocalDateKey = date => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // 날짜 포맷팅
 export const formatDate = (date, formatString = 'yyyy.MM.dd') => {
   if (!date) return '';

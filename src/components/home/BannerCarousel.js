@@ -48,9 +48,9 @@ const BannerCarousel = () => {
   return (
     <section className="px-4 py-4">
       {/* 섹션 타이틀 */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <h2 className="text-sm font-bold text-gray-800">이번주 오픈 카페</h2>
-      </div>
+      </div> */}
 
       {/* 캐러셀 컨테이너 */}
       <div className="relative">
