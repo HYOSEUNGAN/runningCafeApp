@@ -30,6 +30,8 @@ import { createRunningRecordMapImage } from '../services/mapImageService';
 import CreatePostModal from '../components/feed/CreatePostModal';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '../constants/app';
 
 const NavigationPage = () => {
   // 상태 관리
@@ -690,19 +692,11 @@ const NavigationPage = () => {
           message: '러닝 기록이 저장되었습니다!',
         });
 
-        // 피드 공유 옵션 제공
-        const shareOptions = await showShareOptions(savedRecord);
-
-        if (shareOptions === 'modal') {
-          // 모달을 통한 커스텀 포스트 작성
-          setCreatePostModal({
-            isOpen: true,
-            runningRecord: savedRecord,
-          });
-        } else if (shareOptions === 'auto') {
-          // 자동 생성된 포스트로 공유
-          await handleShareToFeed(savedRecord);
-        }
+        // 바로 업로드 모달 열기 (허락 모달 없이)
+        setCreatePostModal({
+          isOpen: true,
+          runningRecord: savedRecord,
+        });
 
         // 상태 초기화
         resetTrackingState();
@@ -721,25 +715,10 @@ const NavigationPage = () => {
     }
   };
 
-  // 공유 옵션 선택 모달
+  // 공유 옵션 선택 모달 (사용하지 않음 - 바로 모달 열기로 변경)
   const showShareOptions = savedRecord => {
-    return new Promise(resolve => {
-      // 커스텀 모달 대신 confirm을 사용하여 간단하게 구현
-      const shareChoice = window.confirm(
-        `🎉 러닝 기록이 저장되었습니다!\n\n피드에 공유하시겠습니까?\n\n✅ 확인: 사진과 함께 커스텀 포스트 작성\n❌ 취소: 공유하지 않음`
-      );
-
-      if (shareChoice) {
-        // 추가 옵션 선택
-        const customPost = window.confirm(
-          `공유 방법을 선택해주세요:\n\n✅ 확인: 사진과 글을 직접 작성 (추천)\n❌ 취소: 자동 생성된 포스트로 바로 공유`
-        );
-
-        resolve(customPost ? 'modal' : 'auto');
-      } else {
-        resolve('none');
-      }
-    });
+    // 더 이상 사용하지 않음 - 바로 'modal' 반환
+    return Promise.resolve('modal');
   };
 
   // 포스트 작성 모달 닫기
@@ -767,22 +746,37 @@ const NavigationPage = () => {
 
       const caption = `오늘 ${distance}km 러닝 완주! 🏃‍♀️\n시간: ${duration}\n페이스: ${pace}'00"/km\n\n#러닝 #운동 #건강 #러닝기록 #RunningCafe`;
 
-      // 지도 이미지 생성
+      // 지도 이미지 생성 개선
       let mapImage = null;
       try {
         if (savedRecord.path && savedRecord.path.length > 0) {
           console.log('지도 이미지 생성 시작...');
+          console.log('저장된 경로 데이터:', savedRecord.path);
+          console.log('주변 카페 데이터:', savedRecord.nearbyCafes);
+
           mapImage = await createRunningRecordMapImage({
             path: savedRecord.path,
             nearbyCafes: savedRecord.nearbyCafes || [],
             distance: savedRecord.distance,
             duration: savedRecord.duration,
           });
+
           console.log('지도 이미지 생성 완료:', mapImage);
+          console.log('이미지 파일 크기:', mapImage.size, 'bytes');
+        } else {
+          console.warn('경로 데이터가 비어있음 - 기본 이미지로 대체');
+          // 경로가 비어있어도 기본 이미지 생성
+          mapImage = await createRunningRecordMapImage({
+            path: [],
+            nearbyCafes: [],
+            distance: savedRecord.distance,
+            duration: savedRecord.duration,
+          });
         }
       } catch (imageError) {
-        console.warn('지도 이미지 생성 실패, 텍스트만 공유합니다:', imageError);
+        console.error('지도 이미지 생성 실패:', imageError);
         // 이미지 생성 실패해도 포스트는 계속 진행
+        mapImage = null;
       }
 
       const postData = {
@@ -795,19 +789,33 @@ const NavigationPage = () => {
         is_achievement: savedRecord.distance >= 5000, // 5km 이상이면 달성 기록으로 표시
       };
 
+      console.log('피드 포스트 데이터 상세:', {
+        ...postData,
+        images: postData.images.map(img => ({
+          name: img.name,
+          size: img.size,
+          type: img.type,
+        })),
+      });
+
       console.log('피드 포스트 데이터:', postData);
 
       const result = await createFeedPost(postData);
 
       if (result.success) {
+        const successMessage = mapImage
+          ? `🗺️ 지도 이미지와 함께 피드에 공유되었습니다! 🎉`
+          : `피드에 공유되었습니다! 🎉`;
+
         showToast({
           type: 'success',
-          message: mapImage
-            ? '지도 이미지와 함께 피드에 공유되었습니다! 🎉'
-            : '피드에 공유되었습니다! 🎉',
+          message: successMessage,
         });
+
+        console.log('피드 공유 성공:', result);
       } else {
-        throw new Error(result.error);
+        console.error('피드 공유 실패 결과:', result);
+        throw new Error(result.error || '피드 공유에 실패했습니다.');
       }
     } catch (error) {
       console.error('피드 공유 실패:', error);
@@ -1151,7 +1159,9 @@ const NavigationPage = () => {
     <div className="flex flex-col h-screen bg-gray-50 relative">
       {/* 헤더 */}
       <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#4c1d95]">Running Map</h1>
+        <Link to={ROUTES.HOME}>
+          <h1 className="text-xl font-bold text-[#4c1d95]">Running Map</h1>
+        </Link>
         {/* 
         <button
           onClick={shareToSNS}

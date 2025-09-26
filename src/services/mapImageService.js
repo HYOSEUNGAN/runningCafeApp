@@ -46,54 +46,79 @@ export const generateRunningMapImage = async (
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
 
-      if (path.length === 0) {
+      if (!path || path.length === 0) {
+        console.log('경로 데이터가 비어있음 - 기본 이미지 생성');
         // 경로가 없는 경우 기본 이미지
         drawEmptyMapPlaceholder(ctx, width, height, title);
       } else {
+        console.log(`경로 데이터 처리 시작: ${path.length}개 지점`);
+
         // 경로 좌표 정규화
         const bounds = calculateMapBounds(path, 0.01);
-        const normalizedPath = normalizeCoordinates(path, bounds, width, height);
+        console.log('경계 계산 완료:', bounds);
 
-        // 지도 배경 패턴 그리기
-        drawMapBackground(ctx, width, height);
-
-        // 러닝 경로 그리기
-        drawRunningPath(ctx, normalizedPath, routeColor, routeWidth);
-
-        // 시작/끝 마커 그리기
-        if (normalizedPath.length > 0) {
-          drawMarker(
-            ctx,
-            normalizedPath[0].x,
-            normalizedPath[0].y,
-            startMarkerColor,
-            'START',
-            12
-          );
-          if (normalizedPath.length > 1) {
-            const lastPoint = normalizedPath[normalizedPath.length - 1];
-            drawMarker(
-              ctx,
-              lastPoint.x,
-              lastPoint.y,
-              endMarkerColor,
-              'END',
-              12
-            );
-          }
-        }
-
-        // 카페 마커 그리기
-        if (showCafes && nearbyCafes.length > 0) {
-          const normalizedCafes = normalizeCafeCoordinates(
-            nearbyCafes,
+        if (!bounds) {
+          console.warn('경계 계산 실패 - 기본 이미지로 대체');
+          drawEmptyMapPlaceholder(ctx, width, height, title);
+        } else {
+          const normalizedPath = normalizeCoordinates(
+            path,
             bounds,
             width,
             height
           );
-          normalizedCafes.forEach((cafe, index) => {
-            drawCafeMarker(ctx, cafe.x, cafe.y, cafeMarkerColor, index + 1);
-          });
+          console.log(`좌표 정규화 완료: ${normalizedPath.length}개 지점`);
+
+          // 지도 배경 패턴 그리기
+          drawMapBackground(ctx, width, height);
+
+          // 러닝 경로 그리기
+          if (normalizedPath.length >= 2) {
+            drawRunningPath(ctx, normalizedPath, routeColor, routeWidth);
+            console.log('경로 그리기 완료');
+          }
+
+          // 시작/끝 마커 그리기
+          if (normalizedPath.length > 0) {
+            drawMarker(
+              ctx,
+              normalizedPath[0].x,
+              normalizedPath[0].y,
+              startMarkerColor,
+              'START',
+              12
+            );
+            if (normalizedPath.length > 1) {
+              const lastPoint = normalizedPath[normalizedPath.length - 1];
+              drawMarker(
+                ctx,
+                lastPoint.x,
+                lastPoint.y,
+                endMarkerColor,
+                'END',
+                12
+              );
+            }
+            console.log('마커 그리기 완료');
+          }
+
+          // 카페 마커 그리기
+          if (showCafes && nearbyCafes && nearbyCafes.length > 0) {
+            try {
+              const normalizedCafes = normalizeCafeCoordinates(
+                nearbyCafes,
+                bounds,
+                width,
+                height
+              );
+              normalizedCafes.forEach((cafe, index) => {
+                drawCafeMarker(ctx, cafe.x, cafe.y, cafeMarkerColor, index + 1);
+              });
+              console.log(`카페 마커 그리기 완료: ${normalizedCafes.length}개`);
+            } catch (cafeError) {
+              console.warn('카페 마커 그리기 실패:', cafeError);
+            }
+          }
         }
       }
 
@@ -106,12 +131,19 @@ export const generateRunningMapImage = async (
         showDuration,
       });
 
+      console.log('이미진 그리기 완료 - Blob 변환 시작');
+
       // Canvas를 Blob으로 변환
       canvas.toBlob(
         blob => {
           if (blob) {
+            console.log('Blob 변환 성공:', {
+              size: blob.size,
+              type: blob.type,
+            });
             resolve(blob);
           } else {
+            console.error('Blob 변환 실패');
             reject(new Error('이미지 생성에 실패했습니다.'));
           }
         },
@@ -120,6 +152,7 @@ export const generateRunningMapImage = async (
       );
     } catch (error) {
       console.error('지도 이미지 생성 실패:', error);
+      console.error('에러 스택:', error.stack);
       reject(error);
     }
   });
@@ -134,25 +167,48 @@ export const generateRunningMapImage = async (
  * @returns {Array} 정규화된 좌표 배열
  */
 const normalizeCoordinates = (path, bounds, width, height) => {
+  if (!path || !bounds || path.length === 0) {
+    console.warn('좌표 정규화 실패: 잘못된 입력 데이터');
+    return [];
+  }
+
   const padding = 60; // 여백
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2 - 80; // 하단 정보 영역 여백
 
-  return path.map(point => {
-    const lat = typeof point.lat === 'function' ? point.lat() : point.lat;
-    const lng = typeof point.lng === 'function' ? point.lng() : point.lng;
+  console.log('좌표 정규화 시작:', { bounds, drawWidth, drawHeight });
 
-    // 위도/경도를 0-1 범위로 정규화
-    const normalizedLng = (lng - bounds.west) / (bounds.east - bounds.west);
-    const normalizedLat = 1 - (lat - bounds.south) / (bounds.north - bounds.south); // Y축 반전
+  const normalized = path
+    .map((point, index) => {
+      try {
+        const lat = typeof point.lat === 'function' ? point.lat() : point.lat;
+        const lng = typeof point.lng === 'function' ? point.lng() : point.lng;
 
-    return {
-      x: padding + normalizedLng * drawWidth,
-      y: padding + normalizedLat * drawHeight,
-      lat,
-      lng,
-    };
-  });
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+          console.warn(`잘못된 좌표 데이터 (index ${index}):`, { lat, lng });
+          return null;
+        }
+
+        // 위도/경도를 0-1 범위로 정규화
+        const normalizedLng = (lng - bounds.west) / (bounds.east - bounds.west);
+        const normalizedLat =
+          1 - (lat - bounds.south) / (bounds.north - bounds.south); // Y축 반전
+
+        return {
+          x: padding + normalizedLng * drawWidth,
+          y: padding + normalizedLat * drawHeight,
+          lat,
+          lng,
+        };
+      } catch (error) {
+        console.warn(`좌표 정규화 오류 (index ${index}):`, error);
+        return null;
+      }
+    })
+    .filter(point => point !== null);
+
+  console.log(`좌표 정규화 완료: ${path.length} -> ${normalized.length}`);
+  return normalized;
 };
 
 /**
@@ -173,7 +229,8 @@ const normalizeCafeCoordinates = (cafes, bounds, width, height) => {
     .map(cafe => {
       const { lat, lng } = cafe.coordinates;
       const normalizedLng = (lng - bounds.west) / (bounds.east - bounds.west);
-      const normalizedLat = 1 - (lat - bounds.south) / (bounds.north - bounds.south);
+      const normalizedLat =
+        1 - (lat - bounds.south) / (bounds.north - bounds.south);
 
       return {
         x: padding + normalizedLng * drawWidth,
@@ -223,7 +280,14 @@ const drawMapBackground = (ctx, width, height) => {
  * @param {number} width - 경로 두께
  */
 const drawRunningPath = (ctx, normalizedPath, color, width) => {
-  if (normalizedPath.length < 2) return;
+  if (!normalizedPath || normalizedPath.length < 2) {
+    console.log('경로 데이터 부족으로 경로 그리기 생략');
+    return;
+  }
+
+  console.log(
+    `경로 그리기 시작: ${normalizedPath.length}개 지점, 색상: ${color}, 두께: ${width}`
+  );
 
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
@@ -231,10 +295,10 @@ const drawRunningPath = (ctx, normalizedPath, color, width) => {
   ctx.lineJoin = 'round';
 
   // 경로 그림자 효과
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-  ctx.shadowBlur = 2;
-  ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 1;
+  ctx.shadowColor = 'rgba(139, 61, 255, 0.3)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
 
   ctx.beginPath();
   ctx.moveTo(normalizedPath[0].x, normalizedPath[0].y);
@@ -250,6 +314,8 @@ const drawRunningPath = (ctx, normalizedPath, color, width) => {
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
+
+  console.log('경로 그리기 완료');
 };
 
 /**
@@ -322,44 +388,51 @@ const drawInfoOverlay = (ctx, width, height, info) => {
   const panelHeight = 80;
   const panelY = height - panelHeight;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  // 그래디언트 배경
+  const gradient = ctx.createLinearGradient(0, panelY, 0, height);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
+  gradient.addColorStop(1, 'rgba(248, 250, 252, 0.95)');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, panelY, width, panelHeight);
 
-  // 패널 테두리
-  ctx.strokeStyle = '#e5e7eb';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0, panelY, width, panelHeight);
+  // 패널 상단 경계선
+  ctx.strokeStyle = '#8b3dff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, panelY);
+  ctx.lineTo(width, panelY);
+  ctx.stroke();
 
   // 제목
   ctx.fillStyle = '#1f2937';
-  ctx.font = 'bold 18px Arial';
+  ctx.font = 'bold 20px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(title, width / 2, panelY + 25);
+  ctx.fillText(title, width / 2, panelY + 22);
 
   // 통계 정보
   if (showDistance || showDuration) {
     const stats = [];
     if (showDistance && distance > 0) {
-      stats.push(`거리: ${(distance / 1000).toFixed(1)}km`);
+      stats.push(`📏 ${(distance / 1000).toFixed(1)}km`);
     }
     if (showDuration && duration > 0) {
       const minutes = Math.floor(duration / 60000);
       const seconds = Math.floor((duration % 60000) / 1000);
-      stats.push(`시간: ${minutes}분 ${seconds}초`);
+      stats.push(`⏱️ ${minutes}분 ${seconds}초`);
     }
 
     if (stats.length > 0) {
       ctx.fillStyle = '#6b7280';
-      ctx.font = '14px Arial';
-      ctx.fillText(stats.join(' • '), width / 2, panelY + 50);
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText(stats.join(' • '), width / 2, panelY + 48);
     }
   }
 
-  // 앱 로고/브랜드
-  ctx.fillStyle = '#9ca3af';
-  ctx.font = '12px Arial';
-  ctx.fillText('Running Cafe', width / 2, panelY + 70);
+  // 앱 브랜드
+  ctx.fillStyle = '#8b3dff';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('🏃‍♀️ Running Cafe', width / 2, panelY + 68);
 };
 
 /**
@@ -370,21 +443,56 @@ const drawInfoOverlay = (ctx, width, height, info) => {
  * @param {string} title - 제목
  */
 const drawEmptyMapPlaceholder = (ctx, width, height, title) => {
-  // 중앙 플레이스홀더
-  ctx.fillStyle = '#f3f4f6';
-  ctx.fillRect(width / 4, height / 4, width / 2, height / 2);
+  console.log('빈 지도 플레이스홀더 그리기');
 
-  ctx.strokeStyle = '#d1d5db';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(width / 4, height / 4, width / 2, height / 2);
+  // 배경 그래디언트
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, '#f0f9ff');
+  gradient.addColorStop(1, '#e0f2fe');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
 
-  // 플레이스홀더 텍스트
-  ctx.fillStyle = '#6b7280';
-  ctx.font = 'bold 16px Arial';
+  // 중앙 영역
+  const centerX = width / 2;
+  const centerY = height / 2 - 40;
+  const boxWidth = width * 0.6;
+  const boxHeight = height * 0.4;
+
+  // 중앙 박스
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.fillRect(
+    centerX - boxWidth / 2,
+    centerY - boxHeight / 2,
+    boxWidth,
+    boxHeight
+  );
+
+  ctx.strokeStyle = '#8b3dff';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 5]);
+  ctx.strokeRect(
+    centerX - boxWidth / 2,
+    centerY - boxHeight / 2,
+    boxWidth,
+    boxHeight
+  );
+  ctx.setLineDash([]);
+
+  // 아이콘
+  ctx.fillStyle = '#8b3dff';
+  ctx.font = 'bold 48px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🏃‍♀️', width / 2, height / 2 - 20);
-  ctx.fillText('러닝 경로 없음', width / 2, height / 2 + 10);
+  ctx.fillText('🏃‍♀️', centerX, centerY - 30);
+
+  // 텍스트
+  ctx.fillStyle = '#6b7280';
+  ctx.font = 'bold 18px Arial';
+  ctx.fillText('러닝 경로 데이터 없음', centerX, centerY + 20);
+
+  ctx.font = '14px Arial';
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillText('기본 러닝 기록 이미지', centerX, centerY + 45);
 };
 
 /**
@@ -394,10 +502,23 @@ const drawEmptyMapPlaceholder = (ctx, width, height, title) => {
  * @returns {File} File 객체
  */
 export const blobToFile = (blob, filename = 'running-map.png') => {
-  return new File([blob], filename, {
-    type: blob.type,
+  if (!blob) {
+    throw new Error('Blob이 null이거나 undefined입니다.');
+  }
+
+  const file = new File([blob], filename, {
+    type: blob.type || 'image/png',
     lastModified: Date.now(),
   });
+
+  console.log('File 변환 완료:', {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: new Date(file.lastModified).toISOString(),
+  });
+
+  return file;
 };
 
 /**
@@ -407,20 +528,55 @@ export const blobToFile = (blob, filename = 'running-map.png') => {
  */
 export const createRunningRecordMapImage = async runningData => {
   try {
-    const { path, nearbyCafes, distance, duration } = runningData;
+    console.log('지도 이미지 생성 시작:', runningData);
+    const {
+      path = [],
+      nearbyCafes = [],
+      distance = 0,
+      duration = 0,
+    } = runningData;
 
-    const imageBlob = await generateRunningMapImage(path, nearbyCafes, {
-      title: `${(distance / 1000).toFixed(1)}km 러닝`,
+    // 거리 계산 (미터 -> 킬로미터)
+    const distanceInKm = distance / 1000;
+
+    const imageOptions = {
+      title: `${distanceInKm.toFixed(1)}km 러닝`,
       distance,
       duration,
       showDistance: true,
       showDuration: true,
       showCafes: nearbyCafes && nearbyCafes.length > 0,
+      routeColor: '#8b3dff', // 프로젝트 메인 컬러
+      routeWidth: 6,
+      width: 800,
+      height: 600,
+    };
+
+    console.log('이미지 옵션:', imageOptions);
+    console.log('경로 데이터 길이:', path.length);
+    console.log('카페 데이터 길이:', nearbyCafes.length);
+
+    const imageBlob = await generateRunningMapImage(
+      path,
+      nearbyCafes,
+      imageOptions
+    );
+
+    if (!imageBlob) {
+      throw new Error('이미지 Blob 생성 실패');
+    }
+
+    const imageFile = blobToFile(imageBlob, `running-${Date.now()}.png`);
+    console.log('지도 이미지 생성 완료:', {
+      name: imageFile.name,
+      size: imageFile.size,
+      type: imageFile.type,
     });
 
-    return blobToFile(imageBlob, `running-${Date.now()}.png`);
+    return imageFile;
   } catch (error) {
     console.error('러닝 기록 지도 이미지 생성 실패:', error);
+    console.error('에러 상세:', error.stack);
     throw error;
   }
 };
