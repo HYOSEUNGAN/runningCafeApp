@@ -70,6 +70,8 @@ const NavigationPage = () => {
   const intervalIdRef = useRef(null);
   const markersRef = useRef([]);
   const infoWindowsRef = useRef([]);
+  const startMarkerRef = useRef(null);
+  const directionMarkerRef = useRef(null);
 
   // 네이버 지도 초기화
   useEffect(() => {
@@ -104,7 +106,7 @@ const NavigationPage = () => {
               setCurrentPosition(currentPos);
               naverMapRef.current.setCenter(currentPos);
 
-              // 현재 위치 마커 추가
+              // 현재 위치 마커 추가 (화살표 포함)
               const currentUserMarker = new window.naver.maps.Marker({
                 position: currentPos,
                 map: naverMapRef.current,
@@ -112,27 +114,46 @@ const NavigationPage = () => {
                 icon: {
                   content: `
                     <div style="
-                      width: 20px; 
-                      height: 20px; 
-                      background: #3B82F6; 
+                      width: 24px; 
+                      height: 24px; 
+                      background: #8b3dff; 
                       border: 3px solid white; 
                       border-radius: 50%; 
                       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
                       position: relative;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
                     ">
                       <div style="
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                      ">📍</div>
+                      <div style="
                         position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        width: 8px;
-                        height: 8px;
-                        background: white;
+                        top: -8px;
+                        right: -8px;
+                        width: 16px;
+                        height: 16px;
+                        background: #43e97b;
+                        border: 2px solid white;
                         border-radius: 50%;
-                      "></div>
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                      ">
+                        <div style="
+                          color: white;
+                          font-size: 8px;
+                          transform: rotate(45deg);
+                        ">➤</div>
+                      </div>
                     </div>
                   `,
-                  anchor: new window.naver.maps.Point(10, 10),
+                  anchor: new window.naver.maps.Point(12, 12),
                 },
               });
 
@@ -396,6 +417,108 @@ const NavigationPage = () => {
     [createCafeMarkers, showToast]
   );
 
+  // 출발점 마커 생성
+  const createStartMarker = position => {
+    if (startMarkerRef.current) {
+      startMarkerRef.current.setMap(null);
+    }
+
+    startMarkerRef.current = new window.naver.maps.Marker({
+      position: position,
+      map: naverMapRef.current,
+      title: '출발점',
+      icon: {
+        content: `
+          <div style="
+            width: 32px; 
+            height: 32px; 
+            background: linear-gradient(135deg, #43e97b, #10B981); 
+            border: 3px solid white; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            position: relative;
+          ">
+            <span style="
+              color: white; 
+              font-size: 16px; 
+              text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            ">🏃</span>
+            <div style="
+              position: absolute;
+              bottom: -6px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: #43e97b;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 8px;
+              font-size: 10px;
+              font-weight: bold;
+              white-space: nowrap;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            ">START</div>
+          </div>
+        `,
+        anchor: new window.naver.maps.Point(16, 16),
+      },
+    });
+  };
+
+  // 방향 화살표 업데이트
+  const updateDirectionMarker = (position, heading = 0) => {
+    if (userMarker) {
+      const directionIcon = {
+        content: `
+          <div style="
+            width: 24px; 
+            height: 24px; 
+            background: #8b3dff; 
+            border: 3px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="
+              color: white;
+              font-size: 12px;
+              font-weight: bold;
+              text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            ">📍</div>
+            <div style="
+              position: absolute;
+              top: -8px;
+              right: -8px;
+              width: 16px;
+              height: 16px;
+              background: #43e97b;
+              border: 2px solid white;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              transform: rotate(${heading}deg);
+            ">
+              <div style="
+                color: white;
+                font-size: 8px;
+              ">➤</div>
+            </div>
+          </div>
+        `,
+        anchor: new window.naver.maps.Point(12, 12),
+      };
+      userMarker.setIcon(directionIcon);
+      userMarker.setPosition(position);
+    }
+  };
+
   // 위치 추적 시작
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -408,6 +531,11 @@ const NavigationPage = () => {
     setStartTime(Date.now());
     setPath([]);
     setTotalDistance(0);
+
+    // 출발점 마커 생성
+    if (currentPosition) {
+      createStartMarker(currentPosition);
+    }
 
     const options = {
       enableHighAccuracy: true,
@@ -429,8 +557,12 @@ const NavigationPage = () => {
         setGpsAccuracy(accuracy);
 
         const speed = position.coords.speed || 0;
+        const heading = position.coords.heading || 0;
         setCurrentSpeed(speed);
         setMaxSpeed(prev => Math.max(prev, speed));
+
+        // 방향 화살표가 포함된 현재 위치 마커 업데이트
+        updateDirectionMarker(newPos, heading);
 
         // 속도 히스토리 업데이트
         setSpeedHistory(prev => {
@@ -670,8 +802,8 @@ const NavigationPage = () => {
       if (result.success) {
         showToast({
           type: 'success',
-          message: mapImage 
-            ? '지도 이미지와 함께 피드에 공유되었습니다! 🎉' 
+          message: mapImage
+            ? '지도 이미지와 함께 피드에 공유되었습니다! 🎉'
             : '피드에 공유되었습니다! 🎉',
         });
       } else {
@@ -749,9 +881,15 @@ const NavigationPage = () => {
       polylineRef.current.setMap(null);
       polylineRef.current = null;
     }
+
+    // 출발점 마커 제거
+    if (startMarkerRef.current) {
+      startMarkerRef.current.setMap(null);
+      startMarkerRef.current = null;
+    }
   };
 
-  // 폴리라인 업데이트
+  // 폴리라인 업데이트 (메인 컬러 적용)
   const updatePolyline = pathArray => {
     if (polylineRef.current) {
       polylineRef.current.setMap(null);
@@ -761,9 +899,12 @@ const NavigationPage = () => {
       polylineRef.current = new window.naver.maps.Polyline({
         map: naverMapRef.current,
         path: pathArray,
-        strokeColor: '#3B82F6',
-        strokeWeight: 4,
-        strokeOpacity: 0.8,
+        strokeColor: '#8b3dff', // 프로젝트 메인 컬러 (primary-500)
+        strokeWeight: 5,
+        strokeOpacity: 0.9,
+        strokeStyle: 'solid',
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
       });
     }
   };
@@ -870,7 +1011,75 @@ const NavigationPage = () => {
     });
   }, [showCafeInfo, showToast]);
 
-  // SNS 공유
+  // Instagram 공유를 위한 이미지 및 텍스트 준비
+  const shareToInstagram = async () => {
+    if (totalDistance === 0) {
+      showToast({
+        type: 'error',
+        message: '공유할 러닝 기록이 없습니다.',
+      });
+      return;
+    }
+
+    try {
+      showToast({
+        type: 'info',
+        message: 'Instagram 공유를 준비하고 있습니다...',
+      });
+
+      const runningTime = formatTime(elapsedTime);
+      const distance = formatDistance(totalDistance);
+      const calories = getCalculatedCalories();
+      const avgSpeed =
+        totalDistance > 0
+          ? (totalDistance / 1000 / (elapsedTime / 3600000)).toFixed(1)
+          : '0.0';
+
+      // Instagram용 해시태그와 쪽션 생성
+      const instagramCaption = `🏃‍♀️ 오늘 ${distance} 러닝 완주! 💪\n\n⏱️ 시간: ${runningTime}\n📏 거리: ${distance}\n🔥 칼로리: ${calories}kcal\n⚡ 평균 속도: ${avgSpeed}km/h\n\n${nearbyCafes.length > 0 ? `☕ 주변 카페 ${nearbyCafes.length}곳 발견!\n` : ''}🏃 #러닝 #운동 #건강 #러닝기록 #RunningCafe #오늘도달리기 #피트니스 #운동스타그램 #러닝맨 #러닝우먼`;
+
+      // 클립보드에 쪽션 복사
+      await navigator.clipboard.writeText(instagramCaption);
+
+      // Instagram 웹 사이트 열기
+      const instagramUrl = 'https://www.instagram.com/';
+      const newWindow = window.open(instagramUrl, '_blank');
+
+      showToast({
+        type: 'success',
+        message:
+          '📱 Instagram이 열렸습니다! 쪽션이 복사되었으니 붙여넣기 하세요.',
+      });
+
+      // 추가 안내 메시지
+      setTimeout(() => {
+        showToast({
+          type: 'info',
+          message:
+            '📝 새 게시물 작성 → 쪽션 붙여넣기 → 사진 추가 후 게시하세요!',
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Instagram 공유 준비 실패:', error);
+
+      // 폴백: 수동 복사 안내
+      const fallbackText = `🏃‍♀️ 오늘 ${formatDistance(totalDistance)} 러닝 완주! 💪\n\n⏱️ ${formatTime(elapsedTime)} | 🔥 ${getCalculatedCalories()}kcal\n\n#러닝 #운동 #건강 #RunningCafe`;
+
+      if (window.prompt) {
+        window.prompt(
+          '아래 내용을 복사해서 Instagram에 공유하세요:',
+          fallbackText
+        );
+      } else {
+        showToast({
+          type: 'error',
+          message: 'Instagram 공유를 준비할 수 없습니다.',
+        });
+      }
+    }
+  };
+
+  // 일반 SNS 공유 (기존 기능)
   const shareToSNS = async () => {
     if (totalDistance === 0) {
       showToast({
@@ -1249,7 +1458,30 @@ const NavigationPage = () => {
                 <span className="text-xs font-bold">시작</span>
               </button>
 
-              {/* 공유 버튼 */}
+              {/* Instagram 공유 버튼 */}
+              <button
+                onClick={shareToInstagram}
+                disabled={totalDistance === 0}
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                  totalDistance === 0
+                    ? 'text-gray-300'
+                    : 'text-pink-600 hover:text-pink-800'
+                }`}
+                aria-label="Instagram 공유"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    totalDistance === 0
+                      ? 'bg-gray-200'
+                      : 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600'
+                  }`}
+                >
+                  <div className="text-white font-bold text-lg">📷</div>
+                </div>
+                <span className="text-xs font-bold">Instagram</span>
+              </button>
+
+              {/* 일반 공유 버튼 */}
               <button
                 onClick={shareToSNS}
                 disabled={totalDistance === 0}

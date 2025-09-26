@@ -55,7 +55,7 @@ export const formatDuration = seconds => {
 
 // 시간 포맷팅 (밀리초 -> HH:MM:SS)
 export const formatTime = milliseconds => {
-  if (!milliseconds) return '00:00:00';
+  if (!milliseconds) return '00:00';
 
   const totalSeconds = Math.floor(milliseconds / 1000);
   const hours = Math.floor(totalSeconds / 3600);
