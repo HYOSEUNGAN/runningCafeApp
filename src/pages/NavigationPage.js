@@ -33,6 +33,20 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../constants/app';
+import { 
+  playCountdownBeep, 
+  playStartBeep, 
+  playSuccessBeep,
+  resumeAudioContext 
+} from '../utils/audioUtils';
+import {
+  requestWakeLock,
+  releaseWakeLock,
+  setupBackgroundTracking,
+  cleanupBackgroundTracking,
+  requestNotificationPermission,
+  showRunningCompleteNotification
+} from '../utils/backgroundService';
 
 const NavigationPage = () => {
   // 상태 관리
@@ -60,6 +74,10 @@ const NavigationPage = () => {
     isOpen: false,
     runningRecord: null,
   });
+
+  // 카운트다운 상태
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdownNumber, setCountdownNumber] = useState(0);
 
   // 스토어
   const { user, isAuthenticated } = useAuthStore();
@@ -523,6 +541,45 @@ const NavigationPage = () => {
     }
   };
 
+  // 카운트다운 시작
+  const startCountdown = async () => {
+    try {
+      // 오디오 컨텍스트 활성화 (사용자 상호작용 필요)
+      await resumeAudioContext();
+      
+      // 알림 권한 요청
+      await requestNotificationPermission();
+      
+      // Wake Lock 요청 (화면 꺼짐 방지)
+      await requestWakeLock();
+      
+      setIsCountingDown(true);
+      
+      // 3-2-1 카운트다운
+      for (let i = 3; i >= 1; i--) {
+        setCountdownNumber(i);
+        playCountdownBeep(i);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // 시작 효과음
+      playStartBeep();
+      setCountdownNumber(0);
+      setIsCountingDown(false);
+      
+      // 실제 추적 시작
+      startTracking();
+      
+    } catch (error) {
+      console.error('카운트다운 시작 실패:', error);
+      setIsCountingDown(false);
+      showToast({
+        type: 'error',
+        message: '러닝 시작에 실패했습니다.',
+      });
+    }
+  };
+
   // 위치 추적 시작
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -535,6 +592,11 @@ const NavigationPage = () => {
     setStartTime(Date.now());
     setPath([]);
     setTotalDistance(0);
+
+    // 백그라운드 추적 설정
+    setupBackgroundTracking((isVisible) => {
+      console.log('페이지 가시성 변경:', isVisible ? '보임' : '숨김');
+    });
 
     // 출발점 마커 생성
     if (currentPosition) {
@@ -613,7 +675,7 @@ const NavigationPage = () => {
   };
 
   // 위치 추적 중지
-  const stopTracking = () => {
+  const stopTracking = async () => {
     setIsTracking(false);
     setIsPaused(false);
     setEndTime(Date.now());
@@ -626,6 +688,19 @@ const NavigationPage = () => {
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
+    }
+
+    // 백그라운드 서비스 정리
+    cleanupBackgroundTracking();
+    await releaseWakeLock();
+
+    // 성공 효과음
+    if (totalDistance > 0 || elapsedTime > 0) {
+      playSuccessBeep();
+      
+      // 완료 알림
+      const timeText = formatTime(elapsedTime);
+      showRunningCompleteNotification(totalDistance, timeText);
     }
   };
 
@@ -1550,14 +1625,25 @@ const NavigationPage = () => {
             <>
               {/* 시작 버튼 */}
               <button
-                onClick={startTracking}
-                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-green-600 hover:text-green-800"
+                onClick={startCountdown}
+                disabled={isCountingDown}
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                  isCountingDown 
+                    ? 'text-gray-400' 
+                    : 'text-green-600 hover:text-green-800'
+                }`}
                 aria-label="러닝 시작"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500 hover:bg-green-600 transition-colors">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                  isCountingDown
+                    ? 'bg-gray-400'
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}>
                   <Play size={20} className="text-white" />
                 </div>
-                <span className="text-xs font-bold">시작</span>
+                <span className="text-xs font-bold">
+                  {isCountingDown ? '준비중...' : '시작'}
+                </span>
               </button>
 
               {/* Instagram 공유 버튼 */}
@@ -1714,6 +1800,32 @@ const NavigationPage = () => {
           </div>
         )}
       </nav>
+
+      {/* 카운트다운 오버레이 */}
+      {isCountingDown && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="text-center">
+            <div className="text-8xl font-bold text-white mb-4 animate-pulse">
+              {countdownNumber > 0 ? countdownNumber : 'GO!'}
+            </div>
+            <div className="text-xl text-white opacity-80">
+              {countdownNumber > 0 ? '준비하세요...' : '러닝 시작!'}
+            </div>
+            <div className="mt-6 flex justify-center">
+              <div className="w-16 h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-green-400 transition-all duration-1000 ease-linear"
+                  style={{ 
+                    width: countdownNumber > 0 
+                      ? `${((4 - countdownNumber) / 3) * 100}%` 
+                      : '100%' 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 포스트 작성 모달 */}
       <CreatePostModal

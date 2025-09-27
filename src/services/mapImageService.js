@@ -485,14 +485,14 @@ const drawInfoOverlay = (ctx, width, height, info) => {
 };
 
 /**
- * 빈 지도 플레이스홀더 그리기
+ * 빈 지도 플레이스홀더 그리기 - Running View 흐릿한 배경 포함
  * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
  * @param {number} width - Canvas 너비
  * @param {number} height - Canvas 높이
  * @param {string} title - 제목
  */
 const drawEmptyMapPlaceholder = (ctx, width, height, title, options = {}) => {
-  console.log('빈 지도 플레이스홀더 그리기');
+  console.log('Running View 배경이 포함된 빈 지도 플레이스홀더 그리기');
   const {
     distance = 0,
     duration = 0,
@@ -500,47 +500,56 @@ const drawEmptyMapPlaceholder = (ctx, width, height, title, options = {}) => {
     showDuration = false,
   } = options;
 
-  // 배경 그래디언트
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, '#f0f9ff');
-  gradient.addColorStop(1, '#e0f2fe');
-  ctx.fillStyle = gradient;
+  // 1. 러닝 배경 패턴 그리기
+  drawRunningViewBackground(ctx, width, height);
+
+  // 2. 흐릿한 오버레이 효과
+  const overlayGradient = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    0,
+    width / 2,
+    height / 2,
+    width * 0.6
+  );
+  overlayGradient.addColorStop(0, 'rgba(139, 61, 255, 0.1)');
+  overlayGradient.addColorStop(0.7, 'rgba(67, 233, 123, 0.05)');
+  overlayGradient.addColorStop(1, 'rgba(255, 107, 53, 0.03)');
+  ctx.fillStyle = overlayGradient;
   ctx.fillRect(0, 0, width, height);
 
-  // 중앙 영역
+  // 3. 중앙 컨텐츠 영역
   const centerX = width / 2;
   const centerY = height / 2;
-  const cardWidth = width * 0.8;
-  const cardHeight = height * 0.6;
+  const cardWidth = width * 0.85;
+  const cardHeight = height * 0.65;
 
-  // 메인 카드 배경
+  // 메인 카드 배경 (유리 효과)
   const cardGradient = ctx.createLinearGradient(
     0,
     centerY - cardHeight / 2,
     0,
     centerY + cardHeight / 2
   );
-  cardGradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-  cardGradient.addColorStop(1, 'rgba(248, 250, 252, 0.9)');
+  cardGradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+  cardGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
+  cardGradient.addColorStop(1, 'rgba(248, 250, 252, 0.2)');
   ctx.fillStyle = cardGradient;
 
   // 카드 그리기 (둥근 모서리)
   const cardX = centerX - cardWidth / 2;
   const cardY = centerY - cardHeight / 2;
-  const cornerRadius = 20;
+  const cornerRadius = 24;
 
   ctx.beginPath();
   ctx.roundRect(cardX, cardY, cardWidth, cardHeight, cornerRadius);
   ctx.fill();
 
-  // 카드 그림자
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 10;
-
-  // 카드 테두리
-  ctx.strokeStyle = '#8b3dff';
-  ctx.lineWidth = 3;
+  // 카드 테두리 (글로우 효과)
+  ctx.strokeStyle = 'rgba(139, 61, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(139, 61, 255, 0.3)';
+  ctx.shadowBlur = 15;
   ctx.stroke();
 
   // 그림자 초기화
@@ -548,19 +557,35 @@ const drawEmptyMapPlaceholder = (ctx, width, height, title, options = {}) => {
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
 
-  // 대형 러닝 아이콘
+  // 4. 러닝 아이콘 (더 크고 생동감 있게)
   ctx.fillStyle = '#8b3dff';
-  ctx.font = 'bold 80px Arial';
+  ctx.font = 'bold 90px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🏃‍♀️', centerX, centerY - 80);
+  ctx.fillText('🏃‍♀️', centerX, centerY - 90);
 
-  // 제목
+  // 아이콘 주변 글로우 효과
+  ctx.shadowColor = 'rgba(139, 61, 255, 0.4)';
+  ctx.shadowBlur = 20;
+  ctx.fillText('🏃‍♀️', centerX, centerY - 90);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+
+  // 5. 제목 (더 눈에 띄게)
   ctx.fillStyle = '#1f2937';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText(title, centerX, centerY - 10);
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText(title, centerX, centerY - 15);
 
-  // 통계 정보 표시
+  // 제목 하이라이트 효과
+  ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+  ctx.shadowBlur = 2;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(title, centerX, centerY - 15);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  // 6. 통계 정보 표시 (더 세련되게)
   if (showDistance || showDuration) {
     const stats = [];
     if (showDistance && distance > 0) {
@@ -573,21 +598,228 @@ const drawEmptyMapPlaceholder = (ctx, width, height, title, options = {}) => {
     }
 
     if (stats.length > 0) {
-      ctx.fillStyle = '#6b7280';
-      ctx.font = 'bold 24px Arial';
-      ctx.fillText(stats.join(' • '), centerX, centerY + 40);
+      ctx.fillStyle = '#4b5563';
+      ctx.font = 'bold 26px Arial';
+      ctx.fillText(stats.join(' • '), centerX, centerY + 45);
     }
   } else {
-    // 기본 메시지
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '20px Arial';
-    ctx.fillText('러닝 기록이 생성되었습니다', centerX, centerY + 40);
+    // 기본 메시지 (더 매력적으로)
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '22px Arial';
+    ctx.fillText('러닝의 추억을 기록해보세요', centerX, centerY + 45);
   }
 
-  // 하단 브랜드
+  // 7. 하단 브랜드 (글로우 효과와 함께)
   ctx.fillStyle = '#8b3dff';
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText('🏃‍♀️ Running Cafe', centerX, centerY + 100);
+  ctx.font = 'bold 20px Arial';
+  ctx.shadowColor = 'rgba(139, 61, 255, 0.3)';
+  ctx.shadowBlur = 10;
+  ctx.fillText('🏃‍♀️ Running Cafe', centerX, centerY + 110);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+
+  // 8. 장식적인 요소들 추가
+  drawDecorativeElements(ctx, width, height, centerX, centerY);
+};
+
+/**
+ * Running View 배경 패턴 그리기
+ * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
+ * @param {number} width - Canvas 너비
+ * @param {number} height - Canvas 높이
+ */
+const drawRunningViewBackground = (ctx, width, height) => {
+  // 1. 기본 그래디언트 배경
+  const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+  bgGradient.addColorStop(0, '#f0f9ff'); // 연한 파랑
+  bgGradient.addColorStop(0.3, '#e0f2fe'); // 중간 파랑
+  bgGradient.addColorStop(0.7, '#f0fdf4'); // 연한 초록
+  bgGradient.addColorStop(1, '#fef3e2'); // 연한 오렌지
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. 러닝 트랙 패턴 (흐릿하게)
+  ctx.globalAlpha = 0.1;
+  drawRunningTrackPattern(ctx, width, height);
+  ctx.globalAlpha = 1;
+
+  // 3. 도시 실루엣 (매우 흐릿하게)
+  ctx.globalAlpha = 0.05;
+  drawCitySilhouette(ctx, width, height);
+  ctx.globalAlpha = 1;
+
+  // 4. 러닝 경로 스타일 곡선들 (장식용)
+  ctx.globalAlpha = 0.08;
+  drawDecorativeRunningPaths(ctx, width, height);
+  ctx.globalAlpha = 1;
+};
+
+/**
+ * 러닝 트랙 패턴 그리기
+ * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
+ * @param {number} width - Canvas 너비
+ * @param {number} height - Canvas 높이
+ */
+const drawRunningTrackPattern = (ctx, width, height) => {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  // 타원형 트랙들 (여러 개의 동심원)
+  const trackCount = 5;
+  for (let i = 0; i < trackCount; i++) {
+    const radiusX = width * 0.3 + i * 30;
+    const radiusY = height * 0.2 + i * 20;
+
+    ctx.strokeStyle = `rgba(139, 61, 255, ${0.3 - i * 0.05})`;
+    ctx.lineWidth = 3 - i * 0.4;
+    ctx.setLineDash([10, 15]);
+
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]); // 점선 해제
+};
+
+/**
+ * 도시 실루엣 그리기
+ * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
+ * @param {number} width - Canvas 너비
+ * @param {number} height - Canvas 높이
+ */
+const drawCitySilhouette = (ctx, width, height) => {
+  ctx.fillStyle = 'rgba(75, 85, 99, 0.3)';
+
+  // 간단한 빌딩 실루엣들
+  const buildings = [
+    { x: 0, width: 80, height: 120 },
+    { x: 80, width: 60, height: 180 },
+    { x: 140, width: 90, height: 150 },
+    { x: 230, width: 70, height: 200 },
+    { x: 300, width: 100, height: 130 },
+    { x: 400, width: 85, height: 170 },
+    { x: 485, width: 75, height: 140 },
+    { x: 560, width: 95, height: 160 },
+    { x: 655, width: 80, height: 190 },
+    { x: 735, width: 65, height: 145 },
+  ];
+
+  buildings.forEach(building => {
+    if (building.x < width) {
+      const buildingHeight = Math.min(building.height, height * 0.4);
+      ctx.fillRect(
+        building.x,
+        height - buildingHeight,
+        building.width,
+        buildingHeight
+      );
+    }
+  });
+};
+
+/**
+ * 장식용 러닝 경로 곡선들 그리기
+ * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
+ * @param {number} width - Canvas 너비
+ * @param {number} height - Canvas 높이
+ */
+const drawDecorativeRunningPaths = (ctx, width, height) => {
+  // 여러 개의 곡선 경로 그리기
+  const paths = [
+    {
+      start: { x: 0, y: height * 0.7 },
+      control1: { x: width * 0.3, y: height * 0.3 },
+      control2: { x: width * 0.7, y: height * 0.8 },
+      end: { x: width, y: height * 0.4 },
+      color: 'rgba(67, 233, 123, 0.4)',
+    },
+    {
+      start: { x: 0, y: height * 0.3 },
+      control1: { x: width * 0.4, y: height * 0.8 },
+      control2: { x: width * 0.6, y: height * 0.2 },
+      end: { x: width, y: height * 0.6 },
+      color: 'rgba(139, 61, 255, 0.4)',
+    },
+    {
+      start: { x: 0, y: height * 0.5 },
+      control1: { x: width * 0.2, y: height * 0.1 },
+      control2: { x: width * 0.8, y: height * 0.9 },
+      end: { x: width, y: height * 0.3 },
+      color: 'rgba(255, 107, 53, 0.4)',
+    },
+  ];
+
+  paths.forEach(path => {
+    ctx.strokeStyle = path.color;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(path.start.x, path.start.y);
+    ctx.bezierCurveTo(
+      path.control1.x,
+      path.control1.y,
+      path.control2.x,
+      path.control2.y,
+      path.end.x,
+      path.end.y
+    );
+    ctx.stroke();
+  });
+};
+
+/**
+ * 장식적인 요소들 그리기
+ * @param {CanvasRenderingContext2D} ctx - Canvas 컨텍스트
+ * @param {number} width - Canvas 너비
+ * @param {number} height - Canvas 높이
+ * @param {number} centerX - 중심 X 좌표
+ * @param {number} centerY - 중심 Y 좌표
+ */
+const drawDecorativeElements = (ctx, width, height, centerX, centerY) => {
+  // 1. 코너 장식 요소들
+  const cornerElements = [
+    { x: 40, y: 40, emoji: '💪', size: 24 },
+    { x: width - 80, y: 50, emoji: '🔥', size: 20 },
+    { x: 60, y: height - 80, emoji: '⚡', size: 22 },
+    { x: width - 60, y: height - 70, emoji: '🏆', size: 26 },
+  ];
+
+  ctx.globalAlpha = 0.6;
+  cornerElements.forEach(element => {
+    ctx.font = `${element.size}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(element.emoji, element.x, element.y);
+  });
+  ctx.globalAlpha = 1;
+
+  // 2. 반짝이는 점들 (별처럼)
+  const sparkles = [
+    { x: centerX - 150, y: centerY - 200, size: 3 },
+    { x: centerX + 180, y: centerY - 150, size: 2 },
+    { x: centerX - 200, y: centerY + 100, size: 4 },
+    { x: centerX + 160, y: centerY + 180, size: 2 },
+    { x: centerX + 220, y: centerY - 80, size: 3 },
+    { x: centerX - 180, y: centerY + 200, size: 2 },
+  ];
+
+  ctx.globalAlpha = 0.4;
+  sparkles.forEach(sparkle => {
+    if (
+      sparkle.x > 0 &&
+      sparkle.x < width &&
+      sparkle.y > 0 &&
+      sparkle.y < height
+    ) {
+      ctx.fillStyle = '#fbbf24'; // yellow-400
+      ctx.beginPath();
+      ctx.arc(sparkle.x, sparkle.y, sparkle.size, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  });
+  ctx.globalAlpha = 1;
 };
 
 /**
