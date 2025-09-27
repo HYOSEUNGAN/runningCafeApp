@@ -7,6 +7,7 @@ import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
 import { setupSampleDataHelper } from './utils/sampleData';
 import './App.css';
+import './styles/scrollbar.css';
 
 function App() {
   const { initialize, isLoading } = useAuthStore();

@@ -629,7 +629,7 @@ const NavigationPage = () => {
     }
   };
 
-  // 러닝 기록 저장
+  // 러닝 기록 저장 (개선된 버전)
   const saveRecord = async () => {
     console.log('=== 러닝 기록 저장 시작 ===');
     console.log('인증 상태:', isAuthenticated());
@@ -657,12 +657,33 @@ const NavigationPage = () => {
 
     setIsSaving(true);
 
+    // 타임아웃 설정 (30초)
+    const timeoutId = setTimeout(() => {
+      setIsSaving(false);
+      showToast({
+        type: 'error',
+        message: '저장 시간이 초과되었습니다. 다시 시도해주세요.',
+      });
+    }, 30000);
+
     try {
       // 시간 및 거리 기본값 설정
       const actualDuration =
         elapsedTime || (endTime && startTime ? endTime - startTime : 30000); // 최소 30초
       const actualDistance = totalDistance || 0; // 거리 0 허용
       const actualPath = path && path.length > 0 ? path : []; // 경로 비어있어도 허용
+
+      // 경로 데이터 압축 (성능 향상)
+      const compressedPath =
+        actualPath.length > 0
+          ? compressPath(
+              actualPath.map(pos => ({
+                lat: typeof pos.lat === 'function' ? pos.lat() : pos.lat,
+                lng: typeof pos.lng === 'function' ? pos.lng() : pos.lng,
+              })),
+              0.0005 // 더 큰 허용 오차로 압축률 높임
+            )
+          : [];
 
       const runningData = {
         userId: user.id,
@@ -678,17 +699,10 @@ const NavigationPage = () => {
             ? actualDistance / (actualDuration / 1000)
             : 0,
         maxSpeed: maxSpeed || 0,
-        path:
-          actualPath.length > 0
-            ? compressPath(
-                actualPath.map(pos => ({
-                  lat: typeof pos.lat === 'function' ? pos.lat() : pos.lat,
-                  lng: typeof pos.lng === 'function' ? pos.lng() : pos.lng,
-                }))
-              )
-            : [],
+        path: compressedPath,
         nearbyCafes: nearbyCafes
-          ? nearbyCafes.map(cafe => ({
+          ? nearbyCafes.slice(0, 5).map(cafe => ({
+              // 최대 5개만 저장
               id: cafe.id,
               name: cafe.name,
               address: cafe.address,
@@ -699,14 +713,24 @@ const NavigationPage = () => {
       };
 
       console.log('저장할 러닝 데이터:', runningData);
+      console.log('압축된 경로 점 개수:', compressedPath.length);
+
+      // 단계별 진행 상황 표시
+      showToast({
+        type: 'info',
+        message: '러닝 기록을 저장하는 중...',
+      });
 
       const savedRecord = await saveRunningRecord(runningData);
       console.log('저장된 기록:', savedRecord);
 
+      // 타임아웃 해제
+      clearTimeout(timeoutId);
+
       if (savedRecord) {
         showToast({
           type: 'success',
-          message: '러닝 기록이 저장되었습니다!',
+          message: '🎉 러닝 기록이 성공적으로 저장되었습니다!',
         });
 
         // 바로 업로드 모달 열기 (허락 모달 없이)
@@ -718,13 +742,25 @@ const NavigationPage = () => {
         // 상태 초기화
         resetTrackingState();
       } else {
-        throw new Error('저장 실패');
+        throw new Error('저장된 기록이 없습니다');
       }
     } catch (error) {
       console.error('러닝 기록 저장 실패:', error);
+      clearTimeout(timeoutId);
+
+      // 더 구체적인 에러 메시지 제공
+      let errorMessage = '러닝 기록 저장에 실패했습니다.';
+      if (error.message.includes('network')) {
+        errorMessage = '네트워크 연결을 확인해주세요.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = '저장 시간이 초과되었습니다. 다시 시도해주세요.';
+      } else if (error.message.includes('storage')) {
+        errorMessage = '저장 공간이 부족합니다.';
+      }
+
       showToast({
         type: 'error',
-        message: `러닝 기록 저장에 실패했습니다: ${error.message}`,
+        message: errorMessage,
       });
     } finally {
       setIsSaving(false);

@@ -7,6 +7,8 @@ import {
   Send,
   Image as ImageIcon,
   Trash2,
+  Video,
+  RotateCcw,
 } from 'lucide-react';
 import { createFeedPost } from '../../services/feedService';
 import {
@@ -31,6 +33,9 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [facingMode, setFacingMode] = useState('environment'); // 'user' or 'environment'
 
   // 스토어
   const { user, getUserId } = useAuthStore();
@@ -39,6 +44,8 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   // refs
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   // 러닝 기록이 있는 경우 초기 캡션 설정 및 지도 이미지 생성
   useEffect(() => {
@@ -116,8 +123,16 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   useEffect(() => {
     if (!isOpen) {
       resetForm();
+      stopCamera();
     }
   }, [isOpen]);
+
+  // 컴포넌트 언마운트 시 카메라 스트림 정리
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   // 이미지 미리보기 정리
   useEffect(() => {
@@ -139,6 +154,140 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
     setImagePreviews([]);
 
     setIsSubmitting(false);
+    setShowCamera(false);
+    setFacingMode('environment');
+  };
+
+  // 카메라 시작
+  const startCamera = async () => {
+    try {
+      const constraints = {
+        video: {
+          facingMode: facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setCameraStream(stream);
+      setShowCamera(true);
+
+      // 비디오 엘리먼트에 스트림 연결
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      showToast({
+        type: 'success',
+        message: '카메라가 시작되었습니다! 📸',
+      });
+    } catch (error) {
+      console.error('카메라 시작 실패:', error);
+      let errorMessage = '카메라를 시작할 수 없습니다.';
+
+      if (error.name === 'NotAllowedError') {
+        errorMessage =
+          '카메라 접근 권한이 필요합니다. 브라우저 설정을 확인해주세요.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = '카메라를 찾을 수 없습니다.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = '이 브라우저에서는 카메라를 지원하지 않습니다.';
+      }
+
+      showToast({
+        type: 'error',
+        message: errorMessage,
+      });
+    }
+  };
+
+  // 카메라 정지
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  // 카메라 방향 전환
+  const switchCamera = async () => {
+    const newFacingMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacingMode);
+
+    // 기존 카메라 정지
+    stopCamera();
+
+    // 잠시 기다린 후 새로운 카메라 시작
+    setTimeout(() => {
+      startCamera();
+    }, 100);
+  };
+
+  // 사진 촬영
+  const capturePhoto = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    // 캔버스 크기를 비디오와 동일하게 설정
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // 비디오 프레임을 캔버스에 그리기
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    try {
+      // 캔버스를 Blob으로 변환
+      const blob = await new Promise(resolve => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.9);
+      });
+
+      if (!blob) {
+        throw new Error('사진 생성에 실패했습니다.');
+      }
+
+      // File 객체로 변환
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = new File([blob], `camera-photo-${timestamp}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+
+      // 이미지 압축
+      const compressedFile = await compressImage(file);
+
+      // 미리보기 생성
+      const previewUrl = createImagePreview(compressedFile);
+      if (previewUrl) {
+        const newPreview = {
+          id: Date.now(),
+          url: previewUrl,
+          file: compressedFile,
+          name: file.name,
+        };
+
+        setSelectedImages(prev => [...prev, compressedFile]);
+        setImagePreviews(prev => [...prev, newPreview]);
+
+        showToast({
+          type: 'success',
+          message: '📸 사진이 추가되었습니다!',
+        });
+
+        // 사진 촬영 후 카메라 종료
+        stopCamera();
+      }
+    } catch (error) {
+      console.error('사진 촬영 실패:', error);
+      showToast({
+        type: 'error',
+        message: '사진 촬영에 실패했습니다. 다시 시도해주세요.',
+      });
+    }
   };
 
   // 러닝 시간 포맷팅
@@ -495,17 +644,114 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
             </div>
           )}
 
-          {/* 이미지 추가 버튼 */}
-          {imagePreviews.length < 5 && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center space-x-2 text-gray-500 hover:text-blue-500"
-              disabled={isSubmitting}
-            >
-              <ImageIcon size={20} />
-              <span>이미지 추가 (최대 5개)</span>
-            </button>
+          {/* 이미지 추가 버튼들 */}
+          {imagePreviews.length < 5 && !showCamera && (
+            <div className="space-y-2">
+              {/* 카메라로 촬영 버튼 */}
+              <button
+                onClick={startCamera}
+                className="w-full p-3 border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg hover:border-blue-500 hover:bg-blue-100 transition-colors flex items-center justify-center space-x-2 text-blue-600"
+                disabled={isSubmitting}
+              >
+                <Camera size={20} />
+                <span>📸 사진 바로 찍기</span>
+              </button>
+
+              {/* 갤러리에서 선택 버튼 */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2 text-gray-500 hover:text-gray-700"
+                disabled={isSubmitting}
+              >
+                <ImageIcon size={20} />
+                <span>갤러리에서 선택 (최대 5개)</span>
+              </button>
+            </div>
           )}
+
+          {/* 카메라 뷰 */}
+          {showCamera && (
+            <div className="space-y-3">
+              <div className="relative bg-black rounded-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-64 object-cover"
+                />
+
+                {/* 카메라 컨트롤 오버레이 */}
+                <div className="absolute inset-0 flex items-end justify-center p-4">
+                  <div className="flex items-center space-x-4">
+                    {/* 카메라 전환 버튼 */}
+                    <button
+                      onClick={switchCamera}
+                      className="w-12 h-12 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+                      title="카메라 전환"
+                    >
+                      <RotateCcw size={20} />
+                    </button>
+
+                    {/* 촬영 버튼 */}
+                    <button
+                      onClick={capturePhoto}
+                      className="w-16 h-16 bg-white border-4 border-gray-300 rounded-full flex items-center justify-center hover:border-blue-500 transition-colors shadow-lg"
+                      title="사진 촬영"
+                    >
+                      <div className="w-12 h-12 bg-white rounded-full shadow-inner"></div>
+                    </button>
+
+                    {/* 카메라 종료 버튼 */}
+                    <button
+                      onClick={stopCamera}
+                      className="w-12 h-12 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+                      title="카메라 종료"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 카메라 모드 표시 */}
+                <div className="absolute top-4 left-4">
+                  <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {facingMode === 'environment'
+                      ? '🔙 후면 카메라'
+                      : '🤳 전면 카메라'}
+                  </div>
+                </div>
+
+                {/* 촬영 가이드 */}
+                <div className="absolute top-4 right-4">
+                  <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {selectedImages.length}/5
+                  </div>
+                </div>
+              </div>
+
+              {/* 카메라 사용 팁 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <Camera
+                    size={16}
+                    className="text-blue-500 mt-0.5 flex-shrink-0"
+                  />
+                  <div className="text-sm text-blue-700">
+                    <p className="font-medium">촬영 팁</p>
+                    <p className="text-xs mt-1">
+                      • 밝은 곳에서 촬영하면 더 좋은 품질의 사진을 얻을 수
+                      있어요 • 전면/후면 카메라를 전환할 수 있어요 • 촬영 후
+                      바로 포스트에 추가됩니다
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 숨겨진 캔버스 (사진 캡처용) */}
+          <canvas ref={canvasRef} className="hidden" />
 
           <input
             ref={fileInputRef}

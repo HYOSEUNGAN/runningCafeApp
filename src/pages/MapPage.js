@@ -270,7 +270,7 @@ const MapPage = () => {
   };
 
   return (
-    <div className="app-container bg-gray-100 overflow-hidden">
+    <div className="app-container bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 overflow-hidden">
       {/* 지도 헤더 */}
       <MapHeader
         onSearchFocus={handleSearchFocus}

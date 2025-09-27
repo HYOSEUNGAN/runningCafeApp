@@ -20,12 +20,21 @@ const MapHeader = ({
 }) => {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
-  // 카페 타입 필터 옵션들
+  // 카페 타입 필터 옵션들 (러닝앱 스타일)
   const filterOptions = [
-    { id: 'open', label: '영업중', icon: '🟢' },
-    { id: 'runner-friendly', label: '러너친화 카페', icon: '🏃‍♀️' },
-    { id: 'partnership', label: '제휴카페', icon: '🤝' },
-    // { id: 'brunch', label: '브런치 카페', icon: '🥐' },
+    { id: 'open', label: '영업중', icon: '🟢', color: 'bg-green-500' },
+    {
+      id: 'runner-friendly',
+      label: '러너친화',
+      icon: '🏃‍♀️',
+      color: 'bg-purple-500',
+    },
+    {
+      id: 'partnership',
+      label: '제휴카페',
+      icon: '🤝',
+      color: 'bg-orange-500',
+    },
   ];
 
   // 거리 옵션들
@@ -59,20 +68,20 @@ const MapHeader = ({
 
   return (
     <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-      {/* 상단 필터 버튼들 */}
-      <div className="pt-4 px-4 pointer-events-auto">
+      {/* 상단 필터 버튼들 - 러닝앱 스타일 */}
+      <div className="pt-safe-top pt-4 px-4 pointer-events-auto">
         <div className="flex flex-wrap gap-2 mb-3">
           {filterOptions.map(filter => (
             <button
               key={filter.id}
               onClick={() => handleFilterToggle(filter.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 shadow-md ${
+              className={`px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-300 shadow-lg backdrop-blur-sm border ${
                 selectedFilters.includes(filter.id)
-                  ? 'bg-blue-500 text-white shadow-blue-200'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 shadow-gray-200'
-              }`}
+                  ? `${filter.color} text-white shadow-lg border-transparent transform scale-105`
+                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-xl border-gray-200/50 hover:scale-105'
+              } active:scale-95`}
             >
-              <span className="mr-1">{filter.icon}</span>
+              <span className="mr-1.5">{filter.icon}</span>
               {filter.label}
             </button>
           ))}
@@ -92,18 +101,18 @@ const MapHeader = ({
         </div>
       </div> */}
 
-      {/* 우측 거리 선택 버튼들 */}
+      {/* 우측 거리 선택 버튼들 - 러닝앱 스타일 */}
       <div className="absolute top-20 right-4 pointer-events-auto">
         <div className="flex flex-col space-y-2">
           {radiusOptions.map(option => (
             <button
               key={option.value}
               onClick={() => handleRadiusChange(option.value)}
-              className={`w-12 h-12 rounded-full text-sm font-bold transition-all duration-200 shadow-lg ${
+              className={`w-14 h-14 rounded-2xl text-sm font-bold transition-all duration-300 shadow-xl backdrop-blur-sm border ${
                 selectedRadius === option.value
-                  ? 'bg-blue-500 text-white shadow-blue-200 ring-2 ring-blue-300'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 shadow-gray-200'
-              }`}
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-200 ring-2 ring-purple-300 transform scale-110'
+                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-2xl border-gray-200/50 hover:scale-105'
+              } active:scale-95`}
             >
               {option.label}
             </button>
@@ -111,62 +120,68 @@ const MapHeader = ({
         </div>
       </div>
 
-      {/* 커스텀 지도 컨트롤 패널 */}
+      {/* 커스텀 지도 컨트롤 패널 - 러닝앱 스타일 */}
       <div className="absolute bottom-32 right-4 pointer-events-auto">
         <div className="flex flex-col space-y-3">
           {/* 줌 컨트롤 */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
             <button
               onClick={onZoomIn}
               disabled={currentZoom >= 19}
-              className="w-12 h-12 flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100"
+              className="w-14 h-14 flex items-center justify-center hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100 group"
               aria-label="확대"
             >
-              <span className="text-lg font-bold text-gray-700">+</span>
+              <span className="text-xl font-bold text-gray-700 group-hover:text-blue-600 group-active:scale-110 transition-all">
+                +
+              </span>
             </button>
             <button
               onClick={onZoomOut}
               disabled={currentZoom <= 10}
-              className="w-12 h-12 flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-14 h-14 flex items-center justify-center hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
               aria-label="축소"
             >
-              <span className="text-lg font-bold text-gray-700">−</span>
+              <span className="text-xl font-bold text-gray-700 group-hover:text-blue-600 group-active:scale-110 transition-all">
+                −
+              </span>
             </button>
           </div>
 
           {/* 지도 타입 변경 버튼 */}
           <button
             onClick={onMapTypeChange}
-            className="w-12 h-12 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-all duration-200 active:scale-95 group relative"
+            className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 flex items-center justify-center hover:bg-blue-50 transition-all duration-300 active:scale-95 group relative"
             aria-label={`지도 타입: ${mapType === 'normal' ? '일반' : mapType === 'satellite' ? '위성' : '하이브리드'}`}
           >
-            <div className="relative">
-              {mapType === 'normal' && <span className="text-lg">🗺️</span>}
-              {mapType === 'satellite' && <span className="text-lg">🛰️</span>}
-              {mapType === 'hybrid' && <span className="text-lg">🌍</span>}
+            <div className="relative group-active:scale-110 transition-transform">
+              {mapType === 'normal' && <span className="text-xl">🗺️</span>}
+              {mapType === 'satellite' && <span className="text-xl">🛰️</span>}
+              {mapType === 'hybrid' && <span className="text-xl">🌍</span>}
             </div>
             {/* 타입 표시 툴팁 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            <div className="absolute right-16 top-1/2 transform -translate-y-1/2 bg-gray-800/90 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap shadow-lg">
               {mapType === 'normal'
-                ? '일반'
+                ? '일반 지도'
                 : mapType === 'satellite'
-                  ? '위성'
+                  ? '위성 지도'
                   : '하이브리드'}
             </div>
           </button>
 
-          {/* GPS 현재위치 버튼 */}
+          {/* GPS 현재위치 버튼 - 러닝앱 스타일 */}
           <button
             onClick={onLocationClick}
-            className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-xl flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all duration-200 active:scale-95 group"
+            className="w-14 h-14 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-xl flex items-center justify-center hover:shadow-2xl transition-all duration-300 active:scale-95 group relative overflow-hidden"
             aria-label="현재 위치"
           >
-            <div className="relative">
-              <span className="text-lg text-white group-active:scale-110 transition-transform">
+            <div className="relative z-10">
+              <span className="text-xl text-white group-active:scale-110 transition-transform">
                 📍
               </span>
-              <div className="absolute inset-0 rounded-full bg-white opacity-20 animate-ping"></div>
             </div>
+            {/* 애니메이션 효과 */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 rounded-2xl bg-white opacity-20 animate-pulse"></div>
           </button>
         </div>
       </div>

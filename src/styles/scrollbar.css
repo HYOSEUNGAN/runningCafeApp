@@ -1,0 +1,108 @@
+/* 커스텀 스크롤바 스타일 - 러닝앱 테마 */
+
+/* Webkit 기반 브라우저 (Chrome, Safari, Edge) */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(196 181 253) rgb(243 244 246);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgb(243 244 246);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgb(196 181 253);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(167 139 250);
+}
+
+.scrollbar-thin::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 러닝앱 스타일 그라디언트 스크롤바 */
+.scrollbar-gradient::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    45deg,
+    rgb(139 69 19),
+    rgb(249 115 22),
+    rgb(236 72 153)
+  );
+  border-radius: 3px;
+}
+
+.scrollbar-gradient::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    45deg,
+    rgb(120 53 15),
+    rgb(234 88 12),
+    rgb(219 39 119)
+  );
+}
+
+/* 숨겨진 스크롤바 (기능은 유지) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 부드러운 스크롤 */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* 맞춤형 스크롤바 색상 변형 */
+.scrollbar-purple::-webkit-scrollbar-thumb {
+  background: rgb(147 51 234);
+}
+
+.scrollbar-purple::-webkit-scrollbar-thumb:hover {
+  background: rgb(126 34 206);
+}
+
+.scrollbar-pink::-webkit-scrollbar-thumb {
+  background: rgb(236 72 153);
+}
+
+.scrollbar-pink::-webkit-scrollbar-thumb:hover {
+  background: rgb(219 39 119);
+}
+
+.scrollbar-orange::-webkit-scrollbar-thumb {
+  background: rgb(249 115 22);
+}
+
+.scrollbar-orange::-webkit-scrollbar-thumb:hover {
+  background: rgb(234 88 12);
+}
+
+/* 러닝 테마 스크롤바 애니메이션 */
+@keyframes scroll-glow {
+  0% {
+    box-shadow: 0 0 5px rgba(147, 51, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(147, 51, 234, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(147, 51, 234, 0.3);
+  }
+}
+
+.scrollbar-glow::-webkit-scrollbar-thumb:hover {
+  animation: scroll-glow 2s ease-in-out infinite;
+}

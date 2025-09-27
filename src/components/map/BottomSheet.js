@@ -162,15 +162,35 @@ const BottomSheet = ({
   const getSheetStyles = () => {
     switch (sheetHeight) {
       case 'closed':
-        return { height: '80px', transform: 'translateY(0)' };
+        return {
+          height: '80px',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
       case '50%':
-        return { height: '50%', transform: 'translateY(0)' };
+        return {
+          height: '50vh',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
       case '80%':
-        return { height: '80%', transform: 'translateY(0)' };
+        return {
+          height: '80vh',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
       case 'full':
-        return { height: '90%', transform: 'translateY(0)' };
+        return {
+          height: '90vh',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
       default:
-        return { height: '50%', transform: 'translateY(0)' };
+        return {
+          height: '50vh',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
     }
   };
 
@@ -184,16 +204,31 @@ const BottomSheet = ({
 
     const currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY;
+    const threshold = 60; // 더 부드러운 임계값
 
-    // 드래그 방향에 따른 높이 조절 로직
-    if (deltaY > 50 && sheetHeight !== 'closed') {
-      if (sheetHeight === 'full') setSheetHeight('80%');
-      else if (sheetHeight === '80%') setSheetHeight('50%');
-      else if (sheetHeight === '50%') setSheetHeight('closed');
-    } else if (deltaY < -50) {
-      if (sheetHeight === 'closed') setSheetHeight('50%');
-      else if (sheetHeight === '50%') setSheetHeight('80%');
-      else if (sheetHeight === '80%') setSheetHeight('full');
+    // 드래그 방향에 따른 높이 조절 로직 (개선된 버전)
+    if (deltaY > threshold && sheetHeight !== 'closed') {
+      if (sheetHeight === 'full') {
+        setSheetHeight('80%');
+        setDragStartY(currentY);
+      } else if (sheetHeight === '80%') {
+        setSheetHeight('50%');
+        setDragStartY(currentY);
+      } else if (sheetHeight === '50%') {
+        setSheetHeight('closed');
+        setDragStartY(currentY);
+      }
+    } else if (deltaY < -threshold) {
+      if (sheetHeight === 'closed') {
+        setSheetHeight('50%');
+        setDragStartY(currentY);
+      } else if (sheetHeight === '50%') {
+        setSheetHeight('80%');
+        setDragStartY(currentY);
+      } else if (sheetHeight === '80%') {
+        setSheetHeight('full');
+        setDragStartY(currentY);
+      }
     }
   };
 
@@ -280,19 +315,19 @@ const BottomSheet = ({
   return (
     <div
       ref={sheetRef}
-      className={`fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[390px] bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out z-40 ${
-        isDragging ? 'transition-none' : ''
+      className={`fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[390px] bg-white/95 backdrop-blur-md shadow-2xl transition-all duration-300 ease-out z-40 ${
+        isDragging ? 'transition-none' : 'transition-all'
       }`}
       style={getSheetStyles()}
     >
-      {/* 드래그 핸들 */}
+      {/* 드래그 핸들 - 러닝앱 스타일 */}
       <div
         ref={handleRef}
-        className="flex justify-center py-3 cursor-grab active:cursor-grabbing"
+        className="flex justify-center py-4 cursor-grab active:cursor-grabbing"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
       >
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full hover:bg-gray-400 transition-colors"></div>
+        <div className="w-12 h-1.5 bg-gradient-to-r from-gray-300 via-gray-400 to-gray-300 rounded-full hover:from-purple-300 hover:via-purple-400 hover:to-purple-300 transition-all duration-300 shadow-sm"></div>
       </div>
 
       {/* 바텀시트 컨텐츠 */}
@@ -333,15 +368,15 @@ const BottomSheet = ({
           </div>
         )}
 
-        {/* 카페 목록 */}
+        {/* 카페 목록 - 개선된 스크롤 */}
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500 mb-4"></div>
               <p className="text-gray-500 text-sm">주변 카페를 찾는 중...</p>
             </div>
           ) : filteredCafes.length > 0 ? (
-            <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-gray-100 hover:scrollbar-thumb-purple-400">
               <div className="space-y-0">
                 {filteredCafes.map((cafe, index) => (
                   <div key={cafe.id} className="relative">
@@ -356,13 +391,13 @@ const BottomSheet = ({
                     />
                     {/* 구분선 (마지막 항목 제외) */}
                     {index < filteredCafes.length - 1 && (
-                      <div className="border-b border-gray-100"></div>
+                      <div className="border-b border-gray-100/70"></div>
                     )}
                   </div>
                 ))}
 
                 {/* 하단 패딩 */}
-                <div className="h-4"></div>
+                <div className="h-6"></div>
               </div>
             </div>
           ) : (
@@ -396,14 +431,14 @@ const BottomSheet = ({
           )}
         </div>
 
-        {/* 하단 여백 (safe area) */}
-        <div className="h-2 bg-white"></div>
+        {/* 하단 여백 (safe area) - 러닝앱 스타일 */}
+        <div className="h-2 bg-gradient-to-t from-white/50 to-transparent"></div>
       </div>
 
-      {/* 배경 오버레이 (전체 화면일 때) */}
+      {/* 배경 오버레이 (전체 화면일 때) - 개선된 스타일 */}
       {sheetHeight === 'full' && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[-1]"
+          className="fixed inset-0 bg-gradient-to-t from-black/30 via-black/20 to-black/10 backdrop-blur-sm z-[-1] transition-all duration-300"
           onClick={() => setSheetHeight('80%')}
         ></div>
       )}
