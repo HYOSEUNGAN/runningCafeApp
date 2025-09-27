@@ -183,7 +183,7 @@ updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 ; # Running Cafe 프로젝트 - Cursor AI 개발 규칙 (Supabase + Zustand + Tailwind)
 
 ; ## 프로젝트 개요
-; - **프로젝트명**: Running Cafe
+; - **프로젝트명**: Running View
 ; - **기술 스택**: React 19.1.1, JavaScript, Supabase, Zustand, Tailwind CSS
 ; - **빌드 도구**: Create React App (react-scripts 5.0.1)
 ; - **테스팅**: Jest, React Testing Library
