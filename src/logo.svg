@@ -1,79 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
   <defs>
-    <linearGradient id="runningGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="runViewGradient" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stopColor="#00BCD4" />
-      <stop offset="100%" stopColor="#9C27B0" />
+      <stop offset="50%" stopColor="#4CAF50" />
+      <stop offset="100%" stopColor="#FF5722" />
+    </linearGradient>
+    <linearGradient id="mapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#2196F3" />
+      <stop offset="100%" stopColor="#1976D2" />
     </linearGradient>
   </defs>
   
-  <!-- 러닝하는 사람 아이콘 -->
-  <path
-    d="M12 2C12.5 2 13 2.2 13.4 2.6C13.8 3 14 3.5 14 4C14 4.5 13.8 5 13.4 5.4C13 5.8 12.5 6 12 6C11.5 6 11 5.8 10.6 5.4C10.2 5 10 4.5 10 4C10 3.5 10.2 3 10.6 2.6C11 2.2 11.5 2 12 2Z"
-    fill="url(#runningGradient)"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- 지도 배경 -->
+  <rect x="5" y="8" width="40" height="30" rx="4" fill="url(#mapGradient)" opacity="0.9"/>
   
-  <!-- 몸통 -->
-  <path
-    d="M12 6L10 10L8 12"
-    fill="none"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- 지도 격자 -->
+  <g stroke="white" strokeWidth="0.8" opacity="0.6">
+    <line x1="15" y1="12" x2="15" y2="34"/>
+    <line x1="25" y1="12" x2="25" y2="34"/>
+    <line x1="35" y1="12" x2="35" y2="34"/>
+    <line x1="9" y1="18" x2="41" y2="18"/>
+    <line x1="9" y1="28" x2="41" y2="28"/>
+  </g>
   
-  <!-- 왼팔 (앞으로 뻗은 팔) -->
-  <path
-    d="M10 8L8 6L6 7"
-    fill="none"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- 지도 위치 마커 -->
+  <circle cx="25" cy="23" r="3" fill="#FF5722"/>
+  <circle cx="25" cy="23" r="1.5" fill="white"/>
   
-  <!-- 오른팔 (뒤로 뻗은 팔) -->
-  <path
-    d="M10 8L12 6L14 7"
-    fill="none"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- 러닝 경로 라인 -->
+  <path d="M12 16 Q20 20 28 18 Q35 16 40 22" 
+        stroke="#4CAF50" 
+        strokeWidth="2" 
+        fill="none" 
+        strokeLinecap="round"/>
   
-  <!-- 왼다리 (앞으로 뻗은 다리) -->
-  <path
-    d="M8 12L6 16L4 18"
-    fill="none"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- 러닝하는 사람 아이콘 (작게) -->
+  <g transform="translate(32, 15) scale(0.6)">
+    <!-- 머리 -->
+    <circle cx="0" cy="0" r="2.5" fill="url(#runViewGradient)"/>
+    
+    <!-- 몸통 -->
+    <path d="M0 2.5L-2 8L-4 10" 
+          stroke="url(#runViewGradient)" 
+          strokeWidth="1.5" 
+          strokeLinecap="round" 
+          fill="none"/>
+    
+    <!-- 팔 -->
+    <path d="M-2 5L-4 3L-6 4" 
+          stroke="url(#runViewGradient)" 
+          strokeWidth="1.2" 
+          strokeLinecap="round" 
+          fill="none"/>
+    <path d="M-2 5L0 3L2 4" 
+          stroke="url(#runViewGradient)" 
+          strokeWidth="1.2" 
+          strokeLinecap="round" 
+          fill="none"/>
+    
+    <!-- 다리 -->
+    <path d="M-4 10L-6 14L-8 16" 
+          stroke="url(#runViewGradient)" 
+          strokeWidth="1.2" 
+          strokeLinecap="round" 
+          fill="none"/>
+    <path d="M-4 10L-2 14L0 16" 
+          stroke="url(#runViewGradient)" 
+          strokeWidth="1.2" 
+          strokeLinecap="round" 
+          fill="none"/>
+  </g>
   
-  <!-- 오른다리 (뒤로 뻗은 다리) -->
-  <path
-    d="M8 12L10 16L12 18"
-    fill="none"
-    stroke="url(#runningGradient)"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+  <!-- Run View 텍스트 -->
+  <text x="55" y="20" 
+        font-family="Arial, sans-serif" 
+        font-size="16" 
+        font-weight="bold" 
+        fill="url(#runViewGradient)">Run</text>
   
-  <!-- 지면 표시 -->
-  <line
-    x1="2"
-    y1="20"
-    x2="22"
-    y2="20"
-    stroke="url(#runningGradient)"
-    strokeWidth="1"
-    opacity="0.3"
-  />
+  <text x="55" y="38" 
+        font-family="Arial, sans-serif" 
+        font-size="16" 
+        font-weight="bold" 
+        fill="url(#runViewGradient)">View</text>
+  
+  <!-- 한글 텍스트 -->
+  <text x="105" y="20" 
+        font-family="Arial, sans-serif" 
+        font-size="12" 
+        font-weight="normal" 
+        fill="#666">런</text>
+  
+  <text x="105" y="38" 
+        font-family="Arial, sans-serif" 
+        font-size="12" 
+        font-weight="normal" 
+        fill="#666">뷰</text>
+        
+  <!-- 장식용 점들 -->
+  <circle cx="130" cy="15" r="1.5" fill="#00BCD4" opacity="0.6"/>
+  <circle cx="135" cy="20" r="1" fill="#4CAF50" opacity="0.6"/>
+  <circle cx="140" cy="25" r="1.5" fill="#FF5722" opacity="0.6"/>
+  <circle cx="130" cy="35" r="1" fill="#2196F3" opacity="0.6"/>
 </svg>

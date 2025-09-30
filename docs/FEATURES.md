@@ -1,11 +1,11 @@
-# Running Cafe - 기능 명세서
+# Run View - 기능 명세서
 
 ## 📋 프로젝트 개요
 
-**프로젝트명**: Running Cafe  
-**목적**: 러닝과 카페 문화를 연결하여 건강한 라이프스타일과 소셜 경험을 제공  
-**타겟 사용자**: 20~30대 MZ세대, 특히 러닝을 즐기는 여성들  
-**기술 스택**: React 19.1.1, Supabase, Zustand, Tailwind CSS
+**프로젝트명**: Run View  
+**목적**: 러닝과 지도를 결합하여 스마트한 러닝 경험과 기록 관리를 제공  
+**타겟 사용자**: 20~30대 MZ세대, 러닝을 즐기는 모든 사용자  
+**기술 스택**: React 19.1.1, Supabase, Zustand, Tailwind CSS, 네이버 지도 API
 
 ---
 

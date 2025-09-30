@@ -14,6 +14,7 @@ import {
   Navigation,
   Target,
   Settings,
+  Camera,
 } from 'lucide-react';
 import { formatDistance, formatTime, formatCalories } from '../utils/format';
 import {
@@ -33,11 +34,11 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../constants/app';
-import { 
-  playCountdownBeep, 
-  playStartBeep, 
+import {
+  playCountdownBeep,
+  playStartBeep,
   playSuccessBeep,
-  resumeAudioContext 
+  resumeAudioContext,
 } from '../utils/audioUtils';
 import {
   requestWakeLock,
@@ -45,7 +46,7 @@ import {
   setupBackgroundTracking,
   cleanupBackgroundTracking,
   requestNotificationPermission,
-  showRunningCompleteNotification
+  showRunningCompleteNotification,
 } from '../utils/backgroundService';
 
 const NavigationPage = () => {
@@ -546,30 +547,29 @@ const NavigationPage = () => {
     try {
       // 오디오 컨텍스트 활성화 (사용자 상호작용 필요)
       await resumeAudioContext();
-      
+
       // 알림 권한 요청
       await requestNotificationPermission();
-      
+
       // Wake Lock 요청 (화면 꺼짐 방지)
       await requestWakeLock();
-      
+
       setIsCountingDown(true);
-      
+
       // 3-2-1 카운트다운
       for (let i = 3; i >= 1; i--) {
         setCountdownNumber(i);
         playCountdownBeep(i);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
+
       // 시작 효과음
       playStartBeep();
       setCountdownNumber(0);
       setIsCountingDown(false);
-      
+
       // 실제 추적 시작
       startTracking();
-      
     } catch (error) {
       console.error('카운트다운 시작 실패:', error);
       setIsCountingDown(false);
@@ -594,7 +594,7 @@ const NavigationPage = () => {
     setTotalDistance(0);
 
     // 백그라운드 추적 설정
-    setupBackgroundTracking((isVisible) => {
+    setupBackgroundTracking(isVisible => {
       console.log('페이지 가시성 변경:', isVisible ? '보임' : '숨김');
     });
 
@@ -697,7 +697,7 @@ const NavigationPage = () => {
     // 성공 효과음
     if (totalDistance > 0 || elapsedTime > 0) {
       playSuccessBeep();
-      
+
       // 완료 알림
       const timeText = formatTime(elapsedTime);
       showRunningCompleteNotification(totalDistance, timeText);
@@ -1180,6 +1180,198 @@ const NavigationPage = () => {
     });
   }, [showCafeInfo, showToast]);
 
+  // 지도 캡처 기능
+  const captureMapWithRunningRecord = useCallback(async () => {
+    if (!naverMapRef.current) {
+      showToast({
+        type: 'error',
+        message: '지도가 준비되지 않았습니다.',
+      });
+      return;
+    }
+
+    try {
+      showToast({
+        type: 'info',
+        message: '📸 지도를 캡처하는 중...',
+      });
+
+      // html2canvas 동적 import
+      const html2canvas = (await import('html2canvas')).default;
+
+      // 지도 컨테이너 캡처
+      const mapElement = mapRef.current;
+      if (!mapElement) {
+        throw new Error('지도 요소를 찾을 수 없습니다.');
+      }
+
+      // 캡처 옵션 설정
+      const canvas = await html2canvas(mapElement, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2, // 고해상도
+        width: mapElement.offsetWidth,
+        height: mapElement.offsetHeight,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      // Canvas를 Blob으로 변환
+      const blob = await new Promise(resolve => {
+        canvas.toBlob(resolve, 'image/png', 0.9);
+      });
+
+      if (!blob) {
+        throw new Error('이미지 생성에 실패했습니다.');
+      }
+
+      // 러닝 기록 정보를 오버레이로 추가
+      const overlayCanvas = document.createElement('canvas');
+      const ctx = overlayCanvas.getContext('2d');
+
+      overlayCanvas.width = canvas.width;
+      overlayCanvas.height = canvas.height;
+
+      // 원본 지도 이미지 그리기
+      ctx.drawImage(canvas, 0, 0);
+
+      // 러닝 기록 정보 오버레이 추가
+      if (totalDistance > 0 || elapsedTime > 0) {
+        const padding = 40;
+        const boxWidth = 320;
+        const boxHeight = 160;
+        const x = overlayCanvas.width - boxWidth - padding;
+        const y = padding;
+
+        // 반투명 배경 박스
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+
+        // roundRect 폴리필 (브라우저 호환성)
+        const drawRoundRect = (ctx, x, y, width, height, radius) => {
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.lineTo(x + width - radius, y);
+          ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+          ctx.lineTo(x + width, y + height - radius);
+          ctx.quadraticCurveTo(
+            x + width,
+            y + height,
+            x + width - radius,
+            y + height
+          );
+          ctx.lineTo(x + radius, y + height);
+          ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.closePath();
+        };
+
+        drawRoundRect(ctx, x, y, boxWidth, boxHeight, 12);
+        ctx.fill();
+
+        // 테두리
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 텍스트 스타일 설정
+        ctx.fillStyle = '#1F2937';
+        ctx.textAlign = 'left';
+
+        // 제목
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText('🏃‍♀️ 러닝 기록', x + 20, y + 35);
+
+        // 기록 정보
+        ctx.font = '18px -apple-system, BlinkMacSystemFont, sans-serif';
+        const lineHeight = 25;
+        let currentY = y + 70;
+
+        const records = [
+          `⏱️ 시간: ${formatTime(elapsedTime)}`,
+          `📏 거리: ${formatDistance(totalDistance)}`,
+          `🔥 칼로리: ${getCalculatedCalories()}kcal`,
+          `⚡ 속도: ${(currentSpeed * 3.6).toFixed(1)}km/h`,
+        ];
+
+        records.forEach((record, index) => {
+          ctx.fillText(record, x + 20, currentY + index * lineHeight);
+        });
+
+        // 날짜 및 시간
+        ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#6B7280';
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ko-KR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        ctx.fillText(dateStr, x + 20, y + boxHeight - 15);
+      }
+
+      // 최종 이미지를 Blob으로 변환
+      const finalBlob = await new Promise(resolve => {
+        overlayCanvas.toBlob(resolve, 'image/png', 0.9);
+      });
+
+      // 파일명 생성
+      const now = new Date();
+      const fileName = `running_record_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.png`;
+
+      // 다운로드 링크 생성
+      const url = URL.createObjectURL(finalBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast({
+        type: 'success',
+        message: '📸 러닝 기록이 캡처되어 저장되었습니다!',
+      });
+
+      // 공유 옵션 제공
+      if (
+        navigator.share &&
+        navigator.canShare({
+          files: [new File([finalBlob], fileName, { type: 'image/png' })],
+        })
+      ) {
+        setTimeout(async () => {
+          try {
+            const file = new File([finalBlob], fileName, { type: 'image/png' });
+            await navigator.share({
+              title: '러닝 기록',
+              text: `🏃‍♀️ ${formatDistance(totalDistance)} 러닝 완주! ${formatTime(elapsedTime)}`,
+              files: [file],
+            });
+          } catch (shareError) {
+            console.log('공유 취소됨:', shareError);
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('지도 캡처 실패:', error);
+      showToast({
+        type: 'error',
+        message: '지도 캡처에 실패했습니다. 다시 시도해주세요.',
+      });
+    }
+  }, [
+    naverMapRef,
+    totalDistance,
+    elapsedTime,
+    currentSpeed,
+    getCalculatedCalories,
+    showToast,
+  ]);
+
   // Instagram 공유를 위한 이미지 및 텍스트 준비
   const shareToInstagram = async () => {
     if (totalDistance === 0 && elapsedTime === 0) {
@@ -1628,17 +1820,19 @@ const NavigationPage = () => {
                 onClick={startCountdown}
                 disabled={isCountingDown}
                 className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  isCountingDown 
-                    ? 'text-gray-400' 
+                  isCountingDown
+                    ? 'text-gray-400'
                     : 'text-green-600 hover:text-green-800'
                 }`}
                 aria-label="러닝 시작"
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                  isCountingDown
-                    ? 'bg-gray-400'
-                    : 'bg-green-500 hover:bg-green-600'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    isCountingDown
+                      ? 'bg-gray-400'
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
                   <Play size={20} className="text-white" />
                 </div>
                 <span className="text-xs font-bold">
@@ -1690,6 +1884,29 @@ const NavigationPage = () => {
                   <Share2 size={20} className="text-white" />
                 </div>
                 <span className="text-xs font-bold">공유</span>
+              </button>
+
+              {/* 캡처 버튼 */}
+              <button
+                onClick={captureMapWithRunningRecord}
+                disabled={totalDistance === 0 && elapsedTime === 0}
+                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                  totalDistance === 0 && elapsedTime === 0
+                    ? 'text-gray-300'
+                    : 'text-purple-600 hover:text-purple-800'
+                }`}
+                aria-label="지도 캡처"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    totalDistance === 0 && elapsedTime === 0
+                      ? 'bg-gray-200'
+                      : 'bg-purple-500 hover:bg-purple-600'
+                  }`}
+                >
+                  <Camera size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">캡처</span>
               </button>
 
               {/* 저장 버튼 - 거리 0이어도 저장 가능 */}
@@ -1749,6 +1966,18 @@ const NavigationPage = () => {
                   <Square size={20} className="text-white" />
                 </div>
                 <span className="text-xs font-bold">정지</span>
+              </button>
+
+              {/* 캡처 버튼 (러닝 중) */}
+              <button
+                onClick={captureMapWithRunningRecord}
+                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-purple-600 hover:text-purple-800"
+                aria-label="지도 캡처"
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-500 hover:bg-purple-600 transition-colors">
+                  <Camera size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">캡처</span>
               </button>
 
               {/* 현재 위치로 이동 버튼 */}
@@ -1813,12 +2042,13 @@ const NavigationPage = () => {
             </div>
             <div className="mt-6 flex justify-center">
               <div className="w-16 h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-green-400 transition-all duration-1000 ease-linear"
-                  style={{ 
-                    width: countdownNumber > 0 
-                      ? `${((4 - countdownNumber) / 3) * 100}%` 
-                      : '100%' 
+                  style={{
+                    width:
+                      countdownNumber > 0
+                        ? `${((4 - countdownNumber) / 3) * 100}%`
+                        : '100%',
                   }}
                 />
               </div>

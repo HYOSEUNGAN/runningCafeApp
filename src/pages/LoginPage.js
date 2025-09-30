@@ -60,12 +60,10 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <span className="text-4xl">🏃‍♀️</span>
-            <span className="text-4xl ml-2">☕</span>
+            <span className="text-4xl ml-2">🗺️</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Running Cafe
-          </h1>
-          <p className="text-gray-600">러닝과 카페를 연결하는 플랫폼</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Run View</h1>
+          <p className="text-gray-600">러닝과 지도를 결합한 스마트 러닝 앱</p>
         </div>
 
         {/* 로그인 카드 */}

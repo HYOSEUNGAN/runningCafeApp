@@ -75,13 +75,13 @@ const MapHeader = ({
             <button
               key={filter.id}
               onClick={() => handleFilterToggle(filter.id)}
-              className={`px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-300 shadow-lg backdrop-blur-sm border ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-300 shadow-md backdrop-blur-sm border ${
                 selectedFilters.includes(filter.id)
-                  ? `${filter.color} text-white shadow-lg border-transparent transform scale-105`
-                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-xl border-gray-200/50 hover:scale-105'
+                  ? `bg-purple-500 text-white shadow-lg border-transparent transform scale-105`
+                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-lg border-gray-200/50 hover:scale-105'
               } active:scale-95`}
             >
-              <span className="mr-1.5">{filter.icon}</span>
+              <span className="mr-1">{filter.icon}</span>
               {filter.label}
             </button>
           ))}
@@ -108,10 +108,10 @@ const MapHeader = ({
             <button
               key={option.value}
               onClick={() => handleRadiusChange(option.value)}
-              className={`w-14 h-14 rounded-2xl text-sm font-bold transition-all duration-300 shadow-xl backdrop-blur-sm border ${
+              className={`w-11 h-11 rounded-xl text-xs font-bold transition-all duration-300 shadow-lg backdrop-blur-sm border ${
                 selectedRadius === option.value
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-200 ring-2 ring-purple-300 transform scale-110'
-                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-2xl border-gray-200/50 hover:scale-105'
+                  ? 'bg-purple-500 text-white shadow-purple-200 ring-2 ring-purple-300 transform scale-110'
+                  : 'bg-white/90 text-gray-700 hover:bg-white hover:shadow-xl border-gray-200/50 hover:scale-105'
               } active:scale-95`}
             >
               {option.label}
@@ -124,24 +124,24 @@ const MapHeader = ({
       <div className="absolute bottom-32 right-4 pointer-events-auto">
         <div className="flex flex-col space-y-3">
           {/* 줌 컨트롤 */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
+          <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200/50 overflow-hidden">
             <button
               onClick={onZoomIn}
               disabled={currentZoom >= 19}
-              className="w-14 h-14 flex items-center justify-center hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100 group"
+              className="w-11 h-11 flex items-center justify-center hover:bg-purple-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100 group"
               aria-label="확대"
             >
-              <span className="text-xl font-bold text-gray-700 group-hover:text-blue-600 group-active:scale-110 transition-all">
+              <span className="text-lg font-bold text-gray-700 group-hover:text-purple-600 group-active:scale-110 transition-all">
                 +
               </span>
             </button>
             <button
               onClick={onZoomOut}
               disabled={currentZoom <= 10}
-              className="w-14 h-14 flex items-center justify-center hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="w-11 h-11 flex items-center justify-center hover:bg-purple-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
               aria-label="축소"
             >
-              <span className="text-xl font-bold text-gray-700 group-hover:text-blue-600 group-active:scale-110 transition-all">
+              <span className="text-lg font-bold text-gray-700 group-hover:text-purple-600 group-active:scale-110 transition-all">
                 −
               </span>
             </button>
@@ -150,20 +150,20 @@ const MapHeader = ({
           {/* 지도 타입 변경 버튼 */}
           <button
             onClick={onMapTypeChange}
-            className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 flex items-center justify-center hover:bg-blue-50 transition-all duration-300 active:scale-95 group relative"
+            className="w-11 h-11 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200/50 flex items-center justify-center hover:bg-purple-50 transition-all duration-300 active:scale-95 group relative"
             aria-label={`지도 타입: ${mapType === 'normal' ? '일반' : mapType === 'satellite' ? '위성' : '하이브리드'}`}
           >
             <div className="relative group-active:scale-110 transition-transform">
-              {mapType === 'normal' && <span className="text-xl">🗺️</span>}
-              {mapType === 'satellite' && <span className="text-xl">🛰️</span>}
-              {mapType === 'hybrid' && <span className="text-xl">🌍</span>}
+              {mapType === 'normal' && <span className="text-lg">🗺️</span>}
+              {mapType === 'satellite' && <span className="text-lg">🛰️</span>}
+              {mapType === 'hybrid' && <span className="text-lg">🌍</span>}
             </div>
             {/* 타입 표시 툴팁 */}
-            <div className="absolute right-16 top-1/2 transform -translate-y-1/2 bg-gray-800/90 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap shadow-lg">
+            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-gray-800/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap shadow-lg">
               {mapType === 'normal'
-                ? '일반 지도'
+                ? '일반'
                 : mapType === 'satellite'
-                  ? '위성 지도'
+                  ? '위성'
                   : '하이브리드'}
             </div>
           </button>
@@ -171,17 +171,17 @@ const MapHeader = ({
           {/* GPS 현재위치 버튼 - 러닝앱 스타일 */}
           <button
             onClick={onLocationClick}
-            className="w-14 h-14 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-xl flex items-center justify-center hover:shadow-2xl transition-all duration-300 active:scale-95 group relative overflow-hidden"
+            className="w-11 h-11 bg-purple-500 rounded-xl shadow-lg flex items-center justify-center hover:shadow-xl transition-all duration-300 active:scale-95 group relative overflow-hidden"
             aria-label="현재 위치"
           >
             <div className="relative z-10">
-              <span className="text-xl text-white group-active:scale-110 transition-transform">
+              <span className="text-lg text-white group-active:scale-110 transition-transform">
                 📍
               </span>
             </div>
             {/* 애니메이션 효과 */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="absolute inset-0 rounded-2xl bg-white opacity-20 animate-pulse"></div>
+            <div className="absolute inset-0 rounded-xl bg-purple-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 rounded-xl bg-white opacity-20 animate-pulse"></div>
           </button>
         </div>
       </div>

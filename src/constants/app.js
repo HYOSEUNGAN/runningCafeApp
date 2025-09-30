@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
-  NAME: 'Running View',
+  NAME: 'Run View',
   VERSION: '1.0.0',
-  DESCRIPTION: '러닝과 카페를 연결하는 플랫폼',
+  DESCRIPTION: '러닝과 지도를 결합한 스마트 러닝 앱',
 };
 
 export const ROUTES = {

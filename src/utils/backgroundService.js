@@ -126,3 +126,4 @@ export const showRunningCompleteNotification = (distance, time) => {
     }
   );
 };
+

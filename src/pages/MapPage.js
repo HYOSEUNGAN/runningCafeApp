@@ -17,7 +17,7 @@ const MapPage = () => {
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(true);
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [searchRadius, setSearchRadius] = useState(5);
-  const [currentZoom, setCurrentZoom] = useState(15);
+  const [currentZoom, setCurrentZoom] = useState(16);
   const [mapType, setMapType] = useState('normal');
 
   // 컴포넌트 마운트 시 현재 위치 가져오기

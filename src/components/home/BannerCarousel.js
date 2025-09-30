@@ -11,22 +11,22 @@ const BannerCarousel = () => {
   const banners = [
     {
       id: 1,
-      title: '신규 오픈! 러닝 카페',
-      subtitle: '한강공원 근처 새로운 카페',
+      title: '새로운 러닝 코스 발견!',
+      subtitle: '한강공원 최적 러닝 경로',
       image: '/images/banner1.jpg',
       backgroundColor: '#4F46E5',
     },
     {
       id: 2,
-      title: '주말 러닝 이벤트',
-      subtitle: '함께 뛰고 커피 한잔',
+      title: '주말 러닝 챌린지',
+      subtitle: '함께 뛰고 기록을 남겨보세요',
       image: '/images/banner2.jpg',
       backgroundColor: '#059669',
     },
     {
       id: 3,
-      title: '러너 전용 할인',
-      subtitle: '운동복 착용시 10% 할인',
+      title: 'GPS 추적 기능',
+      subtitle: '정확한 거리와 속도 측정',
       image: '/images/banner3.jpg',
       backgroundColor: '#DC2626',
     },

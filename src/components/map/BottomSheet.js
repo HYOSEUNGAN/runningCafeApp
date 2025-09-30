@@ -202,31 +202,32 @@ const BottomSheet = ({
   const handleDragMove = e => {
     if (!isDragging) return;
 
+    // 터치 이벤트와 마우스 이벤트 모두 지원
     const currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY;
-    const threshold = 60; // 더 부드러운 임계값
+    const threshold = 50; // 네이버 지도 스타일 임계값
 
-    // 드래그 방향에 따른 높이 조절 로직 (개선된 버전)
-    if (deltaY > threshold && sheetHeight !== 'closed') {
-      if (sheetHeight === 'full') {
-        setSheetHeight('80%');
+    // 부드러운 드래그 감지 (네이버 지도 스타일)
+    if (Math.abs(deltaY) > threshold) {
+      if (deltaY > 0 && sheetHeight !== 'closed') {
+        // 아래로 드래그 - 축소
+        if (sheetHeight === 'full') {
+          setSheetHeight('80%');
+        } else if (sheetHeight === '80%') {
+          setSheetHeight('50%');
+        } else if (sheetHeight === '50%') {
+          setSheetHeight('closed');
+        }
         setDragStartY(currentY);
-      } else if (sheetHeight === '80%') {
-        setSheetHeight('50%');
-        setDragStartY(currentY);
-      } else if (sheetHeight === '50%') {
-        setSheetHeight('closed');
-        setDragStartY(currentY);
-      }
-    } else if (deltaY < -threshold) {
-      if (sheetHeight === 'closed') {
-        setSheetHeight('50%');
-        setDragStartY(currentY);
-      } else if (sheetHeight === '50%') {
-        setSheetHeight('80%');
-        setDragStartY(currentY);
-      } else if (sheetHeight === '80%') {
-        setSheetHeight('full');
+      } else if (deltaY < 0 && sheetHeight !== 'full') {
+        // 위로 드래그 - 확대
+        if (sheetHeight === 'closed') {
+          setSheetHeight('50%');
+        } else if (sheetHeight === '50%') {
+          setSheetHeight('80%');
+        } else if (sheetHeight === '80%') {
+          setSheetHeight('full');
+        }
         setDragStartY(currentY);
       }
     }
@@ -315,19 +316,22 @@ const BottomSheet = ({
   return (
     <div
       ref={sheetRef}
-      className={`fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[390px] bg-white/95 backdrop-blur-md shadow-2xl transition-all duration-300 ease-out z-40 ${
-        isDragging ? 'transition-none' : 'transition-all'
+      className={`fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[390px] bg-white/98 backdrop-blur-lg shadow-[0_-4px_32px_rgba(0,0,0,0.12)] z-40 ${
+        isDragging ? 'transition-none' : 'transition-all duration-300 ease-out'
       }`}
-      style={getSheetStyles()}
+      style={{
+        ...getSheetStyles(),
+        borderTop: '1px solid rgba(0,0,0,0.05)',
+      }}
     >
-      {/* 드래그 핸들 - 러닝앱 스타일 */}
+      {/* 드래그 핸들 - 네이버 지도 스타일 */}
       <div
         ref={handleRef}
-        className="flex justify-center py-4 cursor-grab active:cursor-grabbing"
+        className="flex justify-center py-3 cursor-grab active:cursor-grabbing"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
       >
-        <div className="w-12 h-1.5 bg-gradient-to-r from-gray-300 via-gray-400 to-gray-300 rounded-full hover:from-purple-300 hover:via-purple-400 hover:to-purple-300 transition-all duration-300 shadow-sm"></div>
+        <div className="w-10 h-1 bg-gray-300 rounded-full hover:bg-gray-400 transition-colors duration-200"></div>
       </div>
 
       {/* 바텀시트 컨텐츠 */}
@@ -354,7 +358,7 @@ const BottomSheet = ({
                 placeholder="카페 이름으로 검색..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
@@ -368,7 +372,7 @@ const BottomSheet = ({
           </div>
         )}
 
-        {/* 카페 목록 - 개선된 스크롤 */}
+        {/* 카페 목록 - 네이버 지도 스타일 스크롤 */}
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-64">
@@ -376,7 +380,35 @@ const BottomSheet = ({
               <p className="text-gray-500 text-sm">주변 카페를 찾는 중...</p>
             </div>
           ) : filteredCafes.length > 0 ? (
-            <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-gray-100 hover:scrollbar-thumb-purple-400">
+            <div
+              className="h-full overflow-y-auto"
+              style={{
+                scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#D1D5DB #F3F4F6',
+              }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  width: 4px;
+                }
+                div::-webkit-scrollbar-track {
+                  background: #f3f4f6;
+                  border-radius: 2px;
+                }
+                div::-webkit-scrollbar-thumb {
+                  background: #c4b5fd;
+                  border-radius: 2px;
+                  transition: background 0.2s ease;
+                }
+                div::-webkit-scrollbar-thumb:hover {
+                  background: #a78bfa;
+                }
+                div::-webkit-scrollbar-thumb:active {
+                  background: #8b5cf6;
+                }
+              `}</style>
               <div className="space-y-0">
                 {filteredCafes.map((cafe, index) => (
                   <div key={cafe.id} className="relative">
@@ -396,8 +428,8 @@ const BottomSheet = ({
                   </div>
                 ))}
 
-                {/* 하단 패딩 */}
-                <div className="h-6"></div>
+                {/* 하단 패딩 - 네이버 지도 스타일 */}
+                <div className="h-20 bg-gradient-to-t from-gray-50/50 to-transparent"></div>
               </div>
             </div>
           ) : (
@@ -422,7 +454,7 @@ const BottomSheet = ({
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-3 px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                  className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
                 >
                   검색어 지우기
                 </button>
@@ -431,8 +463,8 @@ const BottomSheet = ({
           )}
         </div>
 
-        {/* 하단 여백 (safe area) - 러닝앱 스타일 */}
-        <div className="h-2 bg-gradient-to-t from-white/50 to-transparent"></div>
+        {/* 하단 여백 (safe area) - 네이버 지도 스타일 */}
+        <div className="h-1 bg-white/80"></div>
       </div>
 
       {/* 배경 오버레이 (전체 화면일 때) - 개선된 스타일 */}

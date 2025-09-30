@@ -1,5 +1,5 @@
 {
-  "name": "runningcafe",
+  "name": "runview",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -11,6 +11,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-calendar": "^6.0.0",

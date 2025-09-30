@@ -29,6 +29,7 @@ const MapContainer = ({
   const naverMapRef = useRef(null);
   const markersRef = useRef([]);
   const polylinesRef = useRef([]);
+  const circleRef = useRef(null);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -36,8 +37,10 @@ const MapContainer = ({
   const [supabaseCafes, setSupabaseCafes] = useState([]);
   const [showRoute, setShowRoute] = useState(false);
   const [selectedCafe, setSelectedCafe] = useState(null);
-  const [currentZoom, setCurrentZoom] = useState(propCurrentZoom || 15);
+  const [currentZoom, setCurrentZoom] = useState(propCurrentZoom || 16);
   const [mapType, setMapType] = useState(propMapType || 'normal'); // 'normal', 'satellite', 'hybrid'
+  const [clusteredMarkers, setClusteredMarkers] = useState([]);
+  const [regionMarkers, setRegionMarkers] = useState([]);
 
   // 샘플 러닝 코스 데이터
   const sampleRunningCourses = [
@@ -219,7 +222,7 @@ const MapContainer = ({
 
       const mapOptions = {
         center: defaultCenter,
-        zoom: 15,
+        zoom: 16,
         minZoom: 10,
         maxZoom: 19,
         // 모든 기본 컨트롤 비활성화
@@ -428,35 +431,128 @@ const MapContainer = ({
     }
   }, [mapType]);
 
-  // 마커 생성 및 관리
-  const createMarkers = useCallback(() => {
-    if (!naverMapRef.current || !mapReady) return;
+  // 마커 클릭 핸들러
+  const handleMarkerClick = (type, item) => {
+    setSelectedMarker({ type, item });
+    if (onMarkerClick) {
+      onMarkerClick(type, item);
+    }
+  };
 
-    // 기존 마커 제거
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
+  // 검색 반경 원형 영역 생성 함수
+  const createSearchRadiusCircle = useCallback(() => {
+    if (!naverMapRef.current || !userLocation) return;
 
-    // 현재 위치 마커
-    if (userLocation) {
-      const userMarker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(
-          userLocation.lat,
-          userLocation.lng
-        ),
-        map: naverMapRef.current,
-        title: '현재 위치',
-        icon: {
-          content: `
-            <div style="width: 20px; height: 20px; background: #3B82F6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
-          `,
-          anchor: new window.naver.maps.Point(10, 10),
-        },
-      });
-      markersRef.current.push(userMarker);
+    // 기존 원 제거
+    if (circleRef.current) {
+      circleRef.current.setMap(null);
+      circleRef.current = null;
     }
 
-    // 카페 마커들 (Supabase 데이터 또는 기본 데이터 사용)
-    displayCafes.forEach(cafe => {
+    // 줌 레벨이 너무 낮으면 원형 영역 표시하지 않음 (지역명 표시 시)
+    if (currentZoom < 12) return;
+
+    // 검색 반경을 미터로 변환 (km -> m) 후 10%로 축소 (화면에 적절한 크기)
+    const radiusInMeters = searchRadius * 1000 * 0.1;
+
+    // 줌 레벨과 상관없이 일정한 투명도 유지
+    const fillOpacity = 0.12;
+    const strokeOpacity = 0.35;
+
+    // 네이버 지도 원형 영역 생성
+    const circle = new window.naver.maps.Circle({
+      map: naverMapRef.current,
+      center: new window.naver.maps.LatLng(userLocation.lat, userLocation.lng),
+      radius: radiusInMeters,
+      fillColor: '#8B5CF6', // 메인 컬러 (보라색)
+      fillOpacity: fillOpacity, // 일정한 연한 투명도
+      strokeColor: '#8B5CF6', // 테두리 색상
+      strokeOpacity: strokeOpacity, // 일정한 테두리 투명도
+      strokeWeight: 2, // 일정한 테두리 두께
+      strokeStyle: 'solid', // 실선
+      clickable: false, // 클릭 불가능하게 설정
+    });
+
+    circleRef.current = circle;
+  }, [userLocation, searchRadius, currentZoom]);
+
+  // 원형 영역 제거 함수
+  const clearSearchRadiusCircle = useCallback(() => {
+    if (circleRef.current) {
+      circleRef.current.setMap(null);
+      circleRef.current = null;
+    }
+  }, []);
+
+  // 클러스터링 함수
+  const clusterMarkers = useCallback((items, zoom) => {
+    if (zoom >= 14) {
+      // 줌 레벨이 높으면 개별 마커 표시
+      return items.map(item => ({ ...item, type: 'individual' }));
+    }
+
+    // 줌 레벨이 낮으면 클러스터링
+    const clusters = [];
+    const gridSize = zoom >= 12 ? 0.01 : zoom >= 10 ? 0.02 : 0.05;
+    const processed = new Set();
+
+    items.forEach((item, index) => {
+      if (processed.has(index)) return;
+
+      const cluster = {
+        id: `cluster_${clusters.length}`,
+        type: 'cluster',
+        coordinates: item.coordinates,
+        items: [item],
+        center: { ...item.coordinates },
+      };
+
+      // 주변 아이템들을 클러스터에 포함
+      items.forEach((otherItem, otherIndex) => {
+        if (processed.has(otherIndex) || index === otherIndex) return;
+
+        const distance =
+          Math.abs(item.coordinates.lat - otherItem.coordinates.lat) +
+          Math.abs(item.coordinates.lng - otherItem.coordinates.lng);
+
+        if (distance < gridSize) {
+          cluster.items.push(otherItem);
+          processed.add(otherIndex);
+        }
+      });
+
+      processed.add(index);
+      clusters.push(cluster);
+    });
+
+    return clusters;
+  }, []);
+
+  // 지역명 마커 생성 함수
+  const createRegionMarkers = useCallback(zoom => {
+    if (zoom >= 12) return [];
+
+    const regions = [
+      { name: '강남구', lat: 37.5173, lng: 127.0473, count: 45 },
+      { name: '서초구', lat: 37.4837, lng: 127.0324, count: 32 },
+      { name: '송파구', lat: 37.5145, lng: 127.1059, count: 28 },
+      { name: '마포구', lat: 37.5663, lng: 126.9019, count: 38 },
+      { name: '용산구', lat: 37.5326, lng: 126.9909, count: 25 },
+      { name: '영등포구', lat: 37.5264, lng: 126.8962, count: 22 },
+      { name: '성동구', lat: 37.5634, lng: 127.0371, count: 19 },
+      { name: '광진구', lat: 37.5385, lng: 127.0823, count: 16 },
+    ];
+
+    return regions.map(region => ({
+      ...region,
+      type: 'region',
+      coordinates: { lat: region.lat, lng: region.lng },
+    }));
+  }, []);
+
+  // 카페 마커 생성 함수
+  const createCafeMarker = useCallback(
+    cafe => {
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(
           cafe.coordinates.lat,
@@ -469,7 +565,7 @@ const MapContainer = ({
             <div style="
               width: 44px; 
               height: 44px; 
-              background: linear-gradient(135deg, ${cafe.isOpen ? '#FF6B35, #F97316' : '#6B7280, #4B5563'}); 
+              background: linear-gradient(135deg, ${cafe.isOpen ? '#8B5CF6, #7C3AED' : '#6B7280, #4B5563'}); 
               border: 3px solid white; 
               border-radius: 50%; 
               display: flex; 
@@ -630,10 +726,13 @@ const MapContainer = ({
       });
 
       markersRef.current.push(marker);
-    });
+    },
+    [handleMarkerClick, userLocation, drawRoute]
+  );
 
-    // 러닝 코스 마커들
-    sampleRunningCourses.forEach(course => {
+  // 러닝 코스 마커 생성 함수
+  const createRunningCourseMarker = useCallback(
+    course => {
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(
           course.coordinates.lat,
@@ -668,14 +767,183 @@ const MapContainer = ({
       });
 
       markersRef.current.push(marker);
-    });
+    },
+    [handleMarkerClick]
+  );
+
+  // 마커 생성 및 관리
+  const createMarkers = useCallback(() => {
+    if (!naverMapRef.current || !mapReady) return;
+
+    // 기존 마커 제거
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // 검색 반경 원형 영역 생성
+    createSearchRadiusCircle();
+
+    // 현재 위치 마커
+    if (userLocation) {
+      const userMarker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(
+          userLocation.lat,
+          userLocation.lng
+        ),
+        map: naverMapRef.current,
+        title: '현재 위치',
+        icon: {
+          content: `
+            <div style="
+              width: 24px; 
+              height: 24px; 
+              background: linear-gradient(135deg, #8B5CF6, #7C3AED); 
+              border: 4px solid white; 
+              border-radius: 50%; 
+              box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+              position: relative;
+            ">
+              <div style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 8px;
+                height: 8px;
+                background: white;
+                border-radius: 50%;
+              "></div>
+            </div>
+          `,
+          anchor: new window.naver.maps.Point(12, 12),
+        },
+      });
+      markersRef.current.push(userMarker);
+    }
+
+    // 줌 레벨에 따른 마커 표시 방식 결정
+    if (currentZoom < 12) {
+      // 줌아웃 시 지역명 표시
+      const regions = createRegionMarkers(currentZoom);
+      regions.forEach(region => {
+        const marker = new window.naver.maps.Marker({
+          position: new window.naver.maps.LatLng(region.lat, region.lng),
+          map: naverMapRef.current,
+          title: `${region.name} - ${region.count}개`,
+          icon: {
+            content: `
+              <div style="
+                background: white;
+                border: 2px solid #8B5CF6;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #8B5CF6;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+                white-space: nowrap;
+                cursor: pointer;
+              ">
+                ${region.name} ${region.count}
+              </div>
+            `,
+            anchor: new window.naver.maps.Point(0, 0),
+          },
+        });
+
+        // 지역 클릭 시 해당 지역으로 줌인
+        window.naver.maps.Event.addListener(marker, 'click', () => {
+          naverMapRef.current.setCenter(
+            new window.naver.maps.LatLng(region.lat, region.lng)
+          );
+          naverMapRef.current.setZoom(14, true);
+        });
+
+        markersRef.current.push(marker);
+      });
+    } else {
+      // 줌인 시 개별 마커 또는 클러스터 표시
+      const allItems = [...displayCafes, ...sampleRunningCourses];
+      const clusteredItems = clusterMarkers(allItems, currentZoom);
+
+      clusteredItems.forEach(item => {
+        if (item.type === 'cluster' && item.items.length > 1) {
+          // 클러스터 마커
+          const cafeCount = item.items.filter(
+            i => i.rating !== undefined
+          ).length;
+          const courseCount = item.items.filter(
+            i => i.difficulty !== undefined
+          ).length;
+
+          const marker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(
+              item.center.lat,
+              item.center.lng
+            ),
+            map: naverMapRef.current,
+            title: `${item.items.length}개 장소`,
+            icon: {
+              content: `
+                <div style="
+                  width: 60px;
+                  height: 60px;
+                  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+                  border: 4px solid white;
+                  border-radius: 50%;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+                  cursor: pointer;
+                  position: relative;
+                ">
+                  <div style="color: white; font-size: 18px; font-weight: bold; line-height: 1;">
+                    ${item.items.length}
+                  </div>
+                  <div style="color: white; font-size: 10px; opacity: 0.9;">
+                    ${cafeCount > 0 ? `☕${cafeCount}` : ''}${courseCount > 0 ? ` 🏃${courseCount}` : ''}
+                  </div>
+                </div>
+              `,
+              anchor: new window.naver.maps.Point(30, 30),
+            },
+          });
+
+          // 클러스터 클릭 시 줌인
+          window.naver.maps.Event.addListener(marker, 'click', () => {
+            naverMapRef.current.setCenter(
+              new window.naver.maps.LatLng(item.center.lat, item.center.lng)
+            );
+            naverMapRef.current.setZoom(Math.min(currentZoom + 2, 19), true);
+          });
+
+          markersRef.current.push(marker);
+        } else {
+          // 개별 마커 (기존 로직 유지)
+          const actualItem = item.type === 'cluster' ? item.items[0] : item;
+
+          if (actualItem.rating !== undefined) {
+            // 카페 마커
+            createCafeMarker(actualItem);
+          } else if (actualItem.difficulty !== undefined) {
+            // 러닝 코스 마커
+            createRunningCourseMarker(actualItem);
+          }
+        }
+      });
+    }
   }, [
     mapReady,
     userLocation,
     displayCafes,
-    drawRoute,
-    selectedFilters,
-    applyFilters,
+    currentZoom,
+    clusterMarkers,
+    createRegionMarkers,
+    handleMarkerClick,
+    createCafeMarker,
+    createRunningCourseMarker,
+    createSearchRadiusCircle,
   ]);
 
   // 지도 초기화 useEffect
@@ -706,6 +974,25 @@ const MapContainer = ({
   useEffect(() => {
     createMarkers();
   }, [createMarkers, displayCafes]);
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      // 마커 정리
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+
+      // 경로 정리
+      polylinesRef.current.forEach(polyline => polyline.setMap(null));
+      polylinesRef.current = [];
+
+      // 원형 영역 정리
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+        circleRef.current = null;
+      }
+    };
+  }, []);
 
   // 사용자 위치 변경 시 지도 중심 이동
   useEffect(() => {
@@ -743,13 +1030,6 @@ const MapContainer = ({
       setMapType(propMapType);
     }
   }, [propMapType, mapType]);
-
-  const handleMarkerClick = (type, item) => {
-    setSelectedMarker({ type, item });
-    if (onMarkerClick) {
-      onMarkerClick(type, item);
-    }
-  };
 
   const getDifficultyColor = difficulty => {
     switch (difficulty) {

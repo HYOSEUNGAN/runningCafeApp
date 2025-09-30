@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { ROUTES } from '../../constants/app';
 import Button from '../ui/Button';
 import RunningIcon from '../../assets/icons/RunningIcon';
+import MapIcon from '../../assets/icons/MapIcon';
 
 /**
  * 네비게이션 컴포넌트
@@ -48,10 +49,9 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* 로고 */}
           <Link to={ROUTES.HOME} className="flex items-center space-x-2">
-            <RunningIcon size={28} className="text-primary-500" />
-            <span className="text-h4 font-bold text-gradient">
-              Running View
-            </span>
+            {/* <RunningIcon size={28} className="text-primary-500" /> */}
+            {/* <MapIcon size={28} className="fill-primary-500" /> */}
+            <span className="text-h4 font-bold text-gradient">Run View</span>
           </Link>
 
           {/* 데스크톱 네비게이션 */}
