@@ -22,7 +22,7 @@ const BottomSheet = ({
   selectedFilters = [],
   searchRadius = 5,
 }) => {
-  const [sheetHeight, setSheetHeight] = useState('50%'); // 'closed', '50%', '80%', 'full'
+  const [sheetHeight, setSheetHeight] = useState('10%'); // 'closed', '10%', '50%', '80%', 'full'
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [activeTab, setActiveTab] = useState('nearby');
@@ -167,6 +167,12 @@ const BottomSheet = ({
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
+      case '10%':
+        return {
+          height: '10vh',
+          transform: 'translateY(0)',
+          borderRadius: '24px 24px 0 0',
+        };
       case '50%':
         return {
           height: '50vh',
@@ -187,7 +193,7 @@ const BottomSheet = ({
         };
       default:
         return {
-          height: '50vh',
+          height: '10vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
@@ -216,12 +222,16 @@ const BottomSheet = ({
         } else if (sheetHeight === '80%') {
           setSheetHeight('50%');
         } else if (sheetHeight === '50%') {
+          setSheetHeight('10%');
+        } else if (sheetHeight === '10%') {
           setSheetHeight('closed');
         }
         setDragStartY(currentY);
       } else if (deltaY < 0 && sheetHeight !== 'full') {
         // 위로 드래그 - 확대
         if (sheetHeight === 'closed') {
+          setSheetHeight('10%');
+        } else if (sheetHeight === '10%') {
           setSheetHeight('50%');
         } else if (sheetHeight === '50%') {
           setSheetHeight('80%');

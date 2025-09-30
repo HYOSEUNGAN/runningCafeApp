@@ -1535,7 +1535,11 @@ const NavigationPage = () => {
 
       {/* 지도 */}
       <div className="flex-1 relative">
-        <div ref={mapRef} className="w-full h-full" />
+        <div
+          ref={mapRef}
+          className="w-full h-full"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        />
 
         {/* 지도 컨트롤 버튼들 */}
         <div className="absolute top-4 right-4 flex flex-col gap-2">
@@ -1804,7 +1808,10 @@ const NavigationPage = () => {
       </div>
 
       {/* 러닝 컨트롤 하단바 */}
-      <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 safe-area-bottom z-50">
+      <nav
+        className="fixed left-1/2 transform -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50"
+        style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
         {/* 디버깅용 상태 표시 */}
         <div className="text-xs text-gray-500 text-center py-2 border-b border-gray-100">
           상태: {isTracking ? (isPaused ? '일시정지됨' : '추적중') : '대기중'} |
