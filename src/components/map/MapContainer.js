@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sortCafesByDistance, enrichCafeData } from '../../utils/location';
 import { getAllCafes, getNearbyCafes } from '../../services/cafeService';
 import {
+  getAllRunningPlaces,
+  getNearbyRunningPlaces,
+} from '../../services/runningPlaceService';
+import {
   getWalkingDirections,
   convertPathToNaverLatLng,
   formatRouteInfo,
@@ -35,6 +39,7 @@ const MapContainer = ({
   const [mapReady, setMapReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [supabaseCafes, setSupabaseCafes] = useState([]);
+  const [supabaseRunningPlaces, setSupabaseRunningPlaces] = useState([]);
   const [showRoute, setShowRoute] = useState(false);
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(propCurrentZoom || 16);
@@ -129,35 +134,57 @@ const MapContainer = ({
     },
   ];
 
-  // Supabase에서 카페 데이터 가져오기
+  // Supabase에서 카페와 러닝 플레이스 데이터 가져오기
   useEffect(() => {
-    const fetchCafes = async () => {
+    const fetchData = async () => {
       try {
         let cafeData = [];
+        let runningPlaceData = [];
 
         if (userLocation) {
-          // 사용자 위치가 있으면 설정된 반경 내 카페만 가져오기
-          cafeData = await getNearbyCafes(
-            userLocation.lat,
-            userLocation.lng,
-            searchRadius
-          );
+          // 사용자 위치가 있으면 설정된 반경 내 데이터만 가져오기
+          const [cafes, runningPlaces] = await Promise.all([
+            getNearbyCafes(userLocation.lat, userLocation.lng, searchRadius),
+            getNearbyRunningPlaces(
+              userLocation.lat,
+              userLocation.lng,
+              searchRadius * 2
+            ), // 러닝 플레이스는 더 넓은 범위에서 검색
+          ]);
+          cafeData = cafes;
+          runningPlaceData = runningPlaces;
         } else {
-          // 사용자 위치가 없으면 모든 카페 가져오기
-          cafeData = await getAllCafes();
+          // 사용자 위치가 없으면 모든 데이터 가져오기
+          const [cafes, runningPlaces] = await Promise.all([
+            getAllCafes(),
+            getAllRunningPlaces(),
+          ]);
+          cafeData = cafes;
+          runningPlaceData = runningPlaces;
         }
 
+        console.log('✅ 데이터 로딩 성공:', {
+          cafes: cafeData.length,
+          runningPlaces: runningPlaceData.length,
+          cafeAddresses: cafeData.map(cafe => cafe.address),
+          runningPlaceAddresses: runningPlaceData.map(place => place.address),
+        });
+
         setSupabaseCafes(cafeData);
+        setSupabaseRunningPlaces(runningPlaceData);
       } catch (error) {
-        console.error('카페 데이터 로딩 실패:', error);
+        console.error('❌ 데이터 로딩 실패:', error);
         // 에러 발생 시 기본 데이터 사용
         const enrichedCafes = enrichCafeData(baseCafeData, userLocation);
         const sortedCafes = sortCafesByDistance(enrichedCafes, userLocation);
         setSupabaseCafes(sortedCafes);
+        setSupabaseRunningPlaces(sampleRunningCourses);
+
+        console.warn('⚠️ 폴백 데이터를 사용합니다.');
       }
     };
 
-    fetchCafes();
+    fetchData();
   }, [userLocation, searchRadius]);
 
   // 카페 필터링 함수
@@ -195,15 +222,9 @@ const MapContainer = ({
     });
   }, []);
 
-  // 사용자 위치 기반으로 거리 계산된 카페 데이터 (폴백용)
-  const enrichedCafes = enrichCafeData(baseCafeData, userLocation);
-  const sortedCafes = sortCafesByDistance(enrichedCafes, userLocation);
-
-  // 실제 사용할 카페 데이터 (Supabase 데이터 우선, 없으면 기본 데이터)
-  const baseCafes = supabaseCafes.length > 0 ? supabaseCafes : sortedCafes;
-
-  // 필터 적용된 카페 데이터
-  const displayCafes = applyFilters(baseCafes, selectedFilters);
+  // 실제 사용할 데이터 (Supabase 데이터 우선, 없으면 폴백 데이터)
+  const displayCafes = applyFilters(supabaseCafes, selectedFilters);
+  const displayRunningPlaces = supabaseRunningPlaces;
 
   // 네이버 지도 초기화
   const initializeMap = useCallback(() => {
@@ -528,27 +549,100 @@ const MapContainer = ({
     return clusters;
   }, []);
 
-  // 지역명 마커 생성 함수
-  const createRegionMarkers = useCallback(zoom => {
-    if (zoom >= 12) return [];
+  // 지역명 마커 생성 함수 (서울 전체 25개 구)
+  const createRegionMarkers = useCallback(
+    zoom => {
+      if (zoom >= 12) return [];
 
-    const regions = [
-      { name: '강남구', lat: 37.5173, lng: 127.0473, count: 45 },
-      { name: '서초구', lat: 37.4837, lng: 127.0324, count: 32 },
-      { name: '송파구', lat: 37.5145, lng: 127.1059, count: 28 },
-      { name: '마포구', lat: 37.5663, lng: 126.9019, count: 38 },
-      { name: '용산구', lat: 37.5326, lng: 126.9909, count: 25 },
-      { name: '영등포구', lat: 37.5264, lng: 126.8962, count: 22 },
-      { name: '성동구', lat: 37.5634, lng: 127.0371, count: 19 },
-      { name: '광진구', lat: 37.5385, lng: 127.0823, count: 16 },
-    ];
+      // 서울시 전체 25개 구 좌표
+      const allSeoulDistricts = [
+        { name: '강남구', lat: 37.5173, lng: 127.0473 },
+        { name: '강동구', lat: 37.5301, lng: 127.1238 },
+        { name: '강북구', lat: 37.6398, lng: 127.0256 },
+        { name: '강서구', lat: 37.5509, lng: 126.8495 },
+        { name: '관악구', lat: 37.4781, lng: 126.9514 },
+        { name: '광진구', lat: 37.5385, lng: 127.0823 },
+        { name: '구로구', lat: 37.4954, lng: 126.8874 },
+        { name: '금천구', lat: 37.4519, lng: 126.8955 },
+        { name: '노원구', lat: 37.6541, lng: 127.0568 },
+        { name: '도봉구', lat: 37.6688, lng: 127.0471 },
+        { name: '동대문구', lat: 37.5744, lng: 127.0396 },
+        { name: '동작구', lat: 37.5124, lng: 126.9393 },
+        { name: '마포구', lat: 37.5663, lng: 126.9019 },
+        { name: '서대문구', lat: 37.5791, lng: 126.9368 },
+        { name: '서초구', lat: 37.4837, lng: 127.0324 },
+        { name: '성동구', lat: 37.5634, lng: 127.0371 },
+        { name: '성북구', lat: 37.5894, lng: 127.0167 },
+        { name: '송파구', lat: 37.5145, lng: 127.1059 },
+        { name: '양천구', lat: 37.5169, lng: 126.8664 },
+        { name: '영등포구', lat: 37.5264, lng: 126.8962 },
+        { name: '용산구', lat: 37.5326, lng: 126.9909 },
+        { name: '은평구', lat: 37.6176, lng: 126.9227 },
+        { name: '종로구', lat: 37.5735, lng: 126.9788 },
+        { name: '중구', lat: 37.5641, lng: 126.9979 },
+        { name: '중랑구', lat: 37.6063, lng: 127.0925 },
+      ];
 
-    return regions.map(region => ({
-      ...region,
-      type: 'region',
-      coordinates: { lat: region.lat, lng: region.lng },
-    }));
-  }, []);
+      // 실제 데이터에서 구별 카페+러닝플레이스 개수 계산
+      const getDistrictCount = districtName => {
+        const cafeCount = displayCafes.filter(
+          cafe => cafe.address && cafe.address.includes(districtName)
+        ).length;
+
+        const runningPlaceCount = displayRunningPlaces.filter(
+          place => place.address && place.address.includes(districtName)
+        ).length;
+
+        const totalCount = cafeCount + runningPlaceCount;
+
+        // 모든 구 디버깅 (데이터가 있는 구만)
+        if (totalCount > 0) {
+          console.log(`🔍 ${districtName} 디버깅:`, {
+            districtName,
+            cafeCount,
+            runningPlaceCount,
+            totalCount,
+          });
+        }
+
+        // 강북구 상세 디버깅
+        if (districtName === '강북구') {
+          console.log('🔍 강북구 상세 디버깅:', {
+            districtName,
+            cafeCount,
+            runningPlaceCount,
+            totalCount,
+            totalCafes: displayCafes.length,
+            totalRunningPlaces: displayRunningPlaces.length,
+            cafesWithAddress: displayCafes
+              .filter(cafe => cafe.address)
+              .map(cafe => ({
+                name: cafe.name,
+                address: cafe.address,
+                includesDistrict: cafe.address.includes(districtName),
+              })),
+            runningPlacesWithAddress: displayRunningPlaces
+              .filter(place => place.address)
+              .map(place => ({
+                name: place.name,
+                address: place.address,
+                includesDistrict: place.address.includes(districtName),
+              })),
+          });
+        }
+
+        return totalCount;
+      };
+
+      return allSeoulDistricts.map(district => ({
+        ...district,
+        type: 'region',
+        coordinates: { lat: district.lat, lng: district.lng },
+        count: getDistrictCount(district.name),
+      }));
+    },
+    [displayCafes, displayRunningPlaces]
+  );
 
   // 카페 마커 생성 함수
   const createCafeMarker = useCallback(
@@ -595,7 +689,9 @@ const MapContainer = ({
                   : ''
               }
               ${
-                cafe.distance && cafe.distance < 1
+                cafe.distance &&
+                typeof cafe.distance === 'number' &&
+                cafe.distance < 1
                   ? `
                 <div style="
                   position: absolute;
@@ -656,7 +752,7 @@ const MapContainer = ({
               <span style="color: #F59E0B; margin-right: 4px;">⭐</span>
               <span style="font-size: 13px; font-weight: 600; color: #374151; margin-right: 8px;">${cafe.rating || '4.5'}</span>
               <span style="font-size: 13px; color: #6B7280;">
-                ${cafe.distanceText || (cafe.distance ? `${cafe.distance.toFixed(1)}km` : '거리 정보 없음')}
+                ${cafe.distanceText || (cafe.distance && typeof cafe.distance === 'number' ? `${cafe.distance.toFixed(1)}km` : '거리 정보 없음')}
               </span>
             </div>
             
@@ -832,14 +928,14 @@ const MapContainer = ({
           icon: {
             content: `
               <div style="
-                background: white;
-                border: 2px solid #8B5CF6;
+                background: ${region.count > 0 ? 'white' : '#f3f4f6'};
+                border: 2px solid ${region.count > 0 ? '#8B5CF6' : '#9CA3AF'};
                 border-radius: 20px;
                 padding: 8px 16px;
                 font-size: 14px;
                 font-weight: 600;
-                color: #8B5CF6;
-                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+                color: ${region.count > 0 ? '#8B5CF6' : '#6B7280'};
+                box-shadow: 0 4px 12px rgba(${region.count > 0 ? '139, 92, 246' : '156, 163, 175'}, 0.2);
                 white-space: nowrap;
                 cursor: pointer;
               ">
@@ -862,17 +958,17 @@ const MapContainer = ({
       });
     } else {
       // 줌인 시 개별 마커 또는 클러스터 표시
-      const allItems = [...displayCafes, ...sampleRunningCourses];
+      const allItems = [...displayCafes, ...displayRunningPlaces];
       const clusteredItems = clusterMarkers(allItems, currentZoom);
 
       clusteredItems.forEach(item => {
         if (item.type === 'cluster' && item.items.length > 1) {
           // 클러스터 마커
           const cafeCount = item.items.filter(
-            i => i.rating !== undefined
+            i => i.rating !== undefined || i.phone !== undefined
           ).length;
-          const courseCount = item.items.filter(
-            i => i.difficulty !== undefined
+          const runningPlaceCount = item.items.filter(
+            i => i.placeType !== undefined || i.difficulty !== undefined
           ).length;
 
           const marker = new window.naver.maps.Marker({
@@ -902,7 +998,7 @@ const MapContainer = ({
                     ${item.items.length}
                   </div>
                   <div style="color: white; font-size: 10px; opacity: 0.9;">
-                    ${cafeCount > 0 ? `☕${cafeCount}` : ''}${courseCount > 0 ? ` 🏃${courseCount}` : ''}
+                    ${cafeCount > 0 ? `☕${cafeCount}` : ''}${runningPlaceCount > 0 ? ` 🏃${runningPlaceCount}` : ''}
                   </div>
                 </div>
               `,
@@ -923,11 +1019,17 @@ const MapContainer = ({
           // 개별 마커 (기존 로직 유지)
           const actualItem = item.type === 'cluster' ? item.items[0] : item;
 
-          if (actualItem.rating !== undefined) {
+          if (
+            actualItem.rating !== undefined ||
+            actualItem.phone !== undefined
+          ) {
             // 카페 마커
             createCafeMarker(actualItem);
-          } else if (actualItem.difficulty !== undefined) {
-            // 러닝 코스 마커
+          } else if (
+            actualItem.placeType !== undefined ||
+            actualItem.difficulty !== undefined
+          ) {
+            // 러닝 플레이스 마커
             createRunningCourseMarker(actualItem);
           }
         }
@@ -1086,30 +1188,7 @@ const MapContainer = ({
               ✕
             </button>
           </div>
-          <p className="text-xs text-gray-600 mb-2">
-            🚶‍♀️ 도보 경로가 표시되었습니다
-          </p>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                if (selectedCafe.phone) {
-                  window.open(`tel:${selectedCafe.phone}`);
-                }
-              }}
-              className="flex-1 bg-green-500 text-white text-xs py-2 px-3 rounded-md hover:bg-green-600 transition-colors"
-            >
-              📞 전화
-            </button>
-            <button
-              onClick={() => {
-                const url = `https://map.naver.com/v5/directions/${userLocation?.lng},${userLocation?.lat},,/${selectedCafe.coordinates.lng},${selectedCafe.coordinates.lat},,/walk`;
-                window.open(url, '_blank');
-              }}
-              className="flex-1 bg-blue-500 text-white text-xs py-2 px-3 rounded-md hover:bg-blue-600 transition-colors"
-            >
-              🗺️ 길찾기
-            </button>
-          </div>
+          <p className="text-xs text-gray-600">🚶‍♀️ 도보 경로가 표시되었습니다</p>
         </div>
       )}
 
