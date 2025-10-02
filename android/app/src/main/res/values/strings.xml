@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">런 뷰</string>
+    <string name="title_activity_main">런 뷰 - 러닝 카페</string>
+    <string name="package_name">com.runview.app</string>
+    <string name="custom_url_scheme">com.runview.app</string>
+</resources>

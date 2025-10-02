@@ -1,6 +1,7 @@
 {
   "short_name": "Run View",
   "name": "Run View - 런 뷰",
+  "description": "러닝 카페를 찾고 기록을 공유하는 러너들의 소셜 플랫폼",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,16 +11,22 @@
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait",
+  "theme_color": "#3B82F6",
+  "background_color": "#ffffff",
+  "categories": ["sports", "social", "lifestyle"],
+  "lang": "ko-KR",
+  "scope": "/"
 }

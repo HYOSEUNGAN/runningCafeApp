@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/camera": "^7.0.2",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/geolocation": "^7.1.5",
+    "@capacitor/splash-screen": "^7.0.3",
+    "@capacitor/status-bar": "^7.0.3",
     "@supabase/supabase-js": "^2.57.4",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.18",
@@ -33,7 +41,10 @@
     "setup": "npm install && echo '✅ 의존성 설치가 완료되었습니다!' && echo '📝 .env 파일을 수동으로 생성해주세요.' && echo '💡 자세한 설정 방법은 README.md를 참고하세요.'",
     "dev": "npm start",
     "lint": "eslint src --ext .js,.jsx --fix",
-    "format": "prettier --write src/**/*.{js,jsx,css,md}"
+    "format": "prettier --write src/**/*.{js,jsx,css,md}",
+    "android:dev": "npx cap run android",
+    "android:build": "npm run build && npx cap sync android && npx cap open android",
+    "android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "eslintConfig": {
     "extends": [

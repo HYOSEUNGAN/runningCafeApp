@@ -1,0 +1,15 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Purple Background Circle -->
+  <circle cx="256" cy="256" r="256" fill="#8B5CF6"/>
+  
+  <!-- White R Letter -->
+  <g transform="translate(175, 140) scale(0.8)">
+    <path d="M20 40 L20 340 L60 340 L60 220 L120 220 C150 220 170 200 170 170 L170 90 C170 60 150 40 120 40 L20 40 Z M60 80 L120 80 C130 80 130 80 130 90 L130 170 C130 180 130 180 120 180 L60 180 L60 80 Z M60 220 L160 340 L210 340 L120 220 L60 220 Z" fill="#FFFFFF"/>
+  </g>
+  
+  <!-- Map Pin Icon -->
+  <g transform="translate(320, 280)">
+    <path d="M0 0 C-20 0 -36 16 -36 36 C-36 60 0 96 0 96 S36 60 36 36 C36 16 20 0 0 0 Z" fill="#FFFFFF"/>
+    <circle cx="0" cy="36" r="16" fill="#8B5CF6"/>
+  </g>
+</svg>
