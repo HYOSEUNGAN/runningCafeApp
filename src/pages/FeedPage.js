@@ -290,7 +290,7 @@ const FeedPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-4 pb-20">
+    <div className="min-h-screen bg-gray-50 pt- pb-20">
       <div className="max-w-md mx-auto">
         {/* 헤더 */}
         <div className="bg-white px-4 py-3 border-b border-gray-200 flex items-center justify-between">

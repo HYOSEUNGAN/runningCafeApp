@@ -376,6 +376,8 @@ updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 ; }
 ; `
 
+추후에 React Native로 마이그레이션 예정으로 라이브러리 선정 고려
+
 <!-- ; ## 개발 환경 설정
 ; - **Node.js**: 18.x 이상
 ; - **패키지 매니저**: npm 또는 yarn

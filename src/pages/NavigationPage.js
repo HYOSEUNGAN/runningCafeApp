@@ -25,6 +25,11 @@ import {
   calculateGoalAchievement,
   compressPath as compressPathUtil,
 } from '../utils/mapRunner';
+import {
+  captureRunningPhoto,
+  downloadRunningPhoto,
+  shareRunningPhoto,
+} from '../utils/photoOverlay';
 import { searchNearbyCafesWithNaver } from '../services/cafeService';
 import { saveRunningRecord, compressPath } from '../services/runningService';
 import { createFeedPost } from '../services/feedService';
@@ -47,6 +52,10 @@ import {
   cleanupBackgroundTracking,
   requestNotificationPermission,
   showRunningCompleteNotification,
+  saveRunningDataToLocal,
+  restoreRunningDataFromLocal,
+  clearTemporaryRunningData,
+  isInBackground,
 } from '../utils/backgroundService';
 
 const NavigationPage = () => {
@@ -104,13 +113,53 @@ const NavigationPage = () => {
           center: new window.naver.maps.LatLng(37.5665, 126.978), // 서울 시청
           zoom: 15,
           mapTypeId: window.naver.maps.MapTypeId.NORMAL,
-          zoomControl: true,
-          zoomControlOptions: {
-            position: window.naver.maps.Position.TOP_RIGHT,
-          },
-          scaleControl: true,
+          zoomControl: false,
+          scaleControl: false,
           logoControl: false,
           mapDataControl: false,
+          // 어두운 테마 스타일 적용
+          styles: [
+            {
+              featureType: 'all',
+              elementType: 'all',
+              stylers: [
+                { invert_lightness: true },
+                { saturation: -70 },
+                { lightness: -80 },
+                { gamma: 0.5 },
+              ],
+            },
+            {
+              featureType: 'road',
+              elementType: 'geometry',
+              stylers: [{ color: '#1a1a1a' }, { lightness: -50 }],
+            },
+            {
+              featureType: 'road',
+              elementType: 'labels',
+              stylers: [{ color: '#4a5568' }, { visibility: 'simplified' }],
+            },
+            {
+              featureType: 'water',
+              elementType: 'geometry',
+              stylers: [{ color: '#0f1419' }],
+            },
+            {
+              featureType: 'landscape',
+              elementType: 'geometry',
+              stylers: [{ color: '#2d3748' }, { lightness: -60 }],
+            },
+            {
+              featureType: 'poi',
+              elementType: 'all',
+              stylers: [{ visibility: 'off' }],
+            },
+            {
+              featureType: 'transit',
+              elementType: 'all',
+              stylers: [{ visibility: 'off' }],
+            },
+          ],
         };
 
         naverMapRef.current = new window.naver.maps.Map(
@@ -129,54 +178,94 @@ const NavigationPage = () => {
               setCurrentPosition(currentPos);
               naverMapRef.current.setCenter(currentPos);
 
-              // 현재 위치 마커 추가 (화살표 포함)
+              // 현재 위치 마커 추가 (러닝 테마로 역동적으로)
               const currentUserMarker = new window.naver.maps.Marker({
                 position: currentPos,
                 map: naverMapRef.current,
                 title: '현재 위치',
                 icon: {
                   content: `
-                    <div style="
-                      width: 24px; 
-                      height: 24px; 
-                      background: #8b3dff; 
-                      border: 3px solid white; 
-                      border-radius: 50%; 
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                      position: relative;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                    ">
-                      <div style="
-                        color: white;
-                        font-size: 12px;
-                        font-weight: bold;
-                        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-                      ">📍</div>
+                    <div style="position: relative;">
+                      <!-- 펄스 애니메이션 원형 -->
                       <div style="
                         position: absolute;
-                        top: -8px;
-                        right: -8px;
-                        width: 16px;
-                        height: 16px;
-                        background: #43e97b;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 60px;
+                        height: 60px;
+                        background: rgba(239, 68, 68, 0.2);
+                        border-radius: 50%;
+                        animation: pulse 2s infinite;
+                      "></div>
+                      <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 40px;
+                        height: 40px;
+                        background: rgba(239, 68, 68, 0.3);
+                        border-radius: 50%;
+                        animation: pulse 2s infinite 0.5s;
+                      "></div>
+                      <!-- 중앙 러너 마커 -->
+                      <div style="
+                        position: relative;
+                        width: 28px; 
+                        height: 28px; 
+                        background: #ef4444; 
+                        border: 3px solid #ffffff; 
+                        border-radius: 50%; 
+                        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 10;
+                      ">
+                        <div style="
+                          color: white;
+                          font-size: 14px;
+                          font-weight: bold;
+                        ">🏃</div>
+                      </div>
+                      <!-- 방향 표시 화살표 -->
+                      <div style="
+                        position: absolute;
+                        top: -6px;
+                        right: -6px;
+                        width: 18px;
+                        height: 18px;
+                        background: #10b981;
                         border: 2px solid white;
                         border-radius: 50%;
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+                        z-index: 11;
                       ">
                         <div style="
                           color: white;
-                          font-size: 8px;
+                          font-size: 10px;
                           transform: rotate(45deg);
                         ">➤</div>
                       </div>
                     </div>
+                    <style>
+                      @keyframes pulse {
+                        0% {
+                          transform: translate(-50%, -50%) scale(0.8);
+                          opacity: 1;
+                        }
+                        100% {
+                          transform: translate(-50%, -50%) scale(1.2);
+                          opacity: 0;
+                        }
+                      }
+                    </style>
                   `,
-                  anchor: new window.naver.maps.Point(12, 12),
+                  anchor: new window.naver.maps.Point(14, 14),
                 },
               });
 
@@ -271,7 +360,7 @@ const NavigationPage = () => {
             <div style="
               width: 40px; 
               height: 40px; 
-              background: linear-gradient(135deg, #FF6B35, #F97316); 
+              background: linear-gradient(135deg, #dc2626, #b91c1c); 
               border: 3px solid white; 
               border-radius: 50%; 
               display: flex; 
@@ -455,7 +544,7 @@ const NavigationPage = () => {
           <div style="
             width: 32px; 
             height: 32px; 
-            background: linear-gradient(135deg, #43e97b, #10B981); 
+            background: linear-gradient(135deg, #059669, #047857); 
             border: 3px solid white; 
             border-radius: 50%; 
             display: flex; 
@@ -593,10 +682,112 @@ const NavigationPage = () => {
     setPath([]);
     setTotalDistance(0);
 
-    // 백그라운드 추적 설정
-    setupBackgroundTracking(isVisible => {
-      console.log('페이지 가시성 변경:', isVisible ? '보임' : '숨김');
-    });
+    // 백그라운드 추적 설정 강화
+    setupBackgroundTracking(
+      isVisible => {
+        console.log('페이지 가시성 변경:', isVisible ? '보임' : '숨김');
+      },
+      {
+        onBackgroundStart: () => {
+          console.log('백그라운드 추적 시작');
+          // 백그라운드에서도 위치 추적 계속
+          if (isTracking && !isPaused) {
+            // 현재 러닝 데이터를 로컬에 저장
+            saveRunningDataToLocal({
+              startTime,
+              elapsedTime,
+              totalDistance,
+              path,
+              currentSpeed,
+              maxSpeed,
+              speedHistory,
+            });
+          }
+        },
+        onBackgroundUpdate: () => {
+          // 백그라운드에서 주기적으로 위치 업데이트
+          if (isTracking && !isPaused && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              position => {
+                const newPosition = new window.naver.maps.LatLng(
+                  position.coords.latitude,
+                  position.coords.longitude
+                );
+
+                if (currentPosition) {
+                  const distance = calculateDistance(
+                    currentPosition,
+                    newPosition
+                  );
+                  if (distance > 5) {
+                    // 5m 이상 이동 시에만 업데이트
+                    setCurrentPosition(newPosition);
+
+                    // GPS 정확도 업데이트
+                    const accuracy = position.coords.accuracy;
+                    setGpsAccuracy(accuracy);
+
+                    const speed = position.coords.speed || 0;
+                    setCurrentSpeed(speed);
+                    setMaxSpeed(prev => Math.max(prev, speed));
+
+                    // 경로 업데이트
+                    setPath(prevPath => {
+                      const newPath = [...prevPath, newPosition];
+
+                      // 거리 계산
+                      if (prevPath.length > 0) {
+                        const lastPos = prevPath[prevPath.length - 1];
+                        const distanceCalc = calculateDistanceForNaverMap(
+                          lastPos,
+                          newPosition
+                        );
+
+                        if (accuracy <= 20) {
+                          setTotalDistance(prev => prev + distanceCalc);
+                        }
+                      }
+
+                      return newPath;
+                    });
+                  }
+                }
+              },
+              error => console.error('백그라운드 위치 추적 오류:', error),
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5000,
+              }
+            );
+          }
+        },
+        onForegroundReturn: () => {
+          console.log('포그라운드 복귀');
+          // 로컬에 저장된 데이터가 있다면 복구
+          const savedData = restoreRunningDataFromLocal();
+          if (savedData && savedData.isBackup) {
+            console.log('백그라운드 데이터 복구:', savedData);
+            // 필요시 데이터 동기화
+          }
+        },
+        onBeforeUnload: () => {
+          // 페이지 종료 전 데이터 저장
+          if (isTracking) {
+            saveRunningDataToLocal({
+              startTime,
+              elapsedTime,
+              totalDistance,
+              path,
+              currentSpeed,
+              maxSpeed,
+              speedHistory,
+              isEmergencyBackup: true,
+            });
+          }
+        },
+      }
+    );
 
     // 출발점 마커 생성
     if (currentPosition) {
@@ -674,11 +865,47 @@ const NavigationPage = () => {
     setIsPaused(!isPaused);
   };
 
+  // 러닝 사진 촬영
+  const handleRunningPhotoCapture = async () => {
+    try {
+      const runningData = {
+        distance: totalDistance,
+        duration: elapsedTime,
+        pace: totalDistance > 0 ? elapsedTime / 60 / (totalDistance / 1000) : 0,
+        calories: calculateCalories(totalDistance, elapsedTime),
+        date: new Date(),
+      };
+
+      showToast('사진을 촬영해주세요', 'info');
+
+      const photoBlob = await captureRunningPhoto(runningData, {
+        position: 'bottom',
+        theme: 'dark',
+        showLogo: true,
+        customText: isTracking ? '러닝 중! 💪' : '러닝 완료! 🎉',
+      });
+
+      // 사진 공유 또는 다운로드
+      const shared = await shareRunningPhoto(photoBlob, runningData);
+      if (shared) {
+        showToast('사진이 공유되었습니다!', 'success');
+      } else {
+        showToast('사진이 저장되었습니다!', 'success');
+      }
+    } catch (error) {
+      console.error('사진 촬영 실패:', error);
+      showToast('사진 촬영에 실패했습니다', 'error');
+    }
+  };
+
   // 위치 추적 중지
   const stopTracking = async () => {
     setIsTracking(false);
     setIsPaused(false);
     setEndTime(Date.now());
+
+    // 임시 저장된 러닝 데이터 정리
+    clearTemporaryRunningData();
 
     if (watchIdRef.current) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -1515,22 +1742,45 @@ const NavigationPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 relative">
-      {/* 헤더 */}
-      <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
-        <Link to={ROUTES.HOME}>
-          <h1 className="text-xl font-bold text-[#4c1d95]">Running Map</h1>
-        </Link>
-        {/* 
-        <button
-          onClick={shareToSNS}
-          disabled={totalDistance === 0}
-          className="flex items-center gap-2 px-3 py-1.5 bg-[#FF6B35] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Share2 size={16} />
-          공유
-        </button> 
-        */}
+    <div className="flex flex-col h-screen bg-gray-900 relative">
+      {/* 트렌디한 모바일 헤더 */}
+      <div className="bg-white shadow-sm relative">
+        {/* 그라데이션 상단 라인 */}
+        <div className="h-1 bg-gray-700" />
+
+        <div className="px-4 py-3 flex items-center justify-between">
+          <Link to={ROUTES.HOME} className="flex items-center space-x-3">
+            {/* 미니 로고 */}
+            {/* <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+              <span className="text-white text-lg">🗺️</span>
+            </div> */}
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">러닝 맵</h1>
+              <p className="text-xs text-purple-600 font-medium -mt-1">
+                Run View
+              </p>
+            </div>
+          </Link>
+
+          {/* 상태 표시 */}
+          <div className="flex items-center space-x-2">
+            <div
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                isTracking
+                  ? isPaused
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {isTracking
+                ? isPaused
+                  ? '⏸️ 일시정지'
+                  : '🏃‍♀️ 추적중'
+                : '⏹️ 대기중'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 지도 */}
@@ -1541,116 +1791,109 @@ const NavigationPage = () => {
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         />
 
-        {/* 지도 컨트롤 버튼들 */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
+        {/* 지도 컨트롤 버튼들 - 개선된 디자인 */}
+        <div className="absolute top-4 right-4 flex flex-col gap-3">
+          {/* 사진 촬영 버튼 */}
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white/20">
+            <button
+              onClick={handleRunningPhotoCapture}
+              className="w-12 h-12 flex items-center justify-center hover:bg-red-50 transition-all duration-200 text-red-600"
+              title="러닝 사진 촬영"
+            >
+              <Camera size={20} />
+            </button>
+          </div>
+
           {/* 줌 컨트롤 */}
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white/20">
             <button
               onClick={handleZoomIn}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors border-b"
+              className="w-12 h-12 flex items-center justify-center hover:bg-purple-50 transition-all duration-200 border-b border-gray-100/50"
               disabled={currentZoom >= 19}
             >
               <ZoomIn
-                size={18}
+                size={20}
                 className={
-                  currentZoom >= 19 ? 'text-gray-300' : 'text-gray-700'
+                  currentZoom >= 19 ? 'text-gray-300' : 'text-purple-600'
                 }
               />
             </button>
             <button
               onClick={handleZoomOut}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-12 h-12 flex items-center justify-center hover:bg-purple-50 transition-all duration-200"
               disabled={currentZoom <= 10}
             >
               <ZoomOut
-                size={18}
+                size={20}
                 className={
-                  currentZoom <= 10 ? 'text-gray-300' : 'text-gray-700'
+                  currentZoom <= 10 ? 'text-gray-300' : 'text-purple-600'
                 }
               />
             </button>
           </div>
 
           {/* 지도 타입 변경 */}
-          <button
+          {/* <button
             onClick={handleMapTypeChange}
-            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg flex items-center justify-center hover:bg-purple-50 transition-all duration-200 border border-white/20"
             title={`현재: ${mapType === 'normal' ? '일반' : mapType === 'satellite' ? '위성' : '하이브리드'}`}
           >
-            <Layers size={18} className="text-gray-700" />
-          </button>
+            <Layers size={20} className="text-purple-600" />
+          </button> */}
 
           {/* 현재 위치로 이동 */}
           <button
             onClick={moveToCurrentLocation}
-            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg flex items-center justify-center hover:bg-blue-50 transition-all duration-200 border border-white/20"
             disabled={!currentPosition}
           >
             <Target
-              size={18}
-              className={!currentPosition ? 'text-gray-300' : 'text-blue-600'}
+              size={20}
+              className={!currentPosition ? 'text-gray-300' : 'text-blue-500'}
             />
           </button>
 
           {/* 카페 정보 토글 */}
           <button
             onClick={toggleCafeInfo}
-            className={`w-10 h-10 rounded-lg shadow-lg flex items-center justify-center transition-colors ${
+            className={`w-12 h-12 rounded-2xl shadow-lg flex items-center justify-center transition-all duration-200 border border-white/20 ${
               showCafeInfo
                 ? 'bg-orange-500 text-white hover:bg-orange-600'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                : 'bg-white/90 backdrop-blur-md text-orange-500 hover:bg-orange-50'
             }`}
           >
-            <Coffee size={18} />
+            <Coffee size={20} />
           </button>
         </div>
 
-        {/* 통계 카드 */}
-        <div className="absolute top-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4">
-          {/* GPS 정확도 표시 */}
-          {gpsAccuracy !== null && (
-            <div className="mb-3 flex items-center justify-center">
-              {(() => {
-                const accuracyInfo = evaluateGPSAccuracy(gpsAccuracy);
-                return (
-                  <div className="flex items-center gap-2 text-xs">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: accuracyInfo.color }}
-                    ></div>
-                    <span className="text-gray-600">
-                      GPS: {accuracyInfo.message} ({Math.round(gpsAccuracy)}m)
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {formatTime(elapsedTime)}
+        {/* 간단한 통계 카드 */}
+        <div className="absolute top-4 left-4 right-20 bg-white rounded-lg shadow-md">
+          <div className="p-3">
+            <div className="grid grid-cols-4 gap-3 text-center">
+              <div>
+                <div className="text-lg font-bold text-black">
+                  {formatTime(elapsedTime)}
+                </div>
+                <div className="text-xs text-black">시간</div>
               </div>
-              <div className="text-xs text-gray-500">시간</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">
-                {formatDistance(totalDistance)}
+              <div>
+                <div className="text-lg font-bold text-black">
+                  {formatDistance(totalDistance)}
+                </div>
+                <div className="text-xs text-black">거리</div>
               </div>
-              <div className="text-xs text-gray-500">거리</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-orange-600">
-                {getCalculatedCalories()}
+              <div>
+                <div className="text-lg font-bold text-black">
+                  {getCalculatedCalories()}
+                </div>
+                <div className="text-xs text-black">칼로리</div>
               </div>
-              <div className="text-xs text-gray-500">칼로리</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-600">
-                {(currentSpeed * 3.6).toFixed(1)}
+              <div>
+                <div className="text-lg font-bold text-black">
+                  {(currentSpeed * 3.6).toFixed(1)}
+                </div>
+                <div className="text-xs text-black">km/h</div>
               </div>
-              <div className="text-xs text-gray-500">km/h</div>
             </div>
           </div>
         </div>
@@ -1807,129 +2050,37 @@ const NavigationPage = () => {
         )}
       </div>
 
-      {/* 러닝 컨트롤 하단바 */}
+      {/* 간단한 러닝 컨트롤 하단바 */}
       <nav
-        className="fixed left-1/2 transform -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50"
+        className="fixed left-1/2 transform -translate-x-1/2 w-full max-w-[390px] z-50"
         style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {/* 디버깅용 상태 표시 */}
-        <div className="text-xs text-gray-500 text-center py-2 border-b border-gray-100">
-          상태: {isTracking ? (isPaused ? '일시정지됨' : '추적중') : '대기중'} |
-          거리: {totalDistance.toFixed(0)}m | 시간:{' '}
-          {Math.floor(elapsedTime / 1000)}초
-        </div>
-
-        <div className="flex justify-around items-center h-16 px-4">
+        <div className="flex justify-center items-center h-20 px-6">
           {!isTracking ? (
             <>
-              {/* 시작 버튼 */}
+              {/* 시작 버튼 - 원형 디자인 */}
               <button
                 onClick={startCountdown}
                 disabled={isCountingDown}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                   isCountingDown
-                    ? 'text-gray-400'
-                    : 'text-green-600 hover:text-green-800'
+                    ? 'bg-gray-300 text-gray-500'
+                    : 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg hover:shadow-xl'
                 }`}
                 aria-label="러닝 시작"
               >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    isCountingDown
-                      ? 'bg-gray-400'
-                      : 'bg-green-500 hover:bg-green-600'
-                  }`}
-                >
-                  <Play size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">
-                  {isCountingDown ? '준비중...' : '시작'}
-                </span>
+                <Play size={28} />
               </button>
 
-              {/* Instagram 공유 버튼 */}
-              <button
-                onClick={shareToInstagram}
-                disabled={totalDistance === 0 && elapsedTime === 0}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  totalDistance === 0 && elapsedTime === 0
-                    ? 'text-gray-300'
-                    : 'text-pink-600 hover:text-pink-800'
-                }`}
-                aria-label="Instagram 공유"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    totalDistance === 0 && elapsedTime === 0
-                      ? 'bg-gray-200'
-                      : 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600'
-                  }`}
-                >
-                  <div className="text-white font-bold text-lg">📷</div>
-                </div>
-                <span className="text-xs font-bold">Instagram</span>
-              </button>
-
-              {/* 일반 공유 버튼 */}
-              <button
-                onClick={shareToSNS}
-                disabled={totalDistance === 0 && elapsedTime === 0}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  totalDistance === 0 && elapsedTime === 0
-                    ? 'text-gray-300'
-                    : 'text-blue-600 hover:text-blue-800'
-                }`}
-                aria-label="SNS 공유"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    totalDistance === 0 && elapsedTime === 0
-                      ? 'bg-gray-200'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  <Share2 size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">공유</span>
-              </button>
-
-              {/* 캡처 버튼 */}
-              <button
-                onClick={captureMapWithRunningRecord}
-                disabled={totalDistance === 0 && elapsedTime === 0}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  totalDistance === 0 && elapsedTime === 0
-                    ? 'text-gray-300'
-                    : 'text-purple-600 hover:text-purple-800'
-                }`}
-                aria-label="지도 캡처"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    totalDistance === 0 && elapsedTime === 0
-                      ? 'bg-gray-200'
-                      : 'bg-purple-500 hover:bg-purple-600'
-                  }`}
-                >
-                  <Camera size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">캡처</span>
-              </button>
-
-              {/* 저장 버튼 - 거리 0이어도 저장 가능 */}
+              {/* 저장 버튼 - 기록이 있을 때만 표시 */}
               {(totalDistance > 0 || elapsedTime > 0) && (
                 <button
                   onClick={saveRecord}
                   disabled={isSaving}
-                  className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-indigo-600 hover:text-indigo-800"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 ml-4"
                   aria-label="기록 저장"
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 transition-colors">
-                    <Save size={20} className="text-white" />
-                  </div>
-                  <span className="text-xs font-bold">
-                    {isSaving ? '저장중' : '저장'}
-                  </span>
+                  <Save size={20} />
                 </button>
               )}
             </>
@@ -1938,103 +2089,27 @@ const NavigationPage = () => {
               {/* 일시정지/재개 버튼 */}
               <button
                 onClick={togglePause}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                   isPaused
-                    ? 'text-green-600 hover:text-green-800'
-                    : 'text-yellow-600 hover:text-yellow-800'
+                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
+                    : 'bg-yellow-500 text-white hover:bg-yellow-600 shadow-lg hover:shadow-xl'
                 }`}
                 aria-label={isPaused ? '러닝 재개' : '러닝 일시정지'}
               >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    isPaused
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : 'bg-yellow-500 hover:bg-yellow-600'
-                  }`}
-                >
-                  {isPaused ? (
-                    <Play size={20} className="text-white" />
-                  ) : (
-                    <Pause size={20} className="text-white" />
-                  )}
-                </div>
-                <span className="text-xs font-bold">
-                  {isPaused ? '재개' : '일시정지'}
-                </span>
+                {isPaused ? <Play size={28} /> : <Pause size={28} />}
               </button>
 
               {/* 정지 버튼 */}
               <button
                 onClick={stopTracking}
-                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-red-600 hover:text-red-800"
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-lg hover:shadow-xl ml-4"
                 aria-label="러닝 정지"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 transition-colors">
-                  <Square size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">정지</span>
-              </button>
-
-              {/* 캡처 버튼 (러닝 중) */}
-              <button
-                onClick={captureMapWithRunningRecord}
-                className="flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors text-purple-600 hover:text-purple-800"
-                aria-label="지도 캡처"
-              >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-500 hover:bg-purple-600 transition-colors">
-                  <Camera size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">캡처</span>
-              </button>
-
-              {/* 현재 위치로 이동 버튼 */}
-              <button
-                onClick={moveToCurrentLocation}
-                disabled={!currentPosition}
-                className={`flex flex-col items-center justify-center space-y-1 py-2 px-3 min-w-[80px] transition-colors ${
-                  !currentPosition
-                    ? 'text-gray-300'
-                    : 'text-blue-600 hover:text-blue-800'
-                }`}
-                aria-label="현재 위치로 이동"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                    !currentPosition
-                      ? 'bg-gray-200'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  <Target size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">위치</span>
+                <Square size={20} />
               </button>
             </>
           )}
         </div>
-
-        {/* 추가 정보 표시 */}
-        {(totalDistance > 0 || elapsedTime > 0) && !isTracking && (
-          <div className="px-4 py-2 text-center border-t border-gray-100">
-            <div className="text-xs text-gray-600">
-              {totalDistance > 0
-                ? '운동 완료! 기록을 저장하거나 SNS에 공유해보세요 🎉'
-                : '운동 기록이 있습니다. 저장하시겠습니까? 💾'}
-            </div>
-          </div>
-        )}
-
-        {/* 개발용 테스트 버튼 */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="px-4 py-2 text-center border-t border-gray-100">
-            <button
-              onClick={createTestRecord}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors"
-            >
-              테스트 기록 생성
-            </button>
-          </div>
-        )}
       </nav>
 
       {/* 카운트다운 오버레이 */}

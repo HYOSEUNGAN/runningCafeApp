@@ -151,6 +151,49 @@ const RecordPage = () => {
     return null;
   };
 
+  // 응원 메시지 생성 함수
+  const getMotivationalMessage = () => {
+    const totalRuns = monthlyStats.totalRuns;
+    const totalDistance = monthlyStats.totalDistance;
+
+    if (totalRuns === 0) {
+      return {
+        title: '첫 번째 러닝을 시작해보세요!',
+        message:
+          '새로운 여정의 첫 걸음을 내딛어보세요. 모든 위대한 러너도 첫 걸음부터 시작했답니다!',
+        emoji: '🌟',
+      };
+    } else if (totalRuns < 5) {
+      return {
+        title: '좋은 시작이에요!',
+        message:
+          '벌써 ' +
+          totalRuns +
+          '번째 러닝이네요! 꾸준함이 가장 중요해요. 오늘도 화이팅!',
+        emoji: '💪',
+      };
+    } else if (totalDistance < 50) {
+      return {
+        title: '점점 강해지고 있어요!',
+        message:
+          '이미 ' +
+          totalDistance.toFixed(1) +
+          'km를 달렸네요! 목표를 향해 한 걸음씩 나아가고 있어요!',
+        emoji: '🔥',
+      };
+    } else {
+      return {
+        title: '정말 대단해요!',
+        message:
+          '총 ' +
+          totalDistance.toFixed(1) +
+          'km! 진정한 러너의 모습이에요. 오늘도 새로운 기록에 도전해보세요!',
+        emoji: '🏆',
+      };
+    }
+  };
+
+  const motivationalMessage = getMotivationalMessage();
   const selectedRecords = getRecordForDate(selectedDate);
 
   // 요일 가져오기
@@ -226,7 +269,7 @@ const RecordPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pt-4 pb-20">
+    <div className="min-h-screen bg-neutral-50  pb-20">
       <div className="app-container bg-white">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
@@ -249,45 +292,7 @@ const RecordPage = () => {
             </svg>
           </button>
           <h1 className="text-lg font-bold text-neutral-900">전체 기록</h1>
-          <div className="flex space-x-1">
-            <button
-              onClick={() => navigate('/nav')}
-              className="touch-button text-neutral-600 hover:text-primary-500"
-              title="러닝 시작"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="#ef4444"
-                viewBox="0 0 24 24"
-                style={{ filter: 'drop-shadow(0 0 2px #ef4444)' }}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                  d="M9 19V6l12 6-12 6z"
-                  fill="#ef4444"
-                  stroke="#ef4444"
-                />
-              </svg>
-            </button>
-            {/* <button className="touch-button text-neutral-600 hover:text-primary-500">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </button> */}
-          </div>
+          <div className="w-6"></div> {/* 헤더 균형을 위한 빈 공간 */}
         </div>
 
         {/* 런데이 업데이트 알림 */}
@@ -312,6 +317,49 @@ const RecordPage = () => {
             </svg>
           </button>
         </div> */}
+
+        {/* 러닝 시작 메인 섹션 */}
+        <div className="px-4 py-6 text-center bg-gradient-to-br from-primary-500 to-primary-600 text-white mx-4 mt-4 rounded-2xl shadow-lg">
+          <div className="mb-4">
+            <div className="text-3xl mb-2">{motivationalMessage.emoji}</div>
+            <h2 className="text-xl font-bold mb-2">
+              {motivationalMessage.title}
+            </h2>
+            <p className="text-primary-100 text-sm mb-4 leading-relaxed">
+              {motivationalMessage.message}
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate('/nav')}
+            className="w-full bg-white text-primary-600 font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2 mb-4 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+            <svg
+              className="w-6 h-6 relative z-10"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <span className="text-lg relative z-10">러닝 시작하기</span>
+          </button>
+
+          <div className="grid grid-cols-3 gap-2 text-xs text-primary-100">
+            <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
+              <span>📍</span>
+              <span>GPS 추적</span>
+            </div>
+            <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
+              <span>⏱️</span>
+              <span>실시간 기록</span>
+            </div>
+            <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
+              <span>🎵</span>
+              <span>음성 안내</span>
+            </div>
+          </div>
+        </div>
 
         {/* 현재 러닝 통계 */}
         <div className="px-4 py-6 text-center bg-white">

@@ -1,5 +1,6 @@
 import React from 'react';
-import HomeHeader from '../components/layout/HomeHeader';
+// import HomeHeader from '../components/layout/HomeHeader'; // 기존 헤더 주석 처리
+import MobileHeader from '../components/layout/MobileHeader'; // 새로운 모바일 헤더
 import BottomNavigation from '../components/layout/BottomNavigation';
 import ChallengeSection from '../components/challenge/ChallengeSection';
 import {
@@ -11,13 +12,13 @@ import {
 
 /**
  * 메인 홈페이지 컴포넌트
- * Figma 디자인에 맞춘 새로운 홈페이지 레이아웃
+ * 새로운 모바일 앱 스타일 디자인 적용
  */
 const HomePage = () => {
   return (
-    <div className="app-container bg-gray-50">
-      {/* 상단 헤더 */}
-      {/* <HomeHeader /> */}
+    <div className="app-container bg-gradient-to-br from-gray-50 to-purple-50 min-h-screen">
+      {/* 새로운 모바일 스타일 헤더 */}
+      {/* <MobileHeader /> */}
 
       {/* 메인 컨텐츠 */}
       <main className="pb-20">

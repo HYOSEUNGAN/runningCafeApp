@@ -51,7 +51,12 @@
 **Font Family**
 
 ```css
-font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+font-family:
+  'Pretendard',
+  'Noto Sans KR',
+  -apple-system,
+  BlinkMacSystemFont,
+  sans-serif;
 ```
 
 **Typography Scale**
