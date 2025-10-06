@@ -22,6 +22,15 @@ const config: CapacitorConfig = {
       style: 'dark',
       backgroundColor: '#3B82F6',
     },
+    Geolocation: {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 3600000, // 1시간
+    },
+    App: {
+      // 앱이 백그라운드로 이동해도 위치 추적 유지
+      backgroundMode: true,
+    },
   },
 };
 

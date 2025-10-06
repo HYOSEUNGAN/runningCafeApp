@@ -1,0 +1,70 @@
+<svg width="105" height="150" viewBox="0 0 105 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="hangangViewGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DBEAFE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#BFDBFE;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hangangViewOverlay" x1="0%" y1="100%" x2="0%" y2="70%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 메인 배경 -->
+  <rect width="105" height="150" rx="12" fill="url(#hangangViewGradient)"/>
+  
+  <!-- 한강 물결 -->
+  <path d="M0 80 Q25 75 50 80 Q75 85 105 80 L105 90 Q75 95 50 90 Q25 85 0 90 Z" fill="rgba(59,130,246,0.3)"/>
+  <path d="M0 85 Q25 80 50 85 Q75 90 105 85 L105 95 Q75 100 50 95 Q25 90 0 95 Z" fill="rgba(59,130,246,0.2)"/>
+  
+  <!-- 카페 건물 -->
+  <rect x="20" y="50" width="65" height="40" rx="4" fill="#3B82F6" opacity="0.8"/>
+  <rect x="25" y="55" width="15" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  <rect x="45" y="55" width="15" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  <rect x="65" y="55" width="15" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  
+  <!-- 카페 지붕 -->
+  <path d="M15 50 L52.5 35 L90 50 Z" fill="#1E40AF"/>
+  
+  <!-- 카페 간판 -->
+  <rect x="35" y="40" width="35" height="10" rx="5" fill="rgba(255,255,255,0.9)"/>
+  <text x="52.5" y="47" fill="#3B82F6" font-family="Arial, sans-serif" font-size="7" font-weight="bold" text-anchor="middle">RIVER VIEW</text>
+  
+  <!-- 카페 문 -->
+  <rect x="42" y="75" width="20" height="15" rx="2" fill="#1D4ED8"/>
+  <circle cx="58" cy="82" r="1" fill="rgba(255,255,255,0.8)"/>
+  
+  <!-- 테라스 -->
+  <rect x="15" y="90" width="75" height="3" fill="rgba(59,130,246,0.6)"/>
+  <rect x="20" y="88" width="8" height="5" fill="rgba(255,255,255,0.8)"/>
+  <rect x="35" y="88" width="8" height="5" fill="rgba(255,255,255,0.8)"/>
+  <rect x="50" y="88" width="8" height="5" fill="rgba(255,255,255,0.8)"/>
+  <rect x="65" y="88" width="8" height="5" fill="rgba(255,255,255,0.8)"/>
+  
+  <!-- GPS 위치 핀 -->
+  <g transform="translate(45, 15)">
+    <path d="M7.5 0 Q15 0 15 7.5 Q15 15 7.5 20 Q0 15 0 7.5 Q0 0 7.5 0 Z" fill="#DC2626"/>
+    <circle cx="7.5" cy="7.5" r="3" fill="white"/>
+  </g>
+  
+  <!-- 하단 오버레이 -->
+  <rect x="0" y="105" width="105" height="45" fill="url(#hangangViewOverlay)"/>
+  
+  <!-- 거리 표시 -->
+  <text x="8" y="125" fill="white" font-family="Arial, sans-serif" font-size="10" font-weight="bold">0.8km</text>
+  
+  <!-- 별점 -->
+  <g transform="translate(8, 130)">
+    <text x="0" y="8" fill="#F59E0B" font-family="Arial, sans-serif" font-size="8">⭐</text>
+    <text x="12" y="8" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">4.9</text>
+  </g>
+  
+  <!-- 갈매기 -->
+  <g transform="translate(75, 25)">
+    <path d="M0 5 Q3 2 6 5 Q9 2 12 5" stroke="rgba(59,130,246,0.6)" stroke-width="1" fill="none"/>
+  </g>
+  <g transform="translate(85, 30)">
+    <path d="M0 3 Q2 1 4 3 Q6 1 8 3" stroke="rgba(59,130,246,0.5)" stroke-width="1" fill="none"/>
+  </g>
+</svg>

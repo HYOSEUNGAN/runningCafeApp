@@ -5,7 +5,7 @@ import React from 'react';
  * "지금 위치에서 1km 이내" 가로 스크롤
  */
 const NearbyCafesSection = () => {
-  // 샘플 주변 카페 데이터
+  // GPS 기반 주변 카페 데이터
   const nearbyCafes = [
     {
       id: 1,
@@ -13,7 +13,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 12만명',
       rating: 4.9,
       distance: '0.3km',
-      image: '/images/nearby1.jpg',
+      image: '/images/nearby-healing-cafe.svg',
     },
     {
       id: 2,
@@ -21,7 +21,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 8만명',
       rating: 4.9,
       distance: '0.5km',
-      image: '/images/nearby2.jpg',
+      image: '/images/nearby-morning-cafe.svg',
     },
     {
       id: 3,
@@ -29,7 +29,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 15만명',
       rating: 4.9,
       distance: '0.8km',
-      image: '/images/nearby3.jpg',
+      image: '/images/nearby-hangang-view.svg',
     },
     {
       id: 4,
@@ -37,7 +37,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 6만명',
       rating: 4.9,
       distance: '1.0km',
-      image: '/images/nearby4.jpg',
+      image: '/images/nearby-olympic-cafe.svg',
       hasBookmark: true,
     },
   ];
@@ -75,10 +75,12 @@ const NearbyCafesSection = () => {
               <div className="relative">
                 {/* 카페 이미지 */}
                 <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[105/150] relative">
-                  {/* 플레이스홀더 이미지 */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs text-gray-500">세로 IMG</span>
-                  </div>
+                  {/* 카페 이미지 */}
+                  <img 
+                    src={cafe.image} 
+                    alt={cafe.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
 
                   {/* 북마크 버튼 (있는 경우만) */}
                   {cafe.hasBookmark && (

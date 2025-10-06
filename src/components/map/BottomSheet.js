@@ -22,7 +22,7 @@ const BottomSheet = ({
   selectedFilters = [],
   searchRadius = 5,
 }) => {
-  const [sheetHeight, setSheetHeight] = useState('10%'); // 'closed', '10%', '50%', '80%', 'full'
+  const [sheetHeight, setSheetHeight] = useState('15%'); // 'closed', '15%', '60%', '85%', 'full'
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [activeTab, setActiveTab] = useState('nearby');
@@ -167,33 +167,33 @@ const BottomSheet = ({
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
-      case '10%':
+      case '15%':
         return {
-          height: '10vh',
+          height: '15vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
-      case '50%':
+      case '60%':
         return {
-          height: '50vh',
+          height: '60vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
-      case '80%':
+      case '85%':
         return {
-          height: '80vh',
+          height: '85vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
       case 'full':
         return {
-          height: '90vh',
+          height: '95vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
       default:
         return {
-          height: '10vh',
+          height: '15vh',
           transform: 'translateY(0)',
           borderRadius: '24px 24px 0 0',
         };
@@ -218,24 +218,24 @@ const BottomSheet = ({
       if (deltaY > 0 && sheetHeight !== 'closed') {
         // 아래로 드래그 - 축소
         if (sheetHeight === 'full') {
-          setSheetHeight('80%');
-        } else if (sheetHeight === '80%') {
-          setSheetHeight('50%');
-        } else if (sheetHeight === '50%') {
-          setSheetHeight('10%');
-        } else if (sheetHeight === '10%') {
+          setSheetHeight('85%');
+        } else if (sheetHeight === '85%') {
+          setSheetHeight('60%');
+        } else if (sheetHeight === '60%') {
+          setSheetHeight('15%');
+        } else if (sheetHeight === '15%') {
           setSheetHeight('closed');
         }
         setDragStartY(currentY);
       } else if (deltaY < 0 && sheetHeight !== 'full') {
         // 위로 드래그 - 확대
         if (sheetHeight === 'closed') {
-          setSheetHeight('10%');
-        } else if (sheetHeight === '10%') {
-          setSheetHeight('50%');
-        } else if (sheetHeight === '50%') {
-          setSheetHeight('80%');
-        } else if (sheetHeight === '80%') {
+          setSheetHeight('15%');
+        } else if (sheetHeight === '15%') {
+          setSheetHeight('60%');
+        } else if (sheetHeight === '60%') {
+          setSheetHeight('85%');
+        } else if (sheetHeight === '85%') {
           setSheetHeight('full');
         }
         setDragStartY(currentY);
@@ -481,7 +481,7 @@ const BottomSheet = ({
       {sheetHeight === 'full' && (
         <div
           className="fixed inset-0 bg-gradient-to-t from-black/30 via-black/20 to-black/10 backdrop-blur-sm z-[-1] transition-all duration-300"
-          onClick={() => setSheetHeight('80%')}
+          onClick={() => setSheetHeight('85%')}
         ></div>
       )}
     </div>

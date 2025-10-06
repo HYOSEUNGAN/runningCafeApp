@@ -5,7 +5,7 @@ import React from 'react';
  * "이번주 인기 코스" 2x2 그리드 레이아웃
  */
 const RankingSection = () => {
-  // 샘플 랭킹 데이터
+  // 이번주 인기 러너코스 데이터
   const topCourses = [
     {
       id: 1,
@@ -13,7 +13,7 @@ const RankingSection = () => {
       title: '한강공원 5km 코스',
       rating: 4.5,
       distance: '5.2km',
-      image: '/images/course1.jpg',
+      image: '/images/course-hangang-5km.svg',
     },
     {
       id: 2,
@@ -21,7 +21,7 @@ const RankingSection = () => {
       title: '올림픽공원 순환 코스',
       rating: 4.5,
       distance: '3.8km',
-      image: '/images/course2.jpg',
+      image: '/images/course-olympic-park.svg',
     },
     {
       id: 3,
@@ -29,7 +29,7 @@ const RankingSection = () => {
       title: '서울숲 힐링 코스',
       rating: 4.5,
       distance: '4.1km',
-      image: '/images/course3.jpg',
+      image: '/images/course-seoul-forest.svg',
     },
     {
       id: 4,
@@ -37,7 +37,7 @@ const RankingSection = () => {
       title: '반포 한강 코스',
       rating: 4.5,
       distance: '6.3km',
-      image: '/images/course4.jpg',
+      image: '/images/course-banpo-hangang.svg',
     },
   ];
 
@@ -63,10 +63,12 @@ const RankingSection = () => {
           >
             {/* 코스 카드 */}
             <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[162/206] relative">
-              {/* 플레이스홀더 이미지 */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs text-gray-500">🗺️</span>
-              </div>
+              {/* 코스 이미지 */}
+              <img 
+                src={course.image} 
+                alt={course.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
 
               {/* 랭킹 번호 */}
               <div className="absolute top-3 left-3">

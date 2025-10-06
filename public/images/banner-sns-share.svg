@@ -1,0 +1,55 @@
+<svg width="360" height="144" viewBox="0 0 360 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="snsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DC2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="snsOverlay" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 메인 배경 -->
+  <rect width="360" height="144" rx="12" fill="url(#snsGradient)"/>
+  
+  <!-- 오버레이 -->
+  <rect width="360" height="144" rx="12" fill="url(#snsOverlay)"/>
+  
+  <!-- SNS 공유 아이콘 -->
+  <g transform="translate(280, 20)">
+    <circle cx="30" cy="30" r="25" fill="rgba(255,255,255,0.1)"/>
+    <!-- 공유 아이콘 -->
+    <circle cx="25" cy="25" r="4" fill="rgba(255,255,255,0.8)"/>
+    <circle cx="35" cy="20" r="4" fill="rgba(255,255,255,0.8)"/>
+    <circle cx="35" cy="35" r="4" fill="rgba(255,255,255,0.8)"/>
+    <!-- 연결선 -->
+    <line x1="29" y1="25" x2="31" y2="22" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+    <line x1="29" y1="28" x2="31" y2="32" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+    <!-- 하트 -->
+    <path d="M20 40 Q18 38 20 36 Q22 38 20 40" fill="rgba(255,255,255,0.6)"/>
+    <path d="M40 40 Q38 38 40 36 Q42 38 40 40" fill="rgba(255,255,255,0.6)"/>
+  </g>
+  
+  <!-- 텍스트 컨텐츠 -->
+  <text x="24" y="50" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">러닝 기록 공유</text>
+  <text x="24" y="75" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="14">친구들과 러닝 성과를 자랑하세요</text>
+  
+  <!-- CTA 버튼 -->
+  <rect x="24" y="90" width="80" height="28" rx="14" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+  <text x="64" y="108" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">공유하기</text>
+  
+  <!-- 장식 요소 (좋아요, 댓글 아이콘) -->
+  <g transform="translate(300, 90)">
+    <!-- 좋아요 -->
+    <path d="M10 15 Q8 13 10 11 Q12 13 10 15" fill="rgba(255,255,255,0.4)"/>
+    <text x="15" y="15" fill="rgba(255,255,255,0.6)" font-family="Arial, sans-serif" font-size="10">24</text>
+  </g>
+  <g transform="translate(320, 100)">
+    <!-- 댓글 -->
+    <rect x="5" y="5" width="12" height="8" rx="2" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+    <path d="M8 13 L11 16 L11 13" fill="rgba(255,255,255,0.4)"/>
+    <text x="20" y="12" fill="rgba(255,255,255,0.6)" font-family="Arial, sans-serif" font-size="10">12</text>
+  </g>
+</svg>

@@ -1,0 +1,40 @@
+<svg width="360" height="144" viewBox="0 0 360 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="runnerPickGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="overlayGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 메인 배경 -->
+  <rect width="360" height="144" rx="12" fill="url(#runnerPickGradient)"/>
+  
+  <!-- 오버레이 -->
+  <rect width="360" height="144" rx="12" fill="url(#overlayGradient)"/>
+  
+  <!-- 러닝 아이콘 -->
+  <g transform="translate(280, 20)">
+    <circle cx="30" cy="30" r="25" fill="rgba(255,255,255,0.1)"/>
+    <path d="M20 35 L25 30 L30 35 L35 30 L40 35" stroke="rgba(255,255,255,0.6)" stroke-width="2" fill="none"/>
+    <circle cx="30" cy="20" r="4" fill="rgba(255,255,255,0.8)"/>
+    <path d="M26 24 L34 24 L32 40 L28 40 Z" fill="rgba(255,255,255,0.8)"/>
+  </g>
+  
+  <!-- 텍스트 컨텐츠 -->
+  <text x="24" y="50" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">러너픽 추천 코스</text>
+  <text x="24" y="75" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="14">AI가 선별한 최고의 러닝 코스</text>
+  
+  <!-- CTA 버튼 -->
+  <rect x="24" y="90" width="80" height="28" rx="14" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+  <text x="64" y="108" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">지금 확인</text>
+  
+  <!-- 장식 요소 -->
+  <circle cx="320" cy="100" r="3" fill="rgba(255,255,255,0.3)"/>
+  <circle cx="310" cy="110" r="2" fill="rgba(255,255,255,0.2)"/>
+  <circle cx="330" cy="115" r="1.5" fill="rgba(255,255,255,0.4)"/>
+</svg>

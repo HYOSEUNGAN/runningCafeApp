@@ -7,27 +7,27 @@ import React, { useState, useEffect } from 'react';
 const BannerCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // 샘플 배너 데이터
+  // 홍보 배너 데이터
   const banners = [
     {
       id: 1,
-      title: '새로운 러닝 코스 발견!',
-      subtitle: '한강공원 최적 러닝 경로',
-      image: '/images/banner1.jpg',
+      title: '러너픽 추천 코스',
+      subtitle: 'AI가 선별한 최고의 러닝 코스',
+      image: '/images/banner-runner-pick.svg',
       backgroundColor: '#4F46E5',
     },
     {
       id: 2,
-      title: '주말 러닝 챌린지',
-      subtitle: '함께 뛰고 기록을 남겨보세요',
-      image: '/images/banner2.jpg',
+      title: '30일 습관 챌린지',
+      subtitle: '매일 러닝으로 건강한 습관 만들기',
+      image: '/images/banner-challenge.svg',
       backgroundColor: '#059669',
     },
     {
       id: 3,
-      title: 'GPS 추적 기능',
-      subtitle: '정확한 거리와 속도 측정',
-      image: '/images/banner3.jpg',
+      title: '러닝 기록 공유',
+      subtitle: '친구들과 러닝 성과를 자랑하세요',
+      image: '/images/banner-sns-share.svg',
       backgroundColor: '#DC2626',
     },
   ];
@@ -69,15 +69,17 @@ const BannerCarousel = () => {
                   {/* 배경 그라데이션 */}
                   <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
 
+                  {/* 배경 이미지 */}
+                  <img 
+                    src={banner.image} 
+                    alt={banner.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+
                   {/* 컨텐츠 */}
                   <div className="relative z-10 text-center px-6">
                     <h3 className="text-lg font-bold mb-2">{banner.title}</h3>
                     <p className="text-sm opacity-90">{banner.subtitle}</p>
-                  </div>
-
-                  {/* 플레이스홀더 이미지 텍스트 */}
-                  <div className="absolute bottom-2 right-2 text-xs opacity-60">
-                    banner thumbnail
                   </div>
                 </div>
               </div>

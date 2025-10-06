@@ -1,0 +1,57 @@
+<svg width="162" height="206" viewBox="0 0 162 206" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="hangangGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hangangOverlay" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.5" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 메인 배경 -->
+  <rect width="162" height="206" rx="12" fill="url(#hangangGradient)"/>
+  
+  <!-- 강물 표현 -->
+  <path d="M0 120 Q40 110 80 120 Q120 130 162 120 L162 140 Q120 150 80 140 Q40 130 0 140 Z" fill="rgba(255,255,255,0.2)"/>
+  <path d="M0 130 Q40 120 80 130 Q120 140 162 130 L162 150 Q120 160 80 150 Q40 140 0 150 Z" fill="rgba(255,255,255,0.1)"/>
+  
+  <!-- 러닝 트랙 -->
+  <path d="M20 60 Q81 40 142 60 Q142 80 142 100 Q142 120 142 140 Q142 160 81 180 Q20 160 20 140 Q20 120 20 100 Q20 80 20 60" 
+        fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-dasharray="5,5"/>
+  
+  <!-- 러너 아이콘 -->
+  <g transform="translate(70, 80)">
+    <circle cx="11" cy="8" r="4" fill="white"/>
+    <path d="M7 12 L15 12 L13 28 L9 28 Z" fill="white"/>
+    <path d="M6 18 L10 16 L14 18 L18 16" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- 거리 표시 -->
+  <circle cx="30" cy="40" r="15" fill="rgba(255,255,255,0.9)"/>
+  <text x="30" y="37" fill="#1E40AF" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle">5.2</text>
+  <text x="30" y="47" fill="#1E40AF" font-family="Arial, sans-serif" font-size="8" text-anchor="middle">km</text>
+  
+  <!-- 랭킹 번호 -->
+  <text x="20" y="40" fill="rgba(0,0,0,0.8)" font-family="Arial, sans-serif" font-size="32" font-weight="bold" font-style="italic">1</text>
+  
+  <!-- 하단 오버레이 -->
+  <rect x="0" y="150" width="162" height="56" fill="url(#hangangOverlay)"/>
+  
+  <!-- 코스 정보 -->
+  <text x="12" y="175" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">한강공원 5km 코스</text>
+  
+  <!-- 평점 -->
+  <g transform="translate(12, 185)">
+    <rect x="0" y="0" width="20" height="16" rx="8" fill="rgba(255,255,255,0.9)"/>
+    <text x="4" y="6" fill="#F59E0B" font-family="Arial, sans-serif" font-size="8">⭐</text>
+    <text x="25" y="11" fill="white" font-family="Arial, sans-serif" font-size="10" font-weight="bold">4.5</text>
+  </g>
+  
+  <!-- 장식 요소 -->
+  <circle cx="130" cy="30" r="2" fill="rgba(255,255,255,0.4)"/>
+  <circle cx="140" cy="40" r="1.5" fill="rgba(255,255,255,0.3)"/>
+  <circle cx="125" cy="50" r="1" fill="rgba(255,255,255,0.5)"/>
+</svg>

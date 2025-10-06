@@ -347,16 +347,16 @@ const RecordPage = () => {
 
           <div className="grid grid-cols-3 gap-2 text-xs text-primary-100">
             <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
-              <span>📍</span>
-              <span>GPS 추적</span>
+              <span>🏆</span>
+              <span>러닝 챌린지</span>
             </div>
             <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
-              <span>⏱️</span>
+              <span>📊</span>
               <span>실시간 기록</span>
             </div>
             <div className="flex items-center justify-center space-x-1 p-2 rounded-lg bg-white bg-opacity-10">
-              <span>🎵</span>
-              <span>음성 안내</span>
+              <span>💬</span>
+              <span>기록 공유</span>
             </div>
           </div>
         </div>

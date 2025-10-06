@@ -7,6 +7,7 @@ import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
 import IntroPage from './pages/IntroPage';
 import { setupSampleDataHelper } from './utils/sampleData';
+import { initializeServiceWorker } from './utils/backgroundService';
 import './App.css';
 import './styles/scrollbar.css';
 
@@ -18,6 +19,11 @@ function AppContent() {
   useEffect(() => {
     // 앱 초기화 - 인증 상태 확인
     initialize();
+
+    // Service Worker 초기화 (백그라운드 추적용)
+    initializeServiceWorker().catch(error => {
+      console.error('Service Worker 초기화 실패:', error);
+    });
 
     // 개발 환경에서만 샘플 데이터 헬퍼 등록
     if (process.env.NODE_ENV === 'development') {

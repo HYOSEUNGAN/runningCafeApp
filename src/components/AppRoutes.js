@@ -31,6 +31,7 @@ const TempPage = ({ title }) => (
 const AppRoutes = () => {
   const location = useLocation();
   const isNavigationPage = location.pathname === ROUTES.NAV;
+  const isHomePage = location.pathname === ROUTES.HOME;
   const isLoginPage =
     location.pathname === ROUTES.LOGIN ||
     location.pathname === '/auth/callback';
@@ -38,7 +39,7 @@ const AppRoutes = () => {
   return (
     <>
       {/* 네비게이션 페이지가 아닐 때만 상단 네비게이션 표시 */}
-      {!isNavigationPage && !isLoginPage && <Navigation />}
+      {isHomePage && <Navigation />}
 
       <Routes>
         <Route path={ROUTES.HOME} element={<HomePage />} />

@@ -56,7 +56,23 @@ import {
   restoreRunningDataFromLocal,
   clearTemporaryRunningData,
   isInBackground,
+  initializeServiceWorker,
+  startBackgroundRunningTracking,
+  stopBackgroundRunningTracking,
+  setBackgroundLocationCallback,
+  setSyncRunningDataCallback,
+  getRunningSessionFromServiceWorker,
+  isServiceWorkerActive,
 } from '../utils/backgroundService';
+import {
+  isCapacitorEnvironment,
+  initializeCapacitorBackgroundTracking,
+  startCapacitorRunningSession,
+  stopCapacitorRunningSession,
+  restoreCapacitorRunningSession,
+  setCapacitorBackgroundUpdateCallback,
+  cleanupCapacitorBackgroundService,
+} from '../utils/capacitorBackgroundService';
 
 const NavigationPage = () => {
   // 상태 관리
@@ -104,6 +120,126 @@ const NavigationPage = () => {
   const infoWindowsRef = useRef([]);
   const startMarkerRef = useRef(null);
   const directionMarkerRef = useRef(null);
+
+  // Service Worker 및 백그라운드 서비스 초기화
+  useEffect(() => {
+    const initializeBackgroundServices = async () => {
+      try {
+        // 환경별 백그라운드 서비스 초기화
+        if (isCapacitorEnvironment()) {
+          console.log('Capacitor 환경: 네이티브 백그라운드 서비스 초기화');
+          await initializeCapacitorBackgroundTracking();
+
+          // Capacitor 백그라운드 업데이트 콜백 설정
+          setCapacitorBackgroundUpdateCallback(data => {
+            console.log('Capacitor 백그라운드 위치 업데이트:', data);
+
+            if (data.position) {
+              const newPos = new window.naver.maps.LatLng(
+                data.position.lat,
+                data.position.lng
+              );
+              setCurrentPosition(newPos);
+
+              // 경로 및 거리 업데이트
+              if (data.path) setPath(data.path);
+              if (data.distance !== undefined) setTotalDistance(data.distance);
+              if (data.duration !== undefined) setElapsedTime(data.duration);
+            }
+          });
+
+          // Capacitor 세션 복구 시도
+          const capacitorSession = restoreCapacitorRunningSession();
+          if (capacitorSession && capacitorSession.isTracking) {
+            console.log('Capacitor 러닝 세션 복구:', capacitorSession);
+
+            if (capacitorSession.path) setPath(capacitorSession.path);
+            if (capacitorSession.distance !== undefined)
+              setTotalDistance(capacitorSession.distance);
+            if (capacitorSession.startTime)
+              setStartTime(capacitorSession.startTime);
+            if (capacitorSession.duration !== undefined)
+              setElapsedTime(capacitorSession.duration);
+
+            setIsTracking(true);
+            showToast('이전 러닝 세션이 복구되었습니다.', 'success');
+          }
+        } else {
+          console.log('웹 환경: Service Worker 백그라운드 서비스 초기화');
+          // Service Worker 초기화
+          await initializeServiceWorker();
+        }
+
+        // 알림 권한 요청
+        await requestNotificationPermission();
+
+        // 백그라운드 위치 업데이트 콜백 설정
+        setBackgroundLocationCallback(data => {
+          console.log('백그라운드 위치 업데이트 수신:', data);
+
+          // 메인 앱 상태 업데이트
+          if (data.position) {
+            const newPos = new window.naver.maps.LatLng(
+              data.position.lat,
+              data.position.lng
+            );
+            setCurrentPosition(newPos);
+
+            // 경로 업데이트
+            if (data.path && data.path.length > 0) {
+              setPath(data.path);
+              updatePolyline(data.path);
+            }
+
+            // 거리 및 시간 업데이트
+            if (data.distance !== undefined) {
+              setTotalDistance(data.distance);
+            }
+
+            if (data.duration !== undefined) {
+              setElapsedTime(data.duration);
+            }
+          }
+        });
+
+        // 러닝 데이터 동기화 콜백 설정
+        setSyncRunningDataCallback(async data => {
+          console.log('러닝 데이터 동기화 요청 수신:', data);
+
+          // 백그라운드에서 수집된 데이터를 메인 앱에 동기화
+          if (data.path) setPath(data.path);
+          if (data.distance !== undefined) setTotalDistance(data.distance);
+          if (data.duration !== undefined) setElapsedTime(data.duration);
+
+          // 로컬 스토리지에도 백업
+          saveRunningDataToLocal(data);
+        });
+
+        // 페이지 로드 시 이전 세션 복구 시도
+        const savedSession = await getRunningSessionFromServiceWorker();
+        if (savedSession && savedSession.isBackgroundMode) {
+          console.log('백그라운드 세션 복구:', savedSession);
+
+          // 세션 데이터 복구
+          if (savedSession.path) setPath(savedSession.path);
+          if (savedSession.distance !== undefined)
+            setTotalDistance(savedSession.distance);
+          if (savedSession.startTime) setStartTime(savedSession.startTime);
+          if (savedSession.duration !== undefined)
+            setElapsedTime(savedSession.duration);
+
+          // 추적 상태 복구
+          setIsTracking(true);
+
+          showToast('이전 러닝 세션이 복구되었습니다.', 'success');
+        }
+      } catch (error) {
+        console.error('백그라운드 서비스 초기화 실패:', error);
+      }
+    };
+
+    initializeBackgroundServices();
+  }, [showToast]);
 
   // 네이버 지도 초기화
   useEffect(() => {
@@ -324,6 +460,24 @@ const NavigationPage = () => {
       }
     };
   }, [isTracking, isPaused, startTime]);
+
+  // 컴포넌트 언마운트 시 정리 작업
+  useEffect(() => {
+    return () => {
+      // 백그라운드 서비스 정리
+      cleanupBackgroundTracking();
+
+      // Capacitor 백그라운드 서비스 정리
+      if (isCapacitorEnvironment()) {
+        cleanupCapacitorBackgroundService();
+      }
+
+      // Wake Lock 해제
+      releaseWakeLock();
+
+      console.log('NavigationPage 정리 작업 완료');
+    };
+  }, []);
 
   // 기존 마커들 제거
   const clearMarkers = useCallback(() => {
@@ -670,39 +824,86 @@ const NavigationPage = () => {
   };
 
   // 위치 추적 시작
-  const startTracking = () => {
+  const startTracking = async () => {
     if (!navigator.geolocation) {
       alert('이 브라우저는 위치 서비스를 지원하지 않습니다.');
       return;
     }
 
+    const currentTime = Date.now();
     setIsTracking(true);
     setIsPaused(false);
-    setStartTime(Date.now());
+    setStartTime(currentTime);
     setPath([]);
     setTotalDistance(0);
 
-    // 백그라운드 추적 설정 강화
+    // 환경별 백그라운드 추적 시작
+    const sessionData = {
+      startTime: currentTime,
+      path: [],
+      distance: 0,
+      duration: 0,
+      currentSpeed: 0,
+      maxSpeed: 0,
+      isTracking: true,
+      isPaused: false,
+    };
+
+    let backgroundTrackingStarted = false;
+
+    if (isCapacitorEnvironment()) {
+      // Capacitor 환경: 네이티브 백그라운드 추적
+      backgroundTrackingStarted =
+        await startCapacitorRunningSession(sessionData);
+      if (backgroundTrackingStarted) {
+        console.log('Capacitor 백그라운드 추적 시작됨');
+        showToast('네이티브 백그라운드 추적이 활성화되었습니다.', 'success');
+      }
+    } else {
+      // 웹 환경: Service Worker 백그라운드 추적
+      backgroundTrackingStarted =
+        await startBackgroundRunningTracking(sessionData);
+      if (backgroundTrackingStarted) {
+        console.log('Service Worker 백그라운드 추적 시작됨');
+        showToast('웹 백그라운드 추적이 활성화되었습니다.', 'success');
+      }
+    }
+
+    if (!backgroundTrackingStarted) {
+      console.log('백그라운드 추적 시작 실패, 기본 모드 사용');
+      showToast('기본 추적 모드로 시작합니다.', 'info');
+    }
+
+    // 기존 백그라운드 추적 설정 (폴백)
     setupBackgroundTracking(
       isVisible => {
         console.log('페이지 가시성 변경:', isVisible ? '보임' : '숨김');
+
+        if (!isVisible && isTracking && !isPaused) {
+          // 백그라운드로 이동 시 현재 데이터 저장
+          const currentSessionData = {
+            startTime,
+            elapsedTime,
+            totalDistance,
+            path,
+            currentSpeed,
+            maxSpeed,
+            speedHistory,
+            isTracking: true,
+            isPaused: false,
+          };
+
+          saveRunningDataToLocal(currentSessionData);
+
+          // Service Worker가 활성화되어 있지 않으면 폴백 모드 사용
+          if (!isServiceWorkerActive()) {
+            console.log('Service Worker 비활성화, 폴백 백그라운드 추적 사용');
+          }
+        }
       },
       {
         onBackgroundStart: () => {
-          console.log('백그라운드 추적 시작');
-          // 백그라운드에서도 위치 추적 계속
-          if (isTracking && !isPaused) {
-            // 현재 러닝 데이터를 로컬에 저장
-            saveRunningDataToLocal({
-              startTime,
-              elapsedTime,
-              totalDistance,
-              path,
-              currentSpeed,
-              maxSpeed,
-              speedHistory,
-            });
-          }
+          console.log('폴백 백그라운드 추적 시작');
         },
         onBackgroundUpdate: () => {
           // 백그라운드에서 주기적으로 위치 업데이트
@@ -903,6 +1104,23 @@ const NavigationPage = () => {
     setIsTracking(false);
     setIsPaused(false);
     setEndTime(Date.now());
+
+    // 환경별 백그라운드 추적 중지
+    let backgroundTrackingStopped = false;
+
+    if (isCapacitorEnvironment()) {
+      // Capacitor 환경: 네이티브 백그라운드 추적 중지
+      backgroundTrackingStopped = await stopCapacitorRunningSession();
+      if (backgroundTrackingStopped) {
+        console.log('Capacitor 백그라운드 추적 중지됨');
+      }
+    } else {
+      // 웹 환경: Service Worker 백그라운드 추적 중지
+      backgroundTrackingStopped = await stopBackgroundRunningTracking();
+      if (backgroundTrackingStopped) {
+        console.log('Service Worker 백그라운드 추적 중지됨');
+      }
+    }
 
     // 임시 저장된 러닝 데이터 정리
     clearTemporaryRunningData();

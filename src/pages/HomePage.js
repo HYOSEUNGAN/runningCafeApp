@@ -26,9 +26,9 @@ const HomePage = () => {
         <BannerCarousel />
 
         {/* 월별 챌린지 섹션 */}
-        <div className="px-4 py-6">
+        {/* <div className="px-4 py-6">
           <ChallengeSection />
-        </div>
+        </div> */}
 
         {/* 랭킹 섹션 - 이번주 러너스픽 */}
         <RankingSection />

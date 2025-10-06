@@ -7,13 +7,14 @@ import React, { useState } from 'react';
 const VoteSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // 샘플 투표 데이터
+  // 이번주 핫한 플레이스 투표 데이터
   const voteItems = [
     {
       id: 1,
       title: '새로운 러닝 코스 카페',
       subtitle: '한강공원 5km 코스 끝',
-      image: '/images/vote1.jpg',
+      leftImage: '/images/vote-new-course-cafe.svg',
+      rightImage: '/images/vote-hangang-finish-cafe.svg',
       voteCount: 234,
       totalVotes: 456,
     },
@@ -21,7 +22,8 @@ const VoteSection = () => {
       id: 2,
       title: '주말 러닝 모임 카페',
       subtitle: '올림픽공원 3km 코스',
-      image: '/images/vote2.jpg',
+      leftImage: '/images/vote-weekend-group-cafe.svg',
+      rightImage: '/images/vote-night-running-cafe.svg',
       voteCount: 189,
       totalVotes: 312,
     },
@@ -29,7 +31,8 @@ const VoteSection = () => {
       id: 3,
       title: '야간 러닝 후 카페',
       subtitle: '반포 한강공원 근처',
-      image: '/images/vote3.jpg',
+      leftImage: '/images/vote-night-running-cafe.svg',
+      rightImage: '/images/vote-new-course-cafe.svg',
       voteCount: 156,
       totalVotes: 289,
     },
@@ -80,17 +83,19 @@ const VoteSection = () => {
                   {/* 좌측 카드 */}
                   <div className="flex-1">
                     <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[128/182] relative">
-                      {/* 플레이스홀더 이미지 */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs text-gray-500">image</span>
-                      </div>
+                      {/* 투표 이미지 */}
+                      <img 
+                        src={item.leftImage} 
+                        alt={item.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
                     </div>
                     <div className="mt-2">
                       <h3 className="text-xs font-bold text-black mb-1">
                         {item.title}
                       </h3>
                       <button
-                        onClick={() => handleVote(item.id, 'yes')}
+                        onClick={() => handleVote(item.id, 'left')}
                         className="bg-gray-600 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-gray-700 transition-colors"
                       >
                         보고싶어요
@@ -101,17 +106,19 @@ const VoteSection = () => {
                   {/* 우측 카드 */}
                   <div className="flex-1">
                     <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[128/182] relative">
-                      {/* 플레이스홀더 이미지 */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs text-gray-500">image</span>
-                      </div>
+                      {/* 투표 이미지 */}
+                      <img 
+                        src={item.rightImage} 
+                        alt={item.subtitle}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
                     </div>
                     <div className="mt-2">
                       <h3 className="text-xs font-bold text-black mb-1">
                         {item.subtitle}
                       </h3>
                       <button
-                        onClick={() => handleVote(item.id, 'no')}
+                        onClick={() => handleVote(item.id, 'right')}
                         className="bg-gray-600 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-gray-700 transition-colors"
                       >
                         보고싶어요

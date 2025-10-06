@@ -1,0 +1,72 @@
+<svg width="128" height="182" viewBox="0 0 128 182" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="hangangFinishGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DBEAFE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#BFDBFE;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hangangFinishOverlay" x1="0%" y1="100%" x2="0%" y2="80%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0.7" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 메인 배경 -->
+  <rect width="128" height="182" rx="12" fill="url(#hangangFinishGradient)"/>
+  
+  <!-- HOT 뱃지 -->
+  <rect x="10" y="10" width="30" height="16" rx="8" fill="#EF4444"/>
+  <text x="25" y="21" fill="white" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle">HOT</text>
+  
+  <!-- 한강 물결 -->
+  <path d="M0 60 Q32 50 64 60 Q96 70 128 60 L128 80 Q96 90 64 80 Q32 70 0 80 Z" fill="rgba(59,130,246,0.3)"/>
+  <path d="M0 70 Q32 60 64 70 Q96 80 128 70 L128 90 Q96 100 64 90 Q32 80 0 90 Z" fill="rgba(59,130,246,0.2)"/>
+  
+  <!-- 피니시 라인 -->
+  <rect x="50" y="45" width="28" height="4" fill="#3B82F6"/>
+  <rect x="50" y="45" width="4" height="4" fill="white"/>
+  <rect x="58" y="45" width="4" height="4" fill="white"/>
+  <rect x="66" y="45" width="4" height="4" fill="white"/>
+  <rect x="74" y="45" width="4" height="4" fill="white"/>
+  
+  <!-- 러너 아이콘 (결승선 통과) -->
+  <g transform="translate(55, 35)">
+    <circle cx="9" cy="6" r="3" fill="#3B82F6"/>
+    <path d="M6 10 L12 10 L11 22 L7 22 Z" fill="#3B82F6"/>
+    <path d="M5 16 L8 14 L11 16 L14 14" stroke="#3B82F6" stroke-width="2" fill="none"/>
+    <!-- 승리 포즈 -->
+    <path d="M4 12 L2 8" stroke="#3B82F6" stroke-width="2" fill="none"/>
+    <path d="M14 12 L16 8" stroke="#3B82F6" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- 카페 건물 -->
+  <rect x="25" y="100" width="78" height="45" rx="6" fill="rgba(59,130,246,0.8)"/>
+  <rect x="30" y="105" width="18" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  <rect x="52" y="105" width="18" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  <rect x="74" y="105" width="18" height="15" rx="2" fill="rgba(255,255,255,0.9)"/>
+  
+  <!-- 카페 지붕 -->
+  <path d="M20 100 L64 80 L108 100 Z" fill="#1E40AF"/>
+  
+  <!-- 카페 간판 -->
+  <rect x="40" y="85" width="48" height="12" rx="6" fill="rgba(255,255,255,0.9)"/>
+  <text x="64" y="93" fill="#3B82F6" font-family="Arial, sans-serif" font-size="8" font-weight="bold" text-anchor="middle">FINISH LINE CAFE</text>
+  
+  <!-- 카페 문 -->
+  <rect x="54" y="125" width="20" height="20" rx="2" fill="#1D4ED8"/>
+  <circle cx="70" cy="135" r="1" fill="rgba(255,255,255,0.8)"/>
+  
+  <!-- 하단 오버레이 -->
+  <rect x="0" y="145" width="128" height="37" fill="url(#hangangFinishOverlay)"/>
+  
+  <!-- 투표 수 -->
+  <text x="10" y="165" fill="white" font-family="Arial, sans-serif" font-size="11" font-weight="bold">189표</text>
+  
+  <!-- 갈매기 -->
+  <g transform="translate(90, 25)">
+    <path d="M0 5 Q3 2 6 5 Q9 2 12 5" stroke="rgba(59,130,246,0.6)" stroke-width="1" fill="none"/>
+  </g>
+  <g transform="translate(100, 35)">
+    <path d="M0 3 Q2 1 4 3 Q6 1 8 3" stroke="rgba(59,130,246,0.5)" stroke-width="1" fill="none"/>
+  </g>
+</svg>
