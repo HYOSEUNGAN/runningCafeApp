@@ -1,0 +1,29 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 원형 (선택된 상태) -->
+  <circle cx="24" cy="24" r="22" fill="url(#gradient4)" stroke="white" stroke-width="4"/>
+  <circle cx="24" cy="24" r="18" fill="white" fill-opacity="0.2"/>
+  
+  <!-- 위치 핀 베이스 (선택됨) -->
+  <path d="M24 14C20.134 14 17 17.134 17 21C17 26.25 24 34 24 34C24 34 31 26.25 31 21C31 17.134 27.866 14 24 14Z" fill="white"/>
+  
+  <!-- 러닝 플레이스 아이콘 (선택됨) -->
+  <circle cx="24" cy="21" r="4" fill="#10B981"/>
+  
+  <!-- 러너 실루엣 (더 굵게) -->
+  <path d="M22.5 19.5L23.5 20.5L25.5 19.5L24.5 22.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- 동적 효과 (더 강조) -->
+  <circle cx="24" cy="21" r="2.5" fill="white" fill-opacity="0.8"/>
+  
+  <!-- 선택 표시 -->
+  <circle cx="36" cy="12" r="6" fill="#10B981"/>
+  <path d="M33 12L35 14L39 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- 그라데이션 정의 -->
+  <defs>
+    <linearGradient id="gradient4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34D399;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

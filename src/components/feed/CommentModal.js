@@ -85,9 +85,9 @@ const CommentModal = ({ isOpen, onClose, post }) => {
         // 댓글 목록에 새 댓글 추가
         setComments(prev => [...prev, result.data]);
 
-        // 부모 컴포넌트에 댓글 수 업데이트 알림
+        // 부모 컴포넌트에 댓글 수 업데이트 알림 (정확한 댓글 수 전달)
         if (post.onCommentAdded) {
-          post.onCommentAdded(post.id);
+          post.onCommentAdded(post.id, result.data.commentsCount);
         }
       } else {
         alert('댓글 작성에 실패했습니다.');
@@ -114,9 +114,9 @@ const CommentModal = ({ isOpen, onClose, post }) => {
         // 댓글 목록에서 삭제
         setComments(prev => prev.filter(comment => comment.id !== commentId));
 
-        // 부모 컴포넌트에 댓글 수 업데이트 알림
+        // 부모 컴포넌트에 댓글 수 업데이트 알림 (정확한 댓글 수 전달)
         if (post.onCommentDeleted) {
-          post.onCommentDeleted(post.id);
+          post.onCommentDeleted(result.data.postId, result.data.commentsCount);
         }
       } else {
         alert('댓글 삭제에 실패했습니다.');

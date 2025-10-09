@@ -5,6 +5,7 @@ import BottomNavigation from '../components/layout/BottomNavigation';
 import ChallengeSection from '../components/challenge/ChallengeSection';
 import {
   BannerCarousel,
+  RecentRunnersSection,
   RankingSection,
   NearbyCafesSection,
   VoteSection,
@@ -24,6 +25,9 @@ const HomePage = () => {
       <main className="pb-20">
         {/* 배너 섹션 - 이번주 오픈 카페 */}
         <BannerCarousel />
+
+        {/* 최근 운동한 사람들 TOP 3 섹션 */}
+        <RecentRunnersSection />
 
         {/* 월별 챌린지 섹션 */}
         {/* <div className="px-4 py-6">

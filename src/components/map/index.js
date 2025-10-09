@@ -5,3 +5,4 @@ export { default as FilterTabs } from './FilterTabs';
 export { default as BottomSheet } from './BottomSheet';
 export { default as CafeCard } from './CafeCard';
 export { default as ActionButtons } from './ActionButtons';
+export { default as RunningDetailBottomSheet } from './RunningDetailBottomSheet';

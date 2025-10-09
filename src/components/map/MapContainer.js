@@ -5,11 +5,6 @@ import {
   getAllRunningPlaces,
   getNearbyRunningPlaces,
 } from '../../services/runningPlaceService';
-import {
-  getWalkingDirections,
-  convertPathToNaverLatLng,
-  formatRouteInfo,
-} from '../../services/naverDirectionsService';
 
 /**
  * 메인 지도 컨테이너 컴포넌트
@@ -32,7 +27,6 @@ const MapContainer = ({
   const mapRef = useRef(null);
   const naverMapRef = useRef(null);
   const markersRef = useRef([]);
-  const polylinesRef = useRef([]);
   const circleRef = useRef(null);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,8 +34,6 @@ const MapContainer = ({
   const [hasError, setHasError] = useState(false);
   const [supabaseCafes, setSupabaseCafes] = useState([]);
   const [supabaseRunningPlaces, setSupabaseRunningPlaces] = useState([]);
-  const [showRoute, setShowRoute] = useState(false);
-  const [selectedCafe, setSelectedCafe] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(propCurrentZoom || 16);
   const [mapType, setMapType] = useState(propMapType || 'normal'); // 'normal', 'satellite', 'hybrid'
   const [clusteredMarkers, setClusteredMarkers] = useState([]);
@@ -295,162 +287,6 @@ const MapContainer = ({
       setIsLoading(false);
     }
   }, [userLocation, mapReady]);
-
-  // 실제 경로 찾기 API를 사용한 경로 그리기 함수
-  const drawRoute = useCallback(async (startCoords, endCoords, cafe) => {
-    if (!naverMapRef.current || !window.naver?.maps) return;
-
-    // 기존 경로 제거
-    polylinesRef.current.forEach(polyline => polyline.setMap(null));
-    polylinesRef.current = [];
-
-    try {
-      // 네이버 Directions API를 사용한 실제 경로 검색
-      const routeData = await getWalkingDirections(startCoords, endCoords);
-
-      // API에서 받은 경로 좌표를 네이버 지도 LatLng 객체로 변환
-      const path = convertPathToNaverLatLng(routeData.path);
-
-      if (path.length === 0) {
-        console.warn('경로 데이터가 없습니다. 직선 경로를 사용합니다.');
-        // 폴백: 직선 경로
-        path.push(
-          new window.naver.maps.LatLng(startCoords.lat, startCoords.lng),
-          new window.naver.maps.LatLng(endCoords.lat, endCoords.lng)
-        );
-      }
-
-      // 실제 도로를 따라가는 Polyline 생성
-      const polyline = new window.naver.maps.Polyline({
-        map: naverMapRef.current,
-        path: path,
-        strokeColor: '#FF6B35', // 주황색 경로
-        strokeWeight: 5,
-        strokeOpacity: 0.8,
-        strokeLineCap: 'round',
-        strokeLineJoin: 'round',
-        strokeStyle: 'solid',
-      });
-
-      polylinesRef.current.push(polyline);
-
-      // 경로 정보 포맷팅
-      const routeInfo = formatRouteInfo(routeData.distance, routeData.duration);
-
-      // 경로 중간 지점에 정보 표시
-      const midIndex = Math.floor(path.length / 2);
-      const midPoint = path[midIndex] || path[0];
-
-      const routeInfoWindow = new window.naver.maps.InfoWindow({
-        content: `
-          <div style="
-            padding: 10px 14px; 
-            background: linear-gradient(135deg, #FF6B35, #F97316); 
-            color: white; 
-            border-radius: 24px; 
-            font-size: 13px; 
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
-            border: 2px solid white;
-          ">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span>🚶‍♀️</span>
-              <span>${routeInfo.distance}</span>
-              <span style="opacity: 0.8;">•</span>
-              <span>${routeInfo.walkingTime}</span>
-            </div>
-          </div>
-        `,
-        position: midPoint,
-        borderWidth: 0,
-        anchorSize: new window.naver.maps.Size(0, 0),
-        pixelOffset: new window.naver.maps.Point(0, -15),
-      });
-
-      routeInfoWindow.open(naverMapRef.current);
-
-      // 지도 범위를 전체 경로에 맞게 조정
-      const bounds = new window.naver.maps.LatLngBounds();
-      path.forEach(point => bounds.extend(point));
-      naverMapRef.current.fitBounds(bounds, { padding: 80 });
-
-      return {
-        distance: routeData.distance,
-        duration: routeData.duration,
-        path: routeData.path,
-      };
-    } catch (error) {
-      console.error('경로 생성 오류:', error);
-
-      // 에러 시 직선 경로로 폴백
-      const fallbackPath = [
-        new window.naver.maps.LatLng(startCoords.lat, startCoords.lng),
-        new window.naver.maps.LatLng(endCoords.lat, endCoords.lng),
-      ];
-
-      const polyline = new window.naver.maps.Polyline({
-        map: naverMapRef.current,
-        path: fallbackPath,
-        strokeColor: '#FF6B35',
-        strokeWeight: 4,
-        strokeOpacity: 0.6,
-        strokeStyle: 'shortdash', // 점선으로 표시하여 추정 경로임을 나타냄
-      });
-
-      polylinesRef.current.push(polyline);
-
-      return { distance: 0, duration: 0, path: [] };
-    }
-  }, []);
-
-  // 경로 지우기 함수
-  const clearRoute = useCallback(() => {
-    polylinesRef.current.forEach(polyline => polyline.setMap(null));
-    polylinesRef.current = [];
-    setShowRoute(false);
-    setSelectedCafe(null);
-  }, []);
-
-  // 커스텀 줌 컨트롤 함수들
-  const handleZoomIn = useCallback(() => {
-    if (naverMapRef.current && currentZoom < 19) {
-      naverMapRef.current.setZoom(currentZoom + 1, true);
-    }
-  }, [currentZoom]);
-
-  const handleZoomOut = useCallback(() => {
-    if (naverMapRef.current && currentZoom > 10) {
-      naverMapRef.current.setZoom(currentZoom - 1, true);
-    }
-  }, [currentZoom]);
-
-  // 지도 타입 변경 함수
-  const handleMapTypeChange = useCallback(() => {
-    if (!naverMapRef.current) return;
-
-    const nextType = {
-      normal: 'satellite',
-      satellite: 'hybrid',
-      hybrid: 'normal',
-    };
-
-    const newMapType = nextType[mapType];
-    setMapType(newMapType);
-
-    // 네이버 지도 타입 설정
-    const naverMapType = {
-      normal: window.naver.maps.MapTypeId.NORMAL,
-      satellite: window.naver.maps.MapTypeId.SATELLITE,
-      hybrid: window.naver.maps.MapTypeId.HYBRID,
-    };
-
-    naverMapRef.current.setMapTypeId(naverMapType[newMapType]);
-
-    // 부모 컴포넌트에 변경사항 전달
-    if (onMapTypeChange) {
-      onMapTypeChange(newMapType);
-    }
-  }, [mapType]);
 
   // 마커 클릭 핸들러
   const handleMarkerClick = (type, item) => {
@@ -716,16 +552,9 @@ const MapContainer = ({
         },
       });
 
-      // 마커 클릭 이벤트 (경로 표시 기능 포함)
+      // 마커 클릭 이벤트 (바텀시트 표시)
       window.naver.maps.Event.addListener(marker, 'click', () => {
         handleMarkerClick('cafe', cafe);
-
-        // 사용자 위치가 있으면 경로 표시
-        if (userLocation) {
-          setSelectedCafe(cafe);
-          setShowRoute(true);
-          drawRoute(userLocation, cafe.coordinates, cafe);
-        }
       });
 
       // 정보 창 (InfoWindow) 추가 - 개선된 디자인
@@ -789,22 +618,16 @@ const MapContainer = ({
                 : ''
             }
             
-            ${
-              userLocation
-                ? `
-              <div style="
-                margin-top: 8px; 
-                padding: 6px 0; 
-                border-top: 1px solid #E5E7EB; 
-                font-size: 11px; 
-                color: #6B7280; 
-                text-align: center;
-              ">
-                클릭하여 경로 보기 🚶‍♀️
-              </div>
-            `
-                : ''
-            }
+            <div style="
+              margin-top: 8px; 
+              padding: 6px 0; 
+              border-top: 1px solid #E5E7EB; 
+              font-size: 11px; 
+              color: #6B7280; 
+              text-align: center;
+            ">
+              클릭하여 상세정보 보기 📋
+            </div>
           </div>
         `,
         borderWidth: 0,
@@ -823,7 +646,7 @@ const MapContainer = ({
 
       markersRef.current.push(marker);
     },
-    [handleMarkerClick, userLocation, drawRoute]
+    [handleMarkerClick, userLocation]
   );
 
   // 러닝 코스 마커 생성 함수
@@ -841,17 +664,10 @@ const MapContainer = ({
             <div style="
               width: 48px; 
               height: 48px; 
-              background: ${course.color}; 
-              border: 2px solid white; 
-              border-radius: 50%; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              background: url('/images/icons/running-course-marker.svg') center/contain no-repeat;
               cursor: pointer;
-            ">
-              <span style="color: white; font-size: 20px;">🏃‍♀️</span>
-            </div>
+              transition: transform 0.2s ease;
+            " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
           `,
           anchor: new window.naver.maps.Point(24, 24),
         },
@@ -860,6 +676,53 @@ const MapContainer = ({
       // 마커 클릭 이벤트
       window.naver.maps.Event.addListener(marker, 'click', () => {
         handleMarkerClick('course', course);
+      });
+
+      // 정보 창 (InfoWindow) 추가
+      const infoWindow = new window.naver.maps.InfoWindow({
+        content: `
+          <div style="
+            padding: 12px; 
+            min-width: 200px; 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          ">
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #1F2937; flex: 1;">${course.name}</h4>
+              <span style="background: ${course.color}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">${course.difficulty?.toUpperCase() || 'NORMAL'}</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="color: #F59E0B; margin-right: 4px;">📏</span>
+              <span style="font-size: 13px; font-weight: 600; color: #374151;">${course.distance}</span>
+            </div>
+            
+            <div style="
+              margin-top: 8px; 
+              padding: 6px 0; 
+              border-top: 1px solid #E5E7EB; 
+              font-size: 11px; 
+              color: #6B7280; 
+              text-align: center;
+            ">
+              클릭하여 상세정보 보기 🏃‍♀️
+            </div>
+          </div>
+        `,
+        borderWidth: 0,
+        anchorSize: new window.naver.maps.Size(0, 0),
+        pixelOffset: new window.naver.maps.Point(0, -15),
+      });
+
+      // 마커 호버 시 정보 창 표시
+      window.naver.maps.Event.addListener(marker, 'mouseover', () => {
+        infoWindow.open(naverMapRef.current, marker);
+      });
+
+      window.naver.maps.Event.addListener(marker, 'mouseout', () => {
+        infoWindow.close();
       });
 
       markersRef.current.push(marker);
@@ -1084,10 +947,6 @@ const MapContainer = ({
       markersRef.current.forEach(marker => marker.setMap(null));
       markersRef.current = [];
 
-      // 경로 정리
-      polylinesRef.current.forEach(polyline => polyline.setMap(null));
-      polylinesRef.current = [];
-
       // 원형 영역 정리
       if (circleRef.current) {
         circleRef.current.setMap(null);
@@ -1173,24 +1032,6 @@ const MapContainer = ({
         className="w-full h-full"
         style={{ minHeight: '400px' }}
       />
-
-      {/* 경로 제어 버튼들 */}
-      {showRoute && selectedCafe && (
-        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 max-w-xs">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-bold text-sm text-gray-800">
-              {selectedCafe.name}
-            </h4>
-            <button
-              onClick={clearRoute}
-              className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="text-xs text-gray-600">🚶‍♀️ 도보 경로가 표시되었습니다</p>
-        </div>
-      )}
 
       {/* 카페 개수 표시 */}
       {/* {displayCafes.length > 0 && (

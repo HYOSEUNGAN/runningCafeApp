@@ -12,10 +12,18 @@ export const ROUTES = {
   RUNNING_COURSES: '/courses',
   MAP: '/map',
   NAV: '/nav',
+  RUNNING_START: '/running-start',
+  RUNNING_START2: '/running-start2',
   CAFES: '/cafes',
   MY_RECORDS: '/records',
   FEED: '/feed',
   RECORD: '/record',
+  // 관리자 페이지 라우트
+  ADMIN: '/admin',
+  ADMIN_DASHBOARD: '/admin/dashboard',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_COURSES: '/admin/courses',
+  ADMIN_CAFES: '/admin/cafes',
 };
 
 export const API_ENDPOINTS = {

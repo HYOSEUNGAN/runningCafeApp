@@ -328,3 +328,196 @@ export const deleteUserProfile = async userId => {
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * 이번 주 TOP3 러너 조회 (총 거리 기준)
+ * @param {Object} options - 조회 옵션
+ * @param {number} options.limit - 조회할 개수 (기본값: 3)
+ * @returns {Promise<Object>} TOP3 러너 데이터
+ */
+export const getWeeklyTopRunners = async (options = {}) => {
+  try {
+    const { limit = 3 } = options;
+
+    // 이번 주 시작일과 종료일 계산
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // 일요일
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // 토요일
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // 이번 주 러닝 기록 조회 및 사용자별 집계
+    const { data: weeklyRecords, error } = await supabase
+      .from('running_records')
+      .select(
+        `
+        user_id,
+        distance,
+        duration,
+        created_at,
+        profiles:user_id (
+          username,
+          display_name,
+          avatar_url,
+          total_distance,
+          total_runs
+        )
+      `
+      )
+      .gte('created_at', startOfWeek.toISOString())
+      .lte('created_at', endOfWeek.toISOString())
+      .eq('is_public', true);
+
+    if (error) {
+      console.error('주간 러닝 기록 조회 실패:', error);
+      throw error;
+    }
+
+    // 사용자별 이번 주 통계 집계
+    const userStats = {};
+    weeklyRecords.forEach(record => {
+      const userId = record.user_id;
+      if (!userStats[userId]) {
+        userStats[userId] = {
+          user_id: userId,
+          profile: record.profiles,
+          weeklyDistance: 0,
+          weeklyRuns: 0,
+          weeklyDuration: 0,
+          lastActivity: record.created_at,
+        };
+      }
+      userStats[userId].weeklyDistance += record.distance || 0;
+      userStats[userId].weeklyRuns += 1;
+      userStats[userId].weeklyDuration += record.duration || 0;
+
+      // 가장 최근 활동 시간 업데이트
+      if (
+        new Date(record.created_at) > new Date(userStats[userId].lastActivity)
+      ) {
+        userStats[userId].lastActivity = record.created_at;
+      }
+    });
+
+    // 이번 주 거리 기준으로 정렬
+    const topRunners = Object.values(userStats)
+      .filter(user => user.profile && user.weeklyDistance > 0)
+      .sort((a, b) => b.weeklyDistance - a.weeklyDistance)
+      .slice(0, limit)
+      .map((user, index) => {
+        const timeDiff = Date.now() - new Date(user.lastActivity).getTime();
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+
+        // 러너 레벨 결정
+        let level, badge;
+        if (user.weeklyDistance >= 30) {
+          level = '프로 러너';
+          badge = '🏃‍♂️';
+        } else if (user.weeklyDistance >= 20) {
+          level = '열정 러너';
+          badge = '🔥';
+        } else if (user.weeklyRuns >= 4) {
+          level = '꾸준 러너';
+          badge = '⭐';
+        } else {
+          level = '새싹 러너';
+          badge = '🌱';
+        }
+
+        return {
+          id: user.user_id,
+          rank: index + 1,
+          name: user.profile.display_name || user.profile.username || '러너',
+          avatar: user.profile.avatar_url || '/images/avatars/runner-01.svg',
+          totalDistance: `${user.weeklyDistance.toFixed(1)}km`,
+          weeklyRuns: user.weeklyRuns,
+          level,
+          badge,
+          recentActivity: hoursAgo < 1 ? '방금 전' : `${hoursAgo}시간 전`,
+          // 추가 통계 정보
+          totalLifetimeDistance: user.profile.total_distance || 0,
+          totalLifetimeRuns: user.profile.total_runs || 0,
+          averagePace:
+            user.weeklyDuration > 0
+              ? (user.weeklyDuration / 60 / user.weeklyDistance).toFixed(1)
+              : 0,
+        };
+      });
+
+    return { success: true, data: topRunners };
+  } catch (error) {
+    console.error('주간 TOP 러너 조회 중 오류:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 전체 러너 랭킹 조회 (누적 거리 기준)
+ * @param {Object} options - 조회 옵션
+ * @param {number} options.limit - 조회할 개수 (기본값: 10)
+ * @param {number} options.offset - 시작 위치 (기본값: 0)
+ * @returns {Promise<Object>} 러너 랭킹 데이터
+ */
+export const getAllTimeTopRunners = async (options = {}) => {
+  try {
+    const { limit = 10, offset = 0 } = options;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .not('total_distance', 'is', null)
+      .gt('total_distance', 0)
+      .order('total_distance', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('전체 러너 랭킹 조회 실패:', error);
+      throw error;
+    }
+
+    const topRunners = data.map((profile, index) => {
+      // 러너 레벨 결정
+      let level, badge;
+      if (profile.total_distance >= 500) {
+        level = '마스터 러너';
+        badge = '👑';
+      } else if (profile.total_distance >= 200) {
+        level = '프로 러너';
+        badge = '🏃‍♂️';
+      } else if (profile.total_distance >= 100) {
+        level = '열정 러너';
+        badge = '🔥';
+      } else if (profile.total_distance >= 50) {
+        level = '꾸준 러너';
+        badge = '⭐';
+      } else {
+        level = '새싹 러너';
+        badge = '🌱';
+      }
+
+      return {
+        id: profile.id,
+        rank: offset + index + 1,
+        name: profile.display_name || profile.username || '러너',
+        avatar: profile.avatar_url || '/images/avatars/runner-01.svg',
+        totalDistance: `${profile.total_distance?.toFixed(1) || 0}km`,
+        totalRuns: profile.total_runs || 0,
+        level,
+        badge,
+        averageDistance:
+          profile.total_runs > 0
+            ? (profile.total_distance / profile.total_runs).toFixed(1)
+            : 0,
+        joinDate: new Date(profile.created_at).toLocaleDateString(),
+      };
+    });
+
+    return { success: true, data: topRunners };
+  } catch (error) {
+    console.error('전체 러너 랭킹 조회 중 오류:', error);
+    return { success: false, error: error.message };
+  }
+};

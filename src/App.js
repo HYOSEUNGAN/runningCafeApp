@@ -7,6 +7,7 @@ import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
 import IntroPage from './pages/IntroPage';
 import { setupSampleDataHelper } from './utils/sampleData';
+import { setupSampleDataHelper as setupRunningDataHelper } from './utils/sampleRunningData';
 import { initializeServiceWorker } from './utils/backgroundService';
 import './App.css';
 import './styles/scrollbar.css';
@@ -28,6 +29,7 @@ function AppContent() {
     // 개발 환경에서만 샘플 데이터 헬퍼 등록
     if (process.env.NODE_ENV === 'development') {
       setupSampleDataHelper();
+      setupRunningDataHelper();
     }
 
     // 인트로 페이지 표시 여부 확인 (localStorage 사용)

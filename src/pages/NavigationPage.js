@@ -110,6 +110,11 @@ const NavigationPage = () => {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [completionData, setCompletionData] = useState(null);
 
+  // 목표 러닝 관련 상태
+  const [runningGoals, setRunningGoals] = useState(null);
+  const [goalAchieved, setGoalAchieved] = useState(false);
+  const [showGoalCelebration, setShowGoalCelebration] = useState(false);
+
   // 카운트다운 상태
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownNumber, setCountdownNumber] = useState(0);
@@ -286,6 +291,103 @@ const NavigationPage = () => {
 
     initializeBackgroundServices();
   }, [showToast]);
+
+  // 목표 러닝 설정 로드
+  useEffect(() => {
+    const loadRunningConfig = () => {
+      try {
+        const savedConfig = localStorage.getItem('runningConfig');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          if (config.mode === 'goal' && config.goals) {
+            setRunningGoals(config.goals);
+            console.log('목표 러닝 설정 로드:', config.goals);
+          }
+        }
+      } catch (error) {
+        console.error('러닝 설정 로드 실패:', error);
+      }
+    };
+
+    loadRunningConfig();
+  }, []);
+
+  // 자동 러닝 시작 (RunningStartPage에서 온 경우)
+  useEffect(() => {
+    const autoStartRunning = async () => {
+      // localStorage에서 러닝 설정 확인
+      const savedConfig = localStorage.getItem('runningConfig');
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig);
+          // 설정이 있고 아직 추적이 시작되지 않았다면 자동 시작
+          if (!isTracking && !isCountingDown) {
+            console.log('자동 러닝 시작:', config);
+            // 러닝 설정 사용 후 localStorage에서 제거
+            localStorage.removeItem('runningConfig');
+            // 1초 후 자동으로 카운트다운 시작
+            setTimeout(() => {
+              startCountdown();
+            }, 1000);
+          }
+        } catch (error) {
+          console.error('러닝 설정 파싱 실패:', error);
+        }
+      }
+    };
+
+    autoStartRunning();
+  }, [isTracking, isCountingDown]);
+
+  // 목표 달성 확인
+  useEffect(() => {
+    if (!runningGoals || !isTracking || goalAchieved) return;
+
+    const checkGoalAchievement = () => {
+      let achieved = false;
+
+      if (runningGoals.type === 'distance') {
+        // 거리 목표 확인 (km 단위)
+        const currentDistanceKm = totalDistance / 1000;
+        if (currentDistanceKm >= runningGoals.targetDistance) {
+          achieved = true;
+        }
+      } else if (runningGoals.type === 'time') {
+        // 시간 목표 확인 (분 단위)
+        const currentTimeMinutes = elapsedTime / 60;
+        if (currentTimeMinutes >= runningGoals.targetTime) {
+          achieved = true;
+        }
+      }
+
+      if (achieved && !goalAchieved) {
+        setGoalAchieved(true);
+        setShowGoalCelebration(true);
+
+        // 축하 알림 표시
+        const goalText =
+          runningGoals.type === 'distance'
+            ? `${runningGoals.targetDistance}km`
+            : `${runningGoals.targetTime}분`;
+
+        showToast(`🎉 축하합니다! ${goalText} 목표를 달성했습니다!`, 'success');
+
+        // 햅틱 피드백
+        if (navigator.vibrate) {
+          navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+      }
+    };
+
+    checkGoalAchievement();
+  }, [
+    totalDistance,
+    elapsedTime,
+    runningGoals,
+    isTracking,
+    goalAchieved,
+    showToast,
+  ]);
 
   // 네이버 지도 초기화
   useEffect(() => {
@@ -2203,35 +2305,147 @@ const NavigationPage = () => {
           </button>
         </div>
 
-        {/* 간단한 통계 카드 */}
-        <div className="absolute top-4 left-4 right-20 bg-white rounded-lg shadow-md">
-          <div className="p-3">
-            <div className="grid grid-cols-4 gap-3 text-center">
-              <div>
-                <div className="text-lg font-bold text-black">
-                  {formatTime(elapsedTime)}
+        {/* Run View 통계 카드 - 지도 느낌 배경 */}
+        <div className="absolute top-4 left-4 right-20 bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50 rounded-2xl shadow-lg border border-white/50 backdrop-blur-sm">
+          {/* Run View 로고 헤더 */}
+          <div className="px-4 py-2 border-b border-emerald-200/50 bg-gradient-to-r from-emerald-100/80 to-blue-100/80 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">R</span>
                 </div>
-                <div className="text-xs text-black">시간</div>
+                <span className="text-emerald-700 font-bold text-sm">
+                  Run View
+                </span>
               </div>
-              <div>
-                <div className="text-lg font-bold text-black">
-                  {formatDistance(totalDistance)}
-                </div>
-                <div className="text-xs text-black">거리</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-black">
-                  {getCalculatedCalories()}
-                </div>
-                <div className="text-xs text-black">칼로리</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-black">
-                  {(currentSpeed * 3.6).toFixed(1)}
-                </div>
-                <div className="text-xs text-black">km/h</div>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-emerald-600 text-xs font-medium">
+                  LIVE
+                </span>
               </div>
             </div>
+          </div>
+
+          {/* 목표 진행률 (목표 러닝일 때만 표시) */}
+          {runningGoals && (
+            <div className="px-3 pb-2">
+              <div className="bg-white/80 rounded-xl p-3 border border-purple-100/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-purple-700">
+                    🎯 목표 진행률
+                  </span>
+                  <span className="text-xs text-purple-600">
+                    {runningGoals.type === 'distance'
+                      ? `${runningGoals.targetDistance}km 목표`
+                      : `${runningGoals.targetTime}분 목표`}
+                  </span>
+                </div>
+
+                {/* 진행률 바 */}
+                <div className="w-full bg-purple-100 rounded-full h-2 mb-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-500 ${
+                      goalAchieved
+                        ? 'bg-gradient-to-r from-green-400 to-green-600'
+                        : 'bg-gradient-to-r from-purple-400 to-purple-600'
+                    }`}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        runningGoals.type === 'distance'
+                          ? (totalDistance /
+                              1000 /
+                              runningGoals.targetDistance) *
+                              100
+                          : (elapsedTime / 60 / runningGoals.targetTime) * 100
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                {/* 현재 값 / 목표 값 */}
+                <div className="text-center">
+                  <span
+                    className={`text-sm font-bold ${goalAchieved ? 'text-green-700' : 'text-purple-700'}`}
+                  >
+                    {runningGoals.type === 'distance'
+                      ? `${(totalDistance / 1000).toFixed(2)}km / ${runningGoals.targetDistance}km`
+                      : `${Math.floor(elapsedTime / 60)}분 / ${runningGoals.targetTime}분`}
+                  </span>
+                  {goalAchieved && (
+                    <span className="ml-2 text-green-600">🎉 달성!</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 통계 데이터 */}
+          <div className="p-3">
+            <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="bg-white/60 rounded-xl p-2 border border-emerald-100/50">
+                <div className="text-emerald-600 text-xs mb-1">⏱️</div>
+                <div className="text-lg font-bold text-emerald-800">
+                  {formatTime(elapsedTime)}
+                </div>
+                <div className="text-xs text-emerald-600 font-medium">시간</div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-2 border border-blue-100/50">
+                <div className="text-blue-600 text-xs mb-1">📏</div>
+                <div className="text-lg font-bold text-blue-800">
+                  {formatDistance(totalDistance)}
+                </div>
+                <div className="text-xs text-blue-600 font-medium">거리</div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-2 border border-orange-100/50">
+                <div className="text-orange-600 text-xs mb-1">🔥</div>
+                <div className="text-lg font-bold text-orange-800">
+                  {getCalculatedCalories()}
+                </div>
+                <div className="text-xs text-orange-600 font-medium">
+                  칼로리
+                </div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-2 border border-purple-100/50">
+                <div className="text-purple-600 text-xs mb-1">⚡</div>
+                <div className="text-lg font-bold text-purple-800">
+                  {(currentSpeed * 3.6).toFixed(1)}
+                </div>
+                <div className="text-xs text-purple-600 font-medium">km/h</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 지도 패턴 배경 장식 */}
+          <div className="absolute inset-0 pointer-events-none opacity-10 rounded-2xl overflow-hidden">
+            <div className="absolute top-2 right-2 w-16 h-16 border-2 border-emerald-300 rounded-full"></div>
+            <div className="absolute bottom-2 left-2 w-12 h-12 border-2 border-blue-300 rounded-full"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-indigo-300 rounded-full"></div>
+            {/* 지도 격자 패턴 */}
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <pattern
+                  id="grid"
+                  width="10"
+                  height="10"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 10 0 L 0 0 0 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="0.5"
+                    className="text-emerald-300"
+                  />
+                </pattern>
+              </defs>
+              <rect width="100" height="100" fill="url(#grid)" />
+            </svg>
           </div>
         </div>
 
@@ -2392,9 +2606,21 @@ const NavigationPage = () => {
         className="fixed left-1/2 transform -translate-x-1/2 w-full max-w-[390px] z-50"
         style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="flex justify-center items-center h-20 px-6">
+        <div className="flex flex-col justify-center items-center px-6 py-4">
           {!isTracking ? (
             <>
+              {/* 안내 메시지 */}
+              {!isCountingDown && (
+                <div className="text-center mb-3">
+                  <p className="text-sm text-gray-600 mb-1">
+                    🏃‍♀️ 러닝을 시작할 준비가 되었습니다
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    아래 버튼을 눌러 카운트다운을 시작하세요
+                  </p>
+                </div>
+              )}
+
               {/* 시작 버튼 - 원형 디자인 */}
               <button
                 onClick={startCountdown}
@@ -2414,7 +2640,7 @@ const NavigationPage = () => {
                 <button
                   onClick={saveRecord}
                   disabled={isSaving}
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 ml-4"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 mt-2"
                   aria-label="기록 저장"
                 >
                   <Save size={20} />
@@ -2470,6 +2696,90 @@ const NavigationPage = () => {
                         : '100%',
                   }}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 목표 달성 축하 모달 */}
+      {showGoalCelebration && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl animate-bounce">
+            <div className="text-center">
+              {/* 축하 이모지 애니메이션 */}
+              <div className="text-6xl mb-4 animate-pulse">🎉🏆🎉</div>
+
+              {/* 축하 메시지 */}
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                축하합니다!
+              </h2>
+
+              <p className="text-lg text-gray-700 mb-6">
+                {runningGoals?.type === 'distance'
+                  ? `${runningGoals.targetDistance}km`
+                  : `${runningGoals.targetTime}분`}{' '}
+                목표를 달성했습니다!
+              </p>
+
+              {/* 현재 기록 표시 */}
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-4 mb-6">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {(totalDistance / 1000).toFixed(2)}km
+                    </div>
+                    <div className="text-sm text-gray-600">거리</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-pink-600">
+                      {Math.floor(elapsedTime / 60)}분
+                    </div>
+                    <div className="text-sm text-gray-600">시간</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 액션 버튼들 */}
+              <div className="flex flex-col space-y-3">
+                <button
+                  onClick={() => {
+                    setShowGoalCelebration(false);
+                    // 러닝 완료 처리
+                    const handleCompleteRunning = async () => {
+                      try {
+                        // 러닝 기록 저장 로직 (기존 stopRunning 함수의 로직 사용)
+                        setCreatePostModal({
+                          isOpen: true,
+                          runningRecord: {
+                            distance: totalDistance / 1000,
+                            duration: elapsedTime,
+                            route_data: { coordinates: path },
+                            goal_achieved: true,
+                            goal_type: runningGoals?.type,
+                            goal_value:
+                              runningGoals?.type === 'distance'
+                                ? runningGoals.targetDistance
+                                : runningGoals.targetTime,
+                          },
+                        });
+                      } catch (error) {
+                        console.error('러닝 완료 처리 실패:', error);
+                      }
+                    };
+                    handleCompleteRunning();
+                  }}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg"
+                >
+                  🎊 완료하고 피드 작성하기
+                </button>
+
+                <button
+                  onClick={() => setShowGoalCelebration(false)}
+                  className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  계속 러닝하기
+                </button>
               </div>
             </div>
           </div>

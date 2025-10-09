@@ -1,0 +1,8 @@
+<svg width="162" height="206" viewBox="0 0 162 206" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="162" height="206" rx="8" fill="#F5F5F5"/>
+<text x="20" y="40" fill="black" font-family="Inter" font-weight="700" font-size="48">1</text>
+<rect x="0" y="146" width="162" height="60" rx="4" fill="rgba(0,0,0,0.5)"/>
+<text x="12" y="166" fill="white" font-family="Inter" font-weight="700" font-size="12">한강공원 5km 코스</text>
+<text x="12" y="186" fill="white" font-family="Inter" font-weight="700" font-size="12">5.2km</text>
+<text x="102" y="186" fill="white" font-family="Inter" font-weight="700" font-size="12">⭐ 4.5</text>
+</svg>

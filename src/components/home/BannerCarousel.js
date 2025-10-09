@@ -11,23 +11,23 @@ const BannerCarousel = () => {
   const banners = [
     {
       id: 1,
-      title: '러너픽 추천 코스',
-      subtitle: 'AI가 선별한 최고의 러닝 코스',
-      image: '/images/banner-runner-pick.svg',
+      title: '🏃‍♂️ 러너픽 추천 코스 🔥',
+      subtitle: '🤖 AI가 선별한 최고의 러닝 코스 ',
+      image: '/images/banners/banner-00.png',
       backgroundColor: '#4F46E5',
     },
     {
       id: 2,
-      title: '30일 습관 챌린지',
-      subtitle: '매일 러닝으로 건강한 습관 만들기',
-      image: '/images/banner-challenge.svg',
+      title: '🎯 30일 습관 챌린지',
+      subtitle: '🌅 러닝 루틴으로 건강한 습관 만들기 ✨',
+      image: '/images/banners/banner-01.png',
       backgroundColor: '#059669',
     },
     {
       id: 3,
-      title: '러닝 기록 공유',
-      subtitle: '친구들과 러닝 성과를 자랑하세요',
-      image: '/images/banner-sns-share.svg',
+      title: ' 러닝 기록 공유와 성과 보고서',
+      subtitle: '👥 친구들과 러닝 성과를 자랑하세요 🏆',
+      image: '/images/banners/banner-02.png',
       backgroundColor: '#DC2626',
     },
   ];
@@ -70,16 +70,20 @@ const BannerCarousel = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
 
                   {/* 배경 이미지 */}
-                  <img 
-                    src={banner.image} 
+                  <img
+                    src={banner.image}
                     alt={banner.title}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
 
                   {/* 컨텐츠 */}
                   <div className="relative z-10 text-center px-6">
-                    <h3 className="text-lg font-bold mb-2">{banner.title}</h3>
-                    <p className="text-sm opacity-90">{banner.subtitle}</p>
+                    <h3 className="text-xl font-black mb-3 drop-shadow-lg tracking-wide">
+                      {banner.title}
+                    </h3>
+                    <p className="text-base opacity-95 font-semibold drop-shadow-md">
+                      {banner.subtitle}
+                    </p>
                   </div>
                 </div>
               </div>

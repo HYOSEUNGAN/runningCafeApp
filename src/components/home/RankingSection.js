@@ -13,7 +13,7 @@ const RankingSection = () => {
       title: '한강공원 5km 코스',
       rating: 4.5,
       distance: '5.2km',
-      image: '/images/course-hangang-5km.svg',
+      image: '/images/courses/course-hangang-5km.svg',
     },
     {
       id: 2,
@@ -21,7 +21,7 @@ const RankingSection = () => {
       title: '올림픽공원 순환 코스',
       rating: 4.5,
       distance: '3.8km',
-      image: '/images/course-olympic-park.svg',
+      image: '/images/courses/course-olympic-park.svg',
     },
     {
       id: 3,
@@ -29,7 +29,7 @@ const RankingSection = () => {
       title: '서울숲 힐링 코스',
       rating: 4.5,
       distance: '4.1km',
-      image: '/images/course-seoul-forest.svg',
+      image: '/images/courses/course-seoul-forest.svg',
     },
     {
       id: 4,
@@ -37,7 +37,7 @@ const RankingSection = () => {
       title: '반포 한강 코스',
       rating: 4.5,
       distance: '6.3km',
-      image: '/images/course-banpo-hangang.svg',
+      image: '/images/courses/course-banpo-hangang.svg',
     },
   ];
 
@@ -64,8 +64,8 @@ const RankingSection = () => {
             {/* 코스 카드 */}
             <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[162/206] relative">
               {/* 코스 이미지 */}
-              <img 
-                src={course.image} 
+              <img
+                src={course.image}
                 alt={course.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />

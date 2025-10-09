@@ -199,39 +199,186 @@
   position: relative;
 }
 
-/* 러닝 도장 이모지 스타일링 */
-.custom-calendar .react-calendar__tile.has-record .absolute {
+/* 러닝 도장 컨테이너 */
+.running-stamp-container {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
   pointer-events: none;
+  z-index: 10;
 }
 
-.custom-calendar .react-calendar__tile.has-record .absolute span {
-  display: inline-block;
-  font-size: 12px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-  animation: runningStamp 0.3s ease-in-out;
+/* 러닝 도장 메인 스타일 */
+.running-stamp {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow:
+    0 2px 8px rgba(238, 90, 36, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: stampAppear 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transform: rotate(-8deg);
 }
 
-.custom-calendar .react-calendar__tile.has-record.selected .absolute span {
-  filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.8)) brightness(1.2);
+/* 도장 아이콘 */
+.stamp-icon {
+  font-size: 10px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.1);
+  transform: rotate(8deg);
 }
 
-.custom-calendar .react-calendar__tile.has-record.today .absolute span {
-  filter: drop-shadow(0 1px 3px rgba(162, 89, 255, 0.6)) brightness(1.1);
+/* 기록 개수 표시 */
+.stamp-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  color: white;
+  font-size: 8px;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  animation: countBounce 0.4s ease-out 0.3s both;
 }
 
-/* 러닝 도장 애니메이션 */
-@keyframes runningStamp {
+/* 선택된 날짜의 도장 스타일 */
+.custom-calendar .react-calendar__tile.has-record.selected .running-stamp {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-color: rgba(162, 89, 255, 0.8);
+  box-shadow:
+    0 3px 12px rgba(162, 89, 255, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: rotate(-8deg) scale(1.1);
+}
+
+.custom-calendar .react-calendar__tile.has-record.selected .stamp-icon {
+  color: #a259ff;
+  text-shadow: 0 1px 2px rgba(162, 89, 255, 0.3);
+}
+
+/* 오늘 날짜의 도장 스타일 */
+.custom-calendar .react-calendar__tile.has-record.today .running-stamp {
+  background: linear-gradient(135deg, #ffd93d 0%, #ff9500 100%);
+  border-color: #ffffff;
+  box-shadow:
+    0 3px 12px rgba(255, 149, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  animation:
+    todayPulse 2s ease-in-out infinite,
+    stampAppear 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.custom-calendar .react-calendar__tile.has-record.today .stamp-icon {
+  color: white;
+  text-shadow: 0 1px 2px rgba(255, 149, 0, 0.5);
+}
+
+/* 오늘이면서 선택된 날짜의 도장 스타일 */
+.custom-calendar
+  .react-calendar__tile.has-record.today.selected
+  .running-stamp {
+  background: linear-gradient(135deg, #a259ff 0%, #6a82fb 100%);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 4px 16px rgba(162, 89, 255, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transform: rotate(-8deg) scale(1.15);
+  animation:
+    selectedTodayGlow 1.5s ease-in-out infinite,
+    stampAppear 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.custom-calendar .react-calendar__tile.has-record.today.selected .stamp-icon {
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* 도장 나타나는 애니메이션 */
+@keyframes stampAppear {
   0% {
-    transform: scale(0) rotate(-10deg);
+    transform: rotate(-8deg) scale(0) translateY(10px);
     opacity: 0;
   }
   50% {
-    transform: scale(1.2) rotate(5deg);
+    transform: rotate(-12deg) scale(1.3) translateY(-2px);
+    opacity: 0.8;
+  }
+  70% {
+    transform: rotate(-6deg) scale(0.9) translateY(1px);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-8deg) scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 개수 표시 바운스 애니메이션 */
+@keyframes countBounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
     opacity: 0.8;
   }
   100% {
-    transform: scale(1) rotate(0deg);
+    transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* 오늘 날짜 펄스 애니메이션 */
+@keyframes todayPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 3px 12px rgba(255, 149, 0, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 4px 16px rgba(255, 149, 0, 0.6),
+      0 3px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* 선택된 오늘 날짜 글로우 애니메이션 */
+@keyframes selectedTodayGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 4px 16px rgba(162, 89, 255, 0.6),
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 6px 20px rgba(162, 89, 255, 0.8),
+      0 3px 12px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 }
 
@@ -267,8 +414,21 @@
   }
 
   /* 모바일에서 러닝 도장 크기 조정 */
-  .custom-calendar .react-calendar__tile.has-record .absolute span {
-    font-size: 10px;
+  .running-stamp {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .stamp-icon {
+    font-size: 8px !important;
+  }
+
+  .stamp-count {
+    width: 10px !important;
+    height: 10px !important;
+    font-size: 7px !important;
+    top: -3px !important;
+    right: -3px !important;
   }
 }
 

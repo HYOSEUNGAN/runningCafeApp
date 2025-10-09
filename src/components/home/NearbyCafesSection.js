@@ -13,7 +13,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 12만명',
       rating: 4.9,
       distance: '0.3km',
-      image: '/images/nearby-healing-cafe.svg',
+      image: '/images/cafes/nearby-healing-cafe.svg',
     },
     {
       id: 2,
@@ -21,7 +21,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 8만명',
       rating: 4.9,
       distance: '0.5km',
-      image: '/images/nearby-morning-cafe.svg',
+      image: '/images/cafes/nearby-morning-cafe.svg',
     },
     {
       id: 3,
@@ -29,7 +29,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 15만명',
       rating: 4.9,
       distance: '0.8km',
-      image: '/images/nearby-hangang-view.svg',
+      image: '/images/cafes/nearby-hangang-view.svg',
     },
     {
       id: 4,
@@ -37,7 +37,7 @@ const NearbyCafesSection = () => {
       subtitle: '누적 방문 6만명',
       rating: 4.9,
       distance: '1.0km',
-      image: '/images/nearby-olympic-cafe.svg',
+      image: '/images/cafes/nearby-olympic-cafe.svg',
       hasBookmark: true,
     },
   ];
@@ -76,8 +76,8 @@ const NearbyCafesSection = () => {
                 {/* 카페 이미지 */}
                 <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[105/150] relative">
                   {/* 카페 이미지 */}
-                  <img 
-                    src={cafe.image} 
+                  <img
+                    src={cafe.image}
                     alt={cafe.title}
                     className="absolute inset-0 w-full h-full object-cover"
                   />

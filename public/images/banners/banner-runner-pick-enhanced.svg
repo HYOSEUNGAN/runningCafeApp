@@ -1,0 +1,26 @@
+<svg width="375" height="144" viewBox="0 0 375 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="runnerPickGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+    <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+  </linearGradient>
+</defs>
+<rect width="375" height="144" rx="12" fill="url(#runnerPickGrad)"/>
+<!-- 배경 패턴 -->
+<circle cx="320" cy="30" r="20" fill="white" opacity="0.1"/>
+<circle cx="340" cy="80" r="15" fill="white" opacity="0.1"/>
+<circle cx="300" cy="120" r="25" fill="white" opacity="0.1"/>
+<!-- 러닝 아이콘 -->
+<g transform="translate(300, 50)">
+  <circle cx="20" cy="20" r="18" fill="white" opacity="0.2"/>
+  <path d="M15 20L18 23L25 16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<!-- 텍스트 -->
+<text x="30" y="50" fill="white" font-family="Inter, sans-serif" font-weight="700" font-size="20">러너픽 추천 코스</text>
+<text x="30" y="80" fill="white" font-family="Inter, sans-serif" font-weight="400" font-size="14" opacity="0.9">AI가 선별한 최고의 러닝 코스</text>
+<!-- AI 아이콘 -->
+<g transform="translate(30, 90)">
+  <rect width="60" height="20" rx="10" fill="white" opacity="0.2"/>
+  <text x="30" y="14" text-anchor="middle" fill="white" font-family="Inter, sans-serif" font-size="10" font-weight="600">AI 추천</text>
+</g>
+</svg>

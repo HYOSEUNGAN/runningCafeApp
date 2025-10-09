@@ -272,7 +272,25 @@ export const togglePostLike = async (postId, userId) => {
       isLiked = true;
     }
 
-    return { success: true, data: { isLiked } };
+    // 업데이트된 포스트 정보 조회하여 정확한 좋아요 수 반환
+    const { data: updatedPost, error: fetchError } = await supabase
+      .from('feed_posts')
+      .select('likes_count')
+      .eq('id', postId)
+      .single();
+
+    if (fetchError) {
+      console.error('업데이트된 포스트 정보 조회 실패:', fetchError);
+      // 실패해도 기본 응답은 반환
+    }
+
+    return {
+      success: true,
+      data: {
+        isLiked,
+        likesCount: updatedPost?.likes_count || 0,
+      },
+    };
   } catch (error) {
     console.error('좋아요 처리 중 오류:', error);
     return { success: false, error: error.message };
@@ -365,8 +383,25 @@ export const createPostComment = async commentData => {
       console.error('댓글 수 업데이트 실패:', updateError);
     }
 
+    // 업데이트된 포스트 정보 조회하여 정확한 댓글 수 반환
+    const { data: updatedPost, error: fetchError } = await supabase
+      .from('feed_posts')
+      .select('comments_count')
+      .eq('id', post_id)
+      .single();
+
+    if (fetchError) {
+      console.error('업데이트된 포스트 정보 조회 실패:', fetchError);
+    }
+
     console.log('댓글 생성 성공:', data);
-    return { success: true, data };
+    return {
+      success: true,
+      data: {
+        ...data,
+        commentsCount: updatedPost?.comments_count || 0,
+      },
+    };
   } catch (error) {
     console.error('댓글 생성 중 오류:', error);
     return { success: false, error: error.message };
@@ -465,8 +500,25 @@ export const deletePostComment = async (commentId, userId) => {
       console.error('댓글 수 업데이트 실패:', updateError);
     }
 
+    // 업데이트된 포스트 정보 조회하여 정확한 댓글 수 반환
+    const { data: updatedPost, error: fetchPostError } = await supabase
+      .from('feed_posts')
+      .select('comments_count')
+      .eq('id', comment.post_id)
+      .single();
+
+    if (fetchPostError) {
+      console.error('업데이트된 포스트 정보 조회 실패:', fetchPostError);
+    }
+
     console.log('댓글 삭제 성공:', commentId);
-    return { success: true };
+    return {
+      success: true,
+      data: {
+        postId: comment.post_id,
+        commentsCount: updatedPost?.comments_count || 0,
+      },
+    };
   } catch (error) {
     console.error('댓글 삭제 중 오류:', error);
     return { success: false, error: error.message };
@@ -551,6 +603,124 @@ export const searchPostsByHashtag = async (hashtag, options = {}) => {
     return { success: true, data };
   } catch (error) {
     console.error('해시태그 검색 중 오류:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 포스트의 좋아요와 댓글 수를 실제 데이터베이스에서 재계산하여 동기화
+ * @param {string} postId - 포스트 ID
+ * @returns {Promise<Object>} 동기화 결과
+ */
+export const syncPostCounts = async postId => {
+  try {
+    if (!postId) {
+      throw new Error('포스트 ID가 필요합니다.');
+    }
+
+    // 실제 좋아요 수 계산
+    const { count: likesCount, error: likesError } = await supabase
+      .from('post_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (likesError) {
+      console.error('좋아요 수 조회 실패:', likesError);
+      throw likesError;
+    }
+
+    // 실제 댓글 수 계산
+    const { count: commentsCount, error: commentsError } = await supabase
+      .from('post_comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (commentsError) {
+      console.error('댓글 수 조회 실패:', commentsError);
+      throw commentsError;
+    }
+
+    // 포스트 테이블의 카운트 업데이트
+    const { error: updateError } = await supabase
+      .from('feed_posts')
+      .update({
+        likes_count: likesCount || 0,
+        comments_count: commentsCount || 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', postId);
+
+    if (updateError) {
+      console.error('포스트 카운트 업데이트 실패:', updateError);
+      throw updateError;
+    }
+
+    console.log(`포스트 ${postId} 카운트 동기화 완료:`, {
+      likes: likesCount,
+      comments: commentsCount,
+    });
+
+    return {
+      success: true,
+      data: {
+        likesCount: likesCount || 0,
+        commentsCount: commentsCount || 0,
+      },
+    };
+  } catch (error) {
+    console.error('포스트 카운트 동기화 중 오류:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 모든 포스트의 좋아요와 댓글 수를 일괄 동기화 (관리자용)
+ * @returns {Promise<Object>} 동기화 결과
+ */
+export const syncAllPostCounts = async () => {
+  try {
+    // 모든 포스트 ID 조회
+    const { data: posts, error: postsError } = await supabase
+      .from('feed_posts')
+      .select('id');
+
+    if (postsError) {
+      console.error('포스트 목록 조회 실패:', postsError);
+      throw postsError;
+    }
+
+    if (!posts || posts.length === 0) {
+      return { success: true, data: { syncedCount: 0 } };
+    }
+
+    let syncedCount = 0;
+    let failedCount = 0;
+
+    // 각 포스트별로 카운트 동기화
+    for (const post of posts) {
+      const result = await syncPostCounts(post.id);
+      if (result.success) {
+        syncedCount++;
+      } else {
+        failedCount++;
+        console.error(`포스트 ${post.id} 동기화 실패:`, result.error);
+      }
+    }
+
+    console.log(
+      `포스트 카운트 일괄 동기화 완료: 성공 ${syncedCount}개, 실패 ${failedCount}개`
+    );
+
+    return {
+      success: true,
+      data: {
+        syncedCount,
+        failedCount,
+        totalCount: posts.length,
+      },
+    };
+  } catch (error) {
+    console.error('포스트 카운트 일괄 동기화 중 오류:', error);
     return { success: false, error: error.message };
   }
 };

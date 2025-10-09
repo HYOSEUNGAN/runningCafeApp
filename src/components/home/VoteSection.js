@@ -13,8 +13,8 @@ const VoteSection = () => {
       id: 1,
       title: '새로운 러닝 코스 카페',
       subtitle: '한강공원 5km 코스 끝',
-      leftImage: '/images/vote-new-course-cafe.svg',
-      rightImage: '/images/vote-hangang-finish-cafe.svg',
+      leftImage: '/images/votes/vote-new-course-cafe.svg',
+      rightImage: '/images/votes/vote-hangang-finish-cafe.svg',
       voteCount: 234,
       totalVotes: 456,
     },
@@ -22,8 +22,8 @@ const VoteSection = () => {
       id: 2,
       title: '주말 러닝 모임 카페',
       subtitle: '올림픽공원 3km 코스',
-      leftImage: '/images/vote-weekend-group-cafe.svg',
-      rightImage: '/images/vote-night-running-cafe.svg',
+      leftImage: '/images/votes/vote-weekend-group-cafe.svg',
+      rightImage: '/images/votes/vote-night-running-cafe.svg',
       voteCount: 189,
       totalVotes: 312,
     },
@@ -31,8 +31,8 @@ const VoteSection = () => {
       id: 3,
       title: '야간 러닝 후 카페',
       subtitle: '반포 한강공원 근처',
-      leftImage: '/images/vote-night-running-cafe.svg',
-      rightImage: '/images/vote-new-course-cafe.svg',
+      leftImage: '/images/votes/vote-night-running-cafe.svg',
+      rightImage: '/images/votes/vote-new-course-cafe.svg',
       voteCount: 156,
       totalVotes: 289,
     },
@@ -84,8 +84,8 @@ const VoteSection = () => {
                   <div className="flex-1">
                     <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[128/182] relative">
                       {/* 투표 이미지 */}
-                      <img 
-                        src={item.leftImage} 
+                      <img
+                        src={item.leftImage}
                         alt={item.title}
                         className="absolute inset-0 w-full h-full object-cover"
                       />
@@ -107,8 +107,8 @@ const VoteSection = () => {
                   <div className="flex-1">
                     <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[128/182] relative">
                       {/* 투표 이미지 */}
-                      <img 
-                        src={item.rightImage} 
+                      <img
+                        src={item.rightImage}
                         alt={item.subtitle}
                         className="absolute inset-0 w-full h-full object-cover"
                       />

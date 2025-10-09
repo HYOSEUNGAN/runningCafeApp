@@ -29,6 +29,23 @@ const RecordPage = () => {
   const { user, isAuthenticated, getUserId } = useAuthStore();
   const navigate = useNavigate();
 
+  // 루틴 시작 함수
+  const startRoutine = distance => {
+    const routineData = {
+      targetDistance: distance,
+      targetTime: distance === 3 ? 25 * 60 * 1000 : 40 * 60 * 1000, // 25분 또는 40분 (밀리초)
+      routineType: `${distance}km_routine`,
+    };
+
+    // 네비게이션 페이지로 루틴 데이터와 함께 이동
+    navigate('/nav', {
+      state: {
+        routineData,
+        isRoutineMode: true,
+      },
+    });
+  };
+
   // 데이터 로드
   const loadRunningRecords = async () => {
     if (!isAuthenticated()) {
@@ -116,9 +133,17 @@ const RecordPage = () => {
       const hasRecord = records && records.length > 0;
 
       if (hasRecord) {
+        // 여러 기록이 있는 경우 개수 표시
+        const recordCount = records.length;
+
         return (
-          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
-            <span className="text-xs">🏃</span>
+          <div className="running-stamp-container">
+            <div className="running-stamp">
+              <div className="stamp-icon">🏃</div>
+              {recordCount > 1 && (
+                <div className="stamp-count">{recordCount}</div>
+              )}
+            </div>
           </div>
         );
       }
@@ -158,7 +183,7 @@ const RecordPage = () => {
 
     if (totalRuns === 0) {
       return {
-        title: '첫 번째 러닝을 시작해보세요!',
+        title: '무료로 첫 번째 러닝을 시작해보세요!',
         message:
           '새로운 여정의 첫 걸음을 내딛어보세요. 모든 위대한 러너도 첫 걸음부터 시작했답니다!',
         emoji: '🌟',
@@ -330,6 +355,26 @@ const RecordPage = () => {
             </p>
           </div>
 
+          {/* 루틴 선택 버튼들 */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => startRoutine(3)}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex flex-col items-center space-y-1 backdrop-blur-sm"
+            >
+              <div className="text-2xl">🏃‍♀️</div>
+              <div className="text-sm font-bold">3km 루틴</div>
+              <div className="text-xs opacity-80">약 18-25분</div>
+            </button>
+            <button
+              onClick={() => startRoutine(5)}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex flex-col items-center space-y-1 backdrop-blur-sm"
+            >
+              <div className="text-2xl">🏃‍♂️</div>
+              <div className="text-sm font-bold">5km 루틴</div>
+              <div className="text-xs opacity-80">약 30-40분</div>
+            </button>
+          </div>
+
           <button
             onClick={() => navigate('/nav')}
             className="w-full bg-white text-primary-600 font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2 mb-4 relative overflow-hidden group"
@@ -342,7 +387,7 @@ const RecordPage = () => {
             >
               <path d="M8 5v14l11-7z" />
             </svg>
-            <span className="text-lg relative z-10">러닝 시작하기</span>
+            <span className="text-lg relative z-10">자유 러닝 시작</span>
           </button>
 
           <div className="grid grid-cols-3 gap-2 text-xs text-primary-100">

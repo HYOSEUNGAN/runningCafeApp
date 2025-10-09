@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../stores/useAppStore';
 import { ROUTES } from '../constants/app';
-import { MapHeader, MapContainer, BottomSheet } from '../components/map';
+import {
+  MapHeader,
+  MapContainer,
+  BottomSheet,
+  RunningDetailBottomSheet,
+} from '../components/map';
 import BottomNavigation from '../components/layout/BottomNavigation';
 
 /**
@@ -19,6 +24,9 @@ const MapPage = () => {
   const [searchRadius, setSearchRadius] = useState(5);
   const [currentZoom, setCurrentZoom] = useState(16);
   const [mapType, setMapType] = useState('normal');
+  const [selectedRunningItem, setSelectedRunningItem] = useState(null);
+  const [runningItemType, setRunningItemType] = useState('course');
+  const [isRunningDetailOpen, setIsRunningDetailOpen] = useState(false);
 
   // 컴포넌트 마운트 시 현재 위치 가져오기
   useEffect(() => {
@@ -125,11 +133,15 @@ const MapPage = () => {
       setSelectedCafe(item);
       setIsBottomSheetOpen(true);
     } else if (type === 'course') {
-      showToast({
-        type: 'info',
-        message: `${item.name} 러닝 코스 정보`,
-      });
-      // TODO: 러닝 코스 상세 정보 표시
+      setSelectedRunningItem(item);
+      setRunningItemType('course');
+      setIsRunningDetailOpen(true);
+      setIsBottomSheetOpen(false);
+    } else if (type === 'place') {
+      setSelectedRunningItem(item);
+      setRunningItemType('place');
+      setIsRunningDetailOpen(true);
+      setIsBottomSheetOpen(false);
     }
   };
 
@@ -314,6 +326,17 @@ const MapPage = () => {
         onShareClick={handleShareClick}
         selectedFilters={selectedFilters}
         searchRadius={searchRadius}
+      />
+
+      {/* 러닝 상세 정보 바텀시트 */}
+      <RunningDetailBottomSheet
+        isOpen={isRunningDetailOpen}
+        onClose={() => {
+          setIsRunningDetailOpen(false);
+          setIsBottomSheetOpen(true);
+        }}
+        selectedItem={selectedRunningItem}
+        itemType={runningItemType}
       />
 
       {/* 하단 네비게이션 */}

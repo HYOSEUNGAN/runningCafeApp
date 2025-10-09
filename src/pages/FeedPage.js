@@ -5,6 +5,7 @@ import {
   togglePostLike,
   checkPostLikeStatus,
   createPostComment,
+  syncAllPostCounts,
 } from '../services/feedService';
 import { useNavigate } from 'react-router-dom';
 import CommentModal from '../components/feed/CommentModal';
@@ -13,9 +14,11 @@ import ImageSkeleton from '../components/common/ImageSkeleton';
 
 const FeedPage = () => {
   const [posts, setPosts] = useState([]);
+  const [filteredPosts, setFilteredPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [likeStates, setLikeStates] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [commentModal, setCommentModal] = useState({
     isOpen: false,
     selectedPost: null,
@@ -28,7 +31,90 @@ const FeedPage = () => {
   const { user, isAuthenticated, getUserId } = useAuthStore();
   const navigate = useNavigate();
 
-  // 이미지 로딩 상태 관리
+  // 카테고리 정의
+  const categories = [
+    { id: 'all', name: '전체', emoji: '📋' },
+    { id: 'running', name: '러닝', emoji: '🏃‍♀️' },
+    { id: 'cafe', name: '카페', emoji: '☕' },
+    { id: 'course', name: '코스', emoji: '🗺️' },
+    { id: 'achievement', name: '달성', emoji: '🏆' },
+    { id: 'tip', name: '팁', emoji: '💡' },
+  ];
+
+  // 카테고리별 포스트 필터링
+  const filterPostsByCategory = (posts, category) => {
+    if (category === 'all') return posts;
+
+    return posts.filter(post => {
+      // 해시태그 기반 카테고리 분류
+      const hashtags = post.hashtags || [];
+      const caption = post.caption?.toLowerCase() || '';
+
+      switch (category) {
+        case 'running':
+          return (
+            hashtags.some(tag =>
+              ['러닝', '운동', '조깅', 'running'].includes(tag.toLowerCase())
+            ) ||
+            caption.includes('러닝') ||
+            caption.includes('조깅') ||
+            caption.includes('운동')
+          );
+        case 'cafe':
+          return (
+            hashtags.some(tag =>
+              ['카페', 'cafe', '커피'].includes(tag.toLowerCase())
+            ) ||
+            caption.includes('카페') ||
+            caption.includes('커피')
+          );
+        case 'course':
+          return (
+            hashtags.some(tag =>
+              ['코스', '경로', 'course', '루트'].includes(tag.toLowerCase())
+            ) ||
+            caption.includes('코스') ||
+            caption.includes('경로')
+          );
+        case 'achievement':
+          return (
+            post.is_achievement ||
+            hashtags.some(tag =>
+              ['달성', '완주', '기록', 'achievement'].includes(
+                tag.toLowerCase()
+              )
+            ) ||
+            caption.includes('달성') ||
+            caption.includes('완주') ||
+            caption.includes('기록')
+          );
+        case 'tip':
+          return (
+            hashtags.some(tag =>
+              ['팁', 'tip', '추천', '정보'].includes(tag.toLowerCase())
+            ) ||
+            caption.includes('팁') ||
+            caption.includes('추천') ||
+            caption.includes('정보')
+          );
+        default:
+          return true;
+      }
+    });
+  };
+
+  // 카테고리 변경 핸들러
+  const handleCategoryChange = categoryId => {
+    setSelectedCategory(categoryId);
+    const filtered = filterPostsByCategory(posts, categoryId);
+    setFilteredPosts(filtered);
+  };
+
+  // posts가 변경될 때마다 필터링 적용
+  useEffect(() => {
+    const filtered = filterPostsByCategory(posts, selectedCategory);
+    setFilteredPosts(filtered);
+  }, [posts, selectedCategory]);
   const handleImageLoadStart = (postId, imageIndex) => {
     const key = `${postId}-${imageIndex}`;
     setImageLoadingStates(prev => ({
@@ -104,6 +190,29 @@ const FeedPage = () => {
 
   useEffect(() => {
     loadFeedPosts();
+
+    // 개발자 도구에서 사용할 수 있는 전역 함수 등록
+    if (typeof window !== 'undefined') {
+      window.syncAllPostCounts = async () => {
+        console.log('포스트 카운트 일괄 동기화 시작...');
+        const result = await syncAllPostCounts();
+        if (result.success) {
+          console.log('동기화 완료:', result.data);
+          // 피드 새로고침
+          await loadFeedPosts(true);
+        } else {
+          console.error('동기화 실패:', result.error);
+        }
+        return result;
+      };
+    }
+
+    // 컴포넌트 언마운트 시 전역 함수 제거
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.syncAllPostCounts;
+      }
+    };
   }, [user]);
 
   // 좋아요 토글
@@ -124,15 +233,13 @@ const FeedPage = () => {
           [postId]: result.data.isLiked,
         }));
 
-        // 포스트의 좋아요 수 업데이트
+        // 포스트의 좋아요 수를 정확한 값으로 업데이트
         setPosts(prevPosts =>
           prevPosts.map(post =>
             post.id === postId
               ? {
                   ...post,
-                  likes_count: result.data.isLiked
-                    ? post.likes_count + 1
-                    : post.likes_count - 1,
+                  likes_count: result.data.likesCount,
                 }
               : post
           )
@@ -169,22 +276,29 @@ const FeedPage = () => {
   };
 
   // 댓글 추가 후 처리
-  const handleCommentAdded = postId => {
+  const handleCommentAdded = (postId, commentsCount) => {
     setPosts(prevPosts =>
       prevPosts.map(post =>
         post.id === postId
-          ? { ...post, comments_count: post.comments_count + 1 }
+          ? {
+              ...post,
+              comments_count: commentsCount || post.comments_count + 1,
+            }
           : post
       )
     );
   };
 
   // 댓글 삭제 후 처리
-  const handleCommentDeleted = postId => {
+  const handleCommentDeleted = (postId, commentsCount) => {
     setPosts(prevPosts =>
       prevPosts.map(post =>
         post.id === postId
-          ? { ...post, comments_count: Math.max(post.comments_count - 1, 0) }
+          ? {
+              ...post,
+              comments_count:
+                commentsCount || Math.max(post.comments_count - 1, 0),
+            }
           : post
       )
     );
