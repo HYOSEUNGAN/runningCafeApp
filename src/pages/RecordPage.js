@@ -387,7 +387,7 @@ const RecordPage = () => {
             >
               <path d="M8 5v14l11-7z" />
             </svg>
-            <span className="text-lg relative z-10">자유 러닝 시작</span>
+            <span className="text-lg relative z-10">러닝 시작</span>
           </button>
 
           <div className="grid grid-cols-3 gap-2 text-xs text-primary-100">
