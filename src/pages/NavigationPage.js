@@ -16,6 +16,11 @@ import {
   Settings,
   Camera,
 } from 'lucide-react';
+import realTimeTrackingService from '../services/realTimeTrackingService';
+import RunningCompletionScreen from '../components/running/RunningCompletionScreen';
+import performanceOptimizer from '../services/performanceOptimizer';
+import backgroundSyncService from '../services/backgroundSyncService';
+import interactiveEffectsService from '../services/interactiveEffectsService';
 import { formatDistance, formatTime, formatCalories } from '../utils/format';
 import {
   calculateDistance,
@@ -101,6 +106,10 @@ const NavigationPage = () => {
     runningRecord: null,
   });
 
+  // Strava 스타일 완료 화면 상태
+  const [showCompletionScreen, setShowCompletionScreen] = useState(false);
+  const [completionData, setCompletionData] = useState(null);
+
   // 카운트다운 상태
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownNumber, setCountdownNumber] = useState(0);
@@ -125,6 +134,43 @@ const NavigationPage = () => {
   useEffect(() => {
     const initializeBackgroundServices = async () => {
       try {
+        // 실시간 추적 서비스 초기화
+        realTimeTrackingService.setMapReferences(naverMapRef, polylineRef);
+
+        // 성능 최적화 서비스 초기화
+        performanceOptimizer.init();
+
+        // 백그라운드 동기화 서비스 초기화
+        backgroundSyncService.init();
+
+        // 인터랙티브 효과 서비스 초기화
+        interactiveEffectsService.init();
+
+        // 성능 최적화 이벤트 리스너
+        window.addEventListener('performanceOptimizationChange', event => {
+          console.log('성능 최적화 레벨 변경:', event.detail);
+          // GPS 설정 업데이트
+          const optimizedSettings =
+            performanceOptimizer.getOptimizedGPSSettings();
+          console.log('최적화된 GPS 설정:', optimizedSettings);
+        });
+
+        // 백그라운드 동기화 이벤트 리스너
+        backgroundSyncService.on('locationUpdate', locationData => {
+          console.log('백그라운드 위치 업데이트:', locationData);
+          // 위치 데이터 처리
+        });
+
+        backgroundSyncService.on('runningSessionRestore', sessionData => {
+          console.log('러닝 세션 복구:', sessionData);
+          // 세션 데이터 복구
+          if (sessionData.path) setPath(sessionData.path);
+          if (sessionData.distance !== undefined)
+            setTotalDistance(sessionData.distance);
+          if (sessionData.duration !== undefined)
+            setElapsedTime(sessionData.duration);
+        });
+
         // 환경별 백그라운드 서비스 초기화
         if (isCapacitorEnvironment()) {
           console.log('Capacitor 환경: 네이티브 백그라운드 서비스 초기화');
@@ -803,11 +849,13 @@ const NavigationPage = () => {
       for (let i = 3; i >= 1; i--) {
         setCountdownNumber(i);
         playCountdownBeep(i);
+        await interactiveEffectsService.triggerCountdown(i);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       // 시작 효과음
       playStartBeep();
+      await interactiveEffectsService.triggerRunningStart();
       setCountdownNumber(0);
       setIsCountingDown(false);
 
@@ -1044,8 +1092,14 @@ const NavigationPage = () => {
               }
             }
 
-            // 폴리라인 업데이트
-            updatePolyline(newPath);
+            // 실시간 추적 서비스에 새 포인트 추가
+            realTimeTrackingService.addTrackingPoint({
+              lat: typeof newPos.lat === 'function' ? newPos.lat() : newPos.lat,
+              lng: typeof newPos.lng === 'function' ? newPos.lng() : newPos.lng,
+              accuracy: accuracy,
+              speed: speed,
+              heading: heading,
+            });
 
             return newPath;
           });
@@ -1062,8 +1116,10 @@ const NavigationPage = () => {
   };
 
   // 위치 추적 일시정지/재개
-  const togglePause = () => {
-    setIsPaused(!isPaused);
+  const togglePause = async () => {
+    const newPausedState = !isPaused;
+    setIsPaused(newPausedState);
+    await interactiveEffectsService.triggerPauseResume(newPausedState);
   };
 
   // 러닝 사진 촬영
@@ -1142,6 +1198,23 @@ const NavigationPage = () => {
     // 성공 효과음
     if (totalDistance > 0 || elapsedTime > 0) {
       playSuccessBeep();
+      await interactiveEffectsService.triggerRunningComplete();
+
+      // Strava 스타일 완료 화면 표시
+      const runningCompletionData = {
+        distance: totalDistance,
+        duration: elapsedTime,
+        calories: calculateCalories(totalDistance, 70, 'running'),
+        averageSpeed:
+          totalDistance > 0 ? totalDistance / (elapsedTime / 1000) : 0,
+        maxSpeed: maxSpeed,
+        path: realTimeTrackingService.getCurrentPath(),
+        startTime: startTime,
+        endTime: Date.now(),
+      };
+
+      setCompletionData(runningCompletionData);
+      setShowCompletionScreen(true);
 
       // 완료 알림
       const timeText = formatTime(elapsedTime);
@@ -1312,6 +1385,52 @@ const NavigationPage = () => {
         navigate('/feed');
       }, 1500); // 1.5초 후 이동
     }
+  };
+
+  // 완료 화면 핸들러들
+  const handleShareRunning = async () => {
+    try {
+      const shareText = generateSNSShareText({
+        distance: completionData.distance,
+        duration: completionData.duration,
+        calories: completionData.calories,
+      });
+
+      if (navigator.share) {
+        await navigator.share({
+          title: '러닝 기록 공유',
+          text: shareText,
+          url: window.location.href,
+        });
+      } else {
+        // 폴백: 클립보드에 복사
+        await navigator.clipboard.writeText(shareText);
+        showToast('링크가 클립보드에 복사되었습니다!', 'success');
+      }
+    } catch (error) {
+      console.error('공유 실패:', error);
+      showToast('공유에 실패했습니다', 'error');
+    }
+  };
+
+  const handleSaveToFeed = () => {
+    setShowCompletionScreen(false);
+    setCreatePostModal({
+      isOpen: true,
+      runningRecord: {
+        distance: completionData.distance,
+        duration: completionData.duration,
+        calories: completionData.calories,
+        path: completionData.path,
+        startTime: completionData.startTime,
+        endTime: completionData.endTime,
+      },
+    });
+  };
+
+  const handleViewRunningDetail = () => {
+    setShowCompletionScreen(false);
+    navigate('/record');
   };
 
   // 피드에 러닝 기록 공유
@@ -2362,6 +2481,16 @@ const NavigationPage = () => {
         isOpen={createPostModal.isOpen}
         onClose={handleCloseCreatePostModal}
         runningRecord={createPostModal.runningRecord}
+      />
+
+      {/* Strava 스타일 러닝 완료 화면 */}
+      <RunningCompletionScreen
+        isVisible={showCompletionScreen}
+        runningData={completionData}
+        onClose={() => setShowCompletionScreen(false)}
+        onShare={handleShareRunning}
+        onSaveToFeed={handleSaveToFeed}
+        onViewDetail={handleViewRunningDetail}
       />
     </div>
   );

@@ -95,3 +95,17 @@ export const formatNumber = number => {
   if (!number) return '0';
   return number.toLocaleString('ko-KR');
 };
+
+// 페이스 계산 (분/km)
+export const calculatePace = (distance, duration) => {
+  if (!distance || !duration || distance === 0) return '0\'00"';
+
+  const distanceInKm = distance / 1000;
+  const durationInMinutes = duration / 60000;
+  const paceInMinutes = durationInMinutes / distanceInKm;
+
+  const minutes = Math.floor(paceInMinutes);
+  const seconds = Math.round((paceInMinutes - minutes) * 60);
+
+  return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
+};

@@ -281,3 +281,49 @@ CREATE POLICY "Users can manage their own favorites" ON public.user_favorites
 -- 피드 연결 정책 (모든 사용자 읽기)
 CREATE POLICY "Anyone can view place feed posts" ON public.place_feed_posts
   FOR SELECT USING (true);
+
+-- 8. 장소 등록 요청 테이블 (새로 추가)
+CREATE TABLE public.place_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  place_type varchar(20) NOT NULL CHECK (place_type IN ('cafe', 'running_place')),
+  place_name text NOT NULL,
+  address text,
+  lat double precision,
+  lng double precision,
+  description text,
+  reason text NOT NULL,
+  contact_info text,
+  image_urls text[],
+  status varchar(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_notes text,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT place_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT place_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.profiles(id)
+);
+
+-- 장소 등록 요청 인덱스
+CREATE INDEX IF NOT EXISTS idx_place_requests_user ON public.place_requests (user_id);
+CREATE INDEX IF NOT EXISTS idx_place_requests_status ON public.place_requests (status);
+CREATE INDEX IF NOT EXISTS idx_place_requests_type ON public.place_requests (place_type);
+CREATE INDEX IF NOT EXISTS idx_place_requests_created ON public.place_requests (created_at);
+
+-- 장소 등록 요청 RLS 정책
+ALTER TABLE public.place_requests ENABLE ROW LEVEL SECURITY;
+
+-- 사용자는 자신의 요청만 조회/수정 가능
+CREATE POLICY "Users can view their own place requests" ON public.place_requests
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own place requests" ON public.place_requests
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own pending requests" ON public.place_requests
+  FOR UPDATE USING (auth.uid() = user_id AND status = 'pending');
+
+-- 관리자는 모든 요청 조회/수정 가능 (향후 관리자 권한 시스템 구축 시 사용)
+-- CREATE POLICY "Admins can manage all place requests" ON public.place_requests
+--   FOR ALL USING (auth.jwt() ->> 'role' = 'admin');

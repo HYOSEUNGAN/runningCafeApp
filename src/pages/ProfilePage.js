@@ -9,10 +9,13 @@ import {
 } from '../services/userProfileService';
 import { getUserRunningRecords } from '../services/runningRecordService';
 import { getUserCompletedChallenges } from '../services/challengeService';
+import { getUserPlaceRequests } from '../services/placeRequestService';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import BottomNavigation from '../components/layout/BottomNavigation';
 import ProfileHeader from '../components/layout/ProfileHeader';
+import ProfileEditModal from '../components/profile/ProfileEditModal';
+import PlaceRequestModal from '../components/profile/PlaceRequestModal';
 
 /**
  * 프로필 페이지 컴포넌트 - 사용자 정보 및 러닝 통계
@@ -41,9 +44,23 @@ const ProfilePage = () => {
   });
   const [recentActivities, setRecentActivities] = useState([]);
   const [completedChallenges, setCompletedChallenges] = useState([]);
-  const [editForm, setEditForm] = useState({
-    display_name: '',
-    bio: '',
+
+  // 모달 상태
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPlaceRequestModal, setShowPlaceRequestModal] = useState(false);
+
+  // 추가 통계 데이터
+  const [monthlyStats, setMonthlyStats] = useState({
+    totalDistance: 48.5,
+    totalRuns: 10,
+    averagePace: 6.25, // 6분 15초
+    favoriteDay: '수요일',
+    favoritePlace: '뚝섬 한강공원',
+  });
+  const [activityStats, setActivityStats] = useState({
+    favorites: 100,
+    challenges: 17,
+    placeRequests: 3,
   });
 
   // 사용자 데이터 로드
@@ -61,11 +78,6 @@ const ProfilePage = () => {
       const profileResult = await getUserProfile(userId);
       if (profileResult.success) {
         setProfileData(profileResult.data);
-        setEditForm({
-          display_name: profileResult.data.display_name || '',
-          bio: profileResult.data.bio || '',
-        });
-
         // 스토어 업데이트
         setUserProfile(profileResult.data);
       }
@@ -111,6 +123,17 @@ const ProfilePage = () => {
       if (challengesResult.success) {
         setCompletedChallenges(challengesResult.data.slice(0, 3)); // 최근 3개만
       }
+
+      // 장소 등록 요청 통계 로드
+      const placeRequestsResult = await getUserPlaceRequests(userId, {
+        limit: 5,
+      });
+      if (placeRequestsResult.success) {
+        setActivityStats(prev => ({
+          ...prev,
+          placeRequests: placeRequestsResult.data.length,
+        }));
+      }
     } catch (error) {
       console.error('사용자 데이터 로드 실패:', error);
       showToast({
@@ -126,30 +149,14 @@ const ProfilePage = () => {
     loadUserData();
   }, [user]);
 
-  // 프로필 업데이트
-  const handleProfileUpdate = async () => {
-    try {
-      const userId = getUserId();
-      const result = await updateUserProfile(userId, editForm);
+  // 프로필 수정 모달 열기
+  const handleEditProfile = () => {
+    setShowEditModal(true);
+  };
 
-      if (result.success) {
-        setProfileData(result.data);
-        setUserProfile(result.data);
-        setIsEditing(false);
-        showToast({
-          type: 'success',
-          message: '프로필이 업데이트되었습니다.',
-        });
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error) {
-      console.error('프로필 업데이트 실패:', error);
-      showToast({
-        type: 'error',
-        message: '프로필 업데이트에 실패했습니다.',
-      });
-    }
+  // 장소 등록 요청 모달 열기
+  const handlePlaceRequest = () => {
+    setShowPlaceRequestModal(true);
   };
 
   const handleLogout = async () => {
@@ -212,469 +219,384 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* 상단 헤더 */}
       <ProfileHeader
-        title="프로필"
-        showEditButton={isLoggedIn}
-        isEditing={isEditing}
-        onEditToggle={() => setIsEditing(!isEditing)}
+        title="마이페이지"
+        showEditButton={false}
+        isEditing={false}
+        onEditToggle={() => {}}
       />
 
-      <div className="max-w-md mx-auto px-6 py-6 space-y-6">
-        {/* 프로필 카드 */}
-        <Card>
-          <div className="relative overflow-hidden">
-            {/* 배경 그라데이션 */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-primary-gradient opacity-10 rounded-t-card"></div>
+      <div className="max-w-md mx-auto px-4 py-4 space-y-4">
+        {/* 프로필 섹션 - 카카오톡 스타일 */}
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="flex items-center space-x-4">
+            {/* 프로필 이미지 */}
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 ring-2 ring-primary-100">
+                {isLoggedIn && (profileData?.avatar_url || getUserAvatar()) ? (
+                  <img
+                    src={profileData?.avatar_url || getUserAvatar()}
+                    alt="프로필"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-white text-xl">👤</div>
+                )}
+              </div>
 
-            <div className="relative flex items-start space-x-4 mb-6 pt-4">
-              {/* 프로필 이미지 */}
-              <div className="relative flex-shrink-0">
-                <div className="w-24 h-24 bg-primary-gradient rounded-2xl flex items-center justify-center shadow-xl overflow-hidden transform rotate-3 hover:rotate-0 transition-transform duration-300">
-                  {isLoggedIn && getUserAvatar() ? (
-                    <img
-                      src={getUserAvatar()}
-                      alt="프로필"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-4xl text-white">🏃‍♀️</span>
-                  )}
-                </div>
-                {/* 온라인 상태 표시 */}
+              {/* 온라인 상태 표시 */}
+              {isLoggedIn && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-system-success border-2 border-white rounded-full"></div>
+              )}
+            </div>
+
+            {/* 사용자 정보 */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <h2 className="text-base font-bold text-gray-900 truncate">
+                  {isLoggedIn
+                    ? profileData?.display_name ||
+                      profileData?.username ||
+                      getUserName() ||
+                      '러닝 메이트'
+                    : '게스트'}
+                </h2>
+
+                {/* 인증 배지 */}
                 {isLoggedIn && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 border-3 border-white rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <div className="w-5 h-5 bg-gradient-to-r from-primary-500 to-primary-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                   </div>
                 )}
               </div>
 
-              {/* 사용자 정보 */}
-              <div className="flex-1 min-w-0">
-                {/* 닉네임과 인증 배지 */}
-                <div className="flex items-center space-x-2 mb-2">
-                  <h2 className="text-2xl font-bold text-gray-900 truncate">
-                    {isLoggedIn
-                      ? profileData?.display_name ||
-                        profileData?.username ||
-                        getUserName() ||
-                        'Runner'
-                      : '게스트'}
-                  </h2>
-                  {isLoggedIn && (
-                    <div className="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-4 h-4 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
-                {/* 자기소개 */}
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 truncate">
                   {isLoggedIn
-                    ? profileData?.bio || '러닝을 사랑하는 러너입니다! 🏃‍♀️'
-                    : '로그인하여 더 많은 기능을 이용해보세요'}
-                </p>
+                    ? user?.email || 'runner@example.com'
+                    : '로그인해주세요'}
+                </span>
 
-                {/* 레벨과 배지 */}
-                <div className="space-y-3">
-                  {isLoggedIn ? (
-                    <>
-                      {/* 러닝 레벨 */}
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-xl shadow-lg">
-                          <div className="w-5 h-5 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-2">
-                            <span className="text-xs font-bold">3</span>
-                          </div>
-                          <span className="text-sm font-bold">러닝 레벨 3</span>
-                        </div>
-                        {/* 레벨 진행도 */}
-                        <div className="flex-1 max-w-20">
-                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                            <div
-                              className="bg-primary-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: '65%' }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500 mt-1 block">
-                            65%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 활동 배지 */}
-                      <div className="flex items-center space-x-2">
-                        <div className="inline-flex items-center bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-3 py-1.5 rounded-lg shadow-md">
-                          <span className="text-xs mr-1">🔥</span>
-                          <span className="text-xs font-semibold">
-                            활동적인 러너
-                          </span>
-                        </div>
-                        <div className="inline-flex items-center bg-gradient-to-r from-amber-400 to-amber-500 text-white px-3 py-1.5 rounded-lg shadow-md">
-                          <span className="text-xs mr-1">⭐</span>
-                          <span className="text-xs font-semibold">
-                            신규 회원
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 간단한 통계 */}
-                      <div className="flex items-center space-x-4 pt-2">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-primary-600">
-                            {userStats.totalRuns}
-                          </div>
-                          <div className="text-xs text-gray-500">러닝</div>
-                        </div>
-                        <div className="w-px h-8 bg-gray-200"></div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-secondary-orange">
-                            {userStats.totalDistance.toFixed(1)}km
-                          </div>
-                          <div className="text-xs text-gray-500">총 거리</div>
-                        </div>
-                        <div className="w-px h-8 bg-gray-200"></div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-secondary-mint">
-                            {completedChallenges.length}
-                          </div>
-                          <div className="text-xs text-gray-500">배지</div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="inline-flex items-center bg-gray-100 text-gray-600 px-4 py-2 rounded-xl">
-                      <span className="text-sm font-medium">게스트 사용자</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {isLoggedIn && isEditing && (
-            <div className="space-y-3 pt-4 border-t border-gray-200">
-              <input
-                type="text"
-                placeholder="표시명"
-                className="input-field"
-                value={editForm.display_name}
-                onChange={e =>
-                  setEditForm(prev => ({
-                    ...prev,
-                    display_name: e.target.value,
-                  }))
-                }
-              />
-              <textarea
-                placeholder="자기소개"
-                className="input-field resize-none"
-                rows="3"
-                value={editForm.bio}
-                onChange={e =>
-                  setEditForm(prev => ({ ...prev, bio: e.target.value }))
-                }
-              />
-              <div className="flex space-x-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleProfileUpdate}
-                >
-                  저장
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setIsEditing(false)}
-                >
-                  취소
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {!isLoggedIn && (
-            <div className="pt-4 border-t border-gray-200">
-              <div className="flex space-x-3">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => navigate(ROUTES.LOGIN)}
-                >
-                  로그인
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => navigate(ROUTES.SIGNUP)}
-                >
-                  회원가입
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* 통계 카드 */}
-        <Card>
-          <h3 className="text-lg font-bold text-gray-900 mb-6">러닝 통계</h3>
-          <div className="grid grid-cols-3 gap-6 mb-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <span className="text-2xl">🏃‍♂️</span>
-              </div>
-              <div className="text-2xl font-bold text-primary-500 mb-1">
-                {userStats.totalDistance.toFixed(1)}km
-              </div>
-              <div className="text-xs text-gray-600 font-medium">총 거리</div>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <span className="text-2xl">📊</span>
-              </div>
-              <div className="text-2xl font-bold text-secondary-orange mb-1">
-                {userStats.totalRuns}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">
-                총 러닝 횟수
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <span className="text-2xl">⏱️</span>
-              </div>
-              <div className="text-2xl font-bold text-secondary-mint mb-1">
-                {formatDuration(userStats.totalTime)}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">총 시간</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-200">
-            <div className="text-center bg-gray-50 rounded-lg p-3">
-              <div className="text-lg font-bold text-gray-800 mb-1">
-                {formatPace(userStats.averagePace)}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">
-                평균 페이스
-              </div>
-            </div>
-            <div className="text-center bg-gray-50 rounded-lg p-3">
-              <div className="text-lg font-bold text-gray-800 mb-1">
-                {completedChallenges.length}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">
-                완료한 챌린지
-              </div>
-            </div>
-          </div>
-
-          {/* 완료한 챌린지 배지 */}
-          {completedChallenges.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h4 className="text-sm font-bold text-gray-900 mb-3">
-                최근 획득 배지
-              </h4>
-              <div className="flex space-x-3 overflow-x-auto">
-                {completedChallenges.map((challenge, index) => (
-                  <div key={challenge.id} className="flex-shrink-0 text-center">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-1">
-                      <span className="text-lg">🏆</span>
-                    </div>
-                    <div className="text-xs text-gray-600 w-16 truncate">
-                      {challenge.monthly_challenges?.title}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* 최근 활동 */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">최근 활동</h3>
-            <button className="text-sm text-primary-500 hover:text-primary-600 transition-colors">
-              전체보기
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {isLoggedIn ? (
-              recentActivities.map(activity => (
-                <div
-                  key={activity.id}
-                  className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      activity.type === 'running'
-                        ? 'bg-primary-gradient'
-                        : 'bg-gradient-to-r from-orange-400 to-orange-500'
-                    }`}
+                {isLoggedIn && (
+                  <button
+                    onClick={handleEditProfile}
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
                   >
-                    <span className="text-white text-lg">
-                      {activity.type === 'running' ? '🏃‍♀️' : '☕'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-gray-900 truncate mb-1">
-                      {activity.title}
-                    </h4>
-                    {activity.type === 'running' ? (
-                      <p className="text-xs text-gray-600">
-                        <span className="font-medium">{activity.distance}</span>{' '}
-                        •<span className="font-medium">{activity.time}</span> •
-                        <span className="text-primary-600">
-                          {activity.pace}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-600">
-                        {activity.description} •
-                        <span className="text-orange-500 font-medium">
-                          ⭐ {activity.rating}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500 flex-shrink-0 font-medium">
-                    {activity.date}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl text-gray-400">📊</span>
-                </div>
-                <p className="text-gray-500 mb-4">
-                  로그인하면 최근 러닝 활동과 카페 방문 기록을 볼 수 있어요
-                </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate(ROUTES.LOGIN)}
-                >
-                  로그인하고 기록 보기
-                </Button>
+                    편집
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </Card>
+        </div>
 
-        {/* 설정 및 기타 */}
-        <Card>
-          <h3 className="text-lg font-bold text-gray-900 mb-6">설정</h3>
-          <div className="space-y-2">
-            <button className="flex items-center justify-between w-full py-4 text-left hover:bg-gray-50 rounded-lg px-4 transition-colors group">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg">🎯</span>
-                </div>
-                <div>
-                  <span className="text-gray-900 font-medium">목표 설정</span>
-                  <p className="text-xs text-gray-500">
-                    월간 러닝 목표와 거리 설정
-                  </p>
-                </div>
-              </div>
-              <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
-                ›
-              </span>
-            </button>
-
-            <button className="flex items-center justify-between w-full py-4 text-left hover:bg-gray-50 rounded-lg px-4 transition-colors group">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg">🔔</span>
-                </div>
-                <div>
-                  <span className="text-gray-900 font-medium">알림 설정</span>
-                  <p className="text-xs text-gray-500">
-                    러닝 알림 및 카페 추천 설정
-                  </p>
-                </div>
-              </div>
-              <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
-                ›
-              </span>
-            </button>
-
-            <button className="flex items-center justify-between w-full py-4 text-left hover:bg-gray-50 rounded-lg px-4 transition-colors group">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg">🔒</span>
-                </div>
-                <div>
-                  <span className="text-gray-900 font-medium">
-                    개인정보 설정
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    프로필 공개 범위 및 개인정보
-                  </p>
-                </div>
-              </div>
-              <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
-                ›
-              </span>
-            </button>
-
-            <button className="flex items-center justify-between w-full py-4 text-left hover:bg-gray-50 rounded-lg px-4 transition-colors group">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg">❓</span>
-                </div>
-                <div>
-                  <span className="text-gray-900 font-medium">도움말</span>
-                  <p className="text-xs text-gray-500">
-                    자주 묻는 질문 및 고객 지원
-                  </p>
-                </div>
-              </div>
-              <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
-                ›
-              </span>
-            </button>
-          </div>
-        </Card>
-
-        {/* 로그인/로그아웃 버튼 */}
-        <div className="pt-4 space-y-3">
-          {isLoggedIn ? (
-            <Button
-              variant="ghost"
-              size="lg"
-              className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={handleLogout}
-            >
-              로그아웃
-            </Button>
-          ) : (
+        {/* 로그인하지 않은 경우 - 인스타그램 스타일 */}
+        {!isLoggedIn ? (
+          <div className="bg-white rounded-xl p-8 text-center shadow-sm">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <span className="text-3xl text-white">🏃‍♀️</span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
+              러닝을 시작해보세요!
+            </h3>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              나만의 러닝 기록을 남기고
+              <br />
+              카페 정보를 공유해보세요
+            </p>
             <Button
               size="lg"
-              className="w-full bg-primary-gradient text-white hover:opacity-90 transition-opacity"
+              className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               onClick={() => navigate(ROUTES.LOGIN)}
             >
-              <span className="mr-2">🏃‍♀️</span>
-              로그인하고 시작하기
+              <span className="mr-2">✨</span>
+              시작하기
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* 나의 활동 모아보기 - 인스타그램 스타일 */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">나의 활동</h3>
+                <button className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">
+                  전체보기
+                </button>
+              </div>
+
+              {/* 이번 달 러닝 요약 */}
+              <div className="p-6">
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-6 h-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">📊</span>
+                    </div>
+                    <h4 className="text-base font-bold text-gray-900">
+                      이번 달 러닝 요약
+                    </h4>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-8">
+                    {new Date().getMonth() + 1}월에 달린 모든 기록을 정리했어요!
+                  </p>
+                </div>
+
+                {/* 통계 그리드 - 카드 스타일 */}
+                {userStats.totalRuns > 0 ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                      <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4 text-center">
+                        <div className="text-sm text-primary-700 mb-1 font-medium">
+                          총 거리
+                        </div>
+                        <div className="text-lg font-bold text-primary-800">
+                          {userStats.totalDistance.toFixed(1)}km
+                        </div>
+                      </div>
+                      <div className="bg-gradient-to-br from-secondary-orange/10 to-secondary-orange/20 rounded-xl p-4 text-center">
+                        <div className="text-sm text-orange-700 mb-1 font-medium">
+                          러닝 횟수
+                        </div>
+                        <div className="text-lg font-bold text-orange-800">
+                          {userStats.totalRuns}회
+                        </div>
+                      </div>
+                      <div className="bg-gradient-to-br from-secondary-mint/10 to-secondary-mint/20 rounded-xl p-4 text-center">
+                        <div className="text-sm text-green-700 mb-1 font-medium">
+                          평균 페이스
+                        </div>
+                        <div className="text-lg font-bold text-green-800">
+                          {formatPace(userStats.averagePace)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      <div className="bg-gray-50 rounded-xl p-4 text-center">
+                        <div className="text-sm text-gray-600 mb-1 font-medium">
+                          선호 요일
+                        </div>
+                        <div className="text-base font-bold text-gray-800">
+                          {monthlyStats.favoriteDay}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 text-center">
+                        <div className="text-sm text-gray-600 mb-1 font-medium">
+                          선호 장소
+                        </div>
+                        <div className="text-base font-bold text-gray-800">
+                          {monthlyStats.favoritePlace}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12 bg-gray-50 rounded-xl">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl text-white">🏃‍♀️</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      첫 러닝을 시작해보세요!
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-6">
+                      러닝 기록을 남기고 성취감을 느껴보세요
+                    </p>
+                    <Button
+                      size="md"
+                      className="bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                      onClick={() => navigate('/record')}
+                    >
+                      <span className="mr-2">🚀</span>첫 러닝 기록하기
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* 활동 통계 - 간소화된 카드 스타일 */}
+              <div className="px-6 pb-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gradient-to-br from-secondary-orange/10 to-secondary-orange/20 rounded-xl p-4 text-center">
+                    <div className="text-sm text-orange-700 mb-1 font-medium">
+                      즐겨찾기
+                    </div>
+                    <div className="text-xl font-bold text-orange-800">
+                      {activityStats.favorites}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-secondary-mint/10 to-secondary-mint/20 rounded-xl p-4 text-center">
+                    <div className="text-sm text-green-700 mb-1 font-medium">
+                      참여 챌린지
+                    </div>
+                    <div className="text-xl font-bold text-green-800">
+                      {activityStats.challenges}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 장소 등록 요청 - 인스타그램 스타일 */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <button
+                onClick={handlePlaceRequest}
+                className="w-full p-6 text-left hover:bg-gray-50 transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
+                    <span className="text-white text-xl">📍</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-base font-bold text-gray-900 mb-1">
+                      새로운 장소 추천하기
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      숨겨진 러닝 코스나 카페를 공유해보세요
+                    </p>
+                  </div>
+                  <div className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* 설정 메뉴 - 인스타그램 스타일 */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <button className="flex items-center justify-between w-full text-left hover:bg-gray-50 rounded-xl px-4 py-3 -mx-4 transition-colors group">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg">📢</span>
+                    </div>
+                    <span className="text-base font-medium text-gray-900">
+                      공지사항
+                    </span>
+                  </div>
+                  <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100">
+                <button className="flex items-center justify-between w-full text-left hover:bg-gray-50 rounded-xl px-4 py-3 -mx-4 transition-colors group">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-secondary-orange to-yellow-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg">🔔</span>
+                    </div>
+                    <span className="text-base font-medium text-gray-900">
+                      알림 설정
+                    </span>
+                  </div>
+                  <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+
+              <div className="px-6 py-4">
+                <button className="flex items-center justify-between w-full text-left hover:bg-gray-50 rounded-xl px-4 py-3 -mx-4 transition-colors group">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-secondary-mint to-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg">💬</span>
+                    </div>
+                    <span className="text-base font-medium text-gray-900">
+                      고객의 소리
+                    </span>
+                  </div>
+                  <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* 로그아웃/회원탈퇴 */}
+            <div className="px-4 py-6">
+              <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+                <button
+                  onClick={handleLogout}
+                  className="hover:text-gray-700 transition-colors"
+                >
+                  로그아웃
+                </button>
+                <span>ㅣ</span>
+                <button className="hover:text-gray-700 transition-colors">
+                  회원탈퇴
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* 모달들 */}
+      <ProfileEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        currentProfile={profileData}
+      />
+
+      <PlaceRequestModal
+        isOpen={showPlaceRequestModal}
+        onClose={() => setShowPlaceRequestModal(false)}
+      />
 
       {/* 하단 네비게이션 */}
       <BottomNavigation />
