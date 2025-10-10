@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getRunningPlaceById } from '../../services/runningPlaceService';
 import ReviewList from '../common/ReviewList';
 import PlaceFeedList from '../common/PlaceFeedList';
+import CreatePostModal from '../feed/CreatePostModal';
+import { openNaverMapDirectionsFromCurrentLocation } from '../../utils/naverMapUtils';
+import { useAppStore } from '../../stores/useAppStore';
 
 /**
  * 러닝 플레이스 상세 정보 모달 컴포넌트
@@ -15,6 +18,8 @@ const RunningPlaceDetailModal = ({
 }) => {
   const [place, setPlace] = useState(initialPlace);
   const [loading, setLoading] = useState(false);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const { showToast } = useAppStore();
   const [activeTab, setActiveTab] = useState('info'); // 'info', 'reviews', 'feeds'
   const [reviews, setReviews] = useState([]);
   const [feeds, setFeeds] = useState([]);
@@ -318,8 +323,10 @@ const RunningPlaceDetailModal = ({
 
           <button
             onClick={() => {
-              // TODO: 공유 기능 구현
-              console.log('공유:', place);
+              // 피드 작성 기능
+              if (place) {
+                setShowCreatePostModal(true);
+              }
             }}
             className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
           >
@@ -332,19 +339,22 @@ const RunningPlaceDetailModal = ({
               strokeWidth="2"
               className="mr-2"
             >
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
             </svg>
-            공유
+            피드 작성
           </button>
 
           <button
             onClick={() => {
-              // TODO: 길찾기 기능 구현
-              console.log('길찾기:', place);
+              if (place) {
+                // 네이버 지도 길찾기 열기
+                const destination = {
+                  lat: place.latitude || place.lat,
+                  lng: place.longitude || place.lng,
+                  name: place.name || place.title || '러닝 장소',
+                };
+                openNaverMapDirectionsFromCurrentLocation(destination);
+              }
             }}
             className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors"
           >
@@ -362,6 +372,25 @@ const RunningPlaceDetailModal = ({
           </button>
         </div>
       </div>
+
+      {/* 피드 작성 모달 */}
+      <CreatePostModal
+        isOpen={showCreatePostModal}
+        onClose={success => {
+          setShowCreatePostModal(false);
+          if (success) {
+            // 피드 작성 성공 시 처리
+            showToast({
+              type: 'success',
+              message: '피드가 성공적으로 작성되었습니다! 🎉',
+            });
+            // 피드 탭으로 전환하고 새로고침
+            setActiveTab('feeds');
+          }
+        }}
+        place={place}
+        mode="normal"
+      />
     </div>
   );
 };

@@ -1,5 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Clock, TrendingUp, Users, Star, Phone, Share2, Heart } from 'lucide-react';
+import {
+  MapPin,
+  Clock,
+  TrendingUp,
+  Users,
+  Star,
+  Phone,
+  Share2,
+  Heart,
+} from 'lucide-react';
+import { openNaverMapDirectionsFromCurrentLocation } from '../../utils/naverMapUtils';
 
 /**
  * 러닝코스/러닝플레이스 상세 정보 바텀시트 컴포넌트
@@ -29,7 +39,11 @@ const RunningDetailBottomSheet = ({
   // 저장된 상태 로드
   useEffect(() => {
     if (selectedItem) {
-      const savedItems = JSON.parse(localStorage.getItem(`saved${itemType === 'course' ? 'Courses' : 'Places'}`) || '[]');
+      const savedItems = JSON.parse(
+        localStorage.getItem(
+          `saved${itemType === 'course' ? 'Courses' : 'Places'}`
+        ) || '[]'
+      );
       setIsSaved(savedItems.some(item => item.id === selectedItem.id));
     }
   }, [selectedItem, itemType]);
@@ -71,12 +85,12 @@ const RunningDetailBottomSheet = ({
     }
   };
 
-  const handleDragStart = (e) => {
+  const handleDragStart = e => {
     setIsDragging(true);
     setDragStartY(e.type === 'touchstart' ? e.touches[0].clientY : e.clientY);
   };
 
-  const handleDragMove = (e) => {
+  const handleDragMove = e => {
     if (!isDragging) return;
 
     const currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
@@ -111,9 +125,9 @@ const RunningDetailBottomSheet = ({
   };
 
   useEffect(() => {
-    const handleMouseMove = (e) => handleDragMove(e);
+    const handleMouseMove = e => handleDragMove(e);
     const handleMouseUp = () => handleDragEnd();
-    const handleTouchMove = (e) => handleDragMove(e);
+    const handleTouchMove = e => handleDragMove(e);
     const handleTouchEnd = () => handleDragEnd();
 
     if (isDragging) {
@@ -139,7 +153,9 @@ const RunningDetailBottomSheet = ({
 
     if (isSaved) {
       // 제거
-      const updatedItems = savedItems.filter(item => item.id !== selectedItem.id);
+      const updatedItems = savedItems.filter(
+        item => item.id !== selectedItem.id
+      );
       localStorage.setItem(storageKey, JSON.stringify(updatedItems));
       setIsSaved(false);
     } else {
@@ -164,11 +180,13 @@ const RunningDetailBottomSheet = ({
     if (navigator.share) {
       navigator.share(shareData).catch(console.error);
     } else {
-      navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+      navigator.clipboard.writeText(
+        `${shareData.title}\n${shareData.text}\n${shareData.url}`
+      );
     }
   };
 
-  const getDifficultyInfo = (difficulty) => {
+  const getDifficultyInfo = difficulty => {
     switch (difficulty) {
       case 'easy':
         return { text: '초급', color: 'bg-green-500', icon: '🟢' };
@@ -201,7 +219,9 @@ const RunningDetailBottomSheet = ({
       <div
         ref={sheetRef}
         className={`fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[390px] bg-white/98 backdrop-blur-lg shadow-[0_-4px_32px_rgba(0,0,0,0.12)] z-50 ${
-          isDragging ? 'transition-none' : 'transition-all duration-300 ease-out'
+          isDragging
+            ? 'transition-none'
+            : 'transition-all duration-300 ease-out'
         }`}
         style={{
           ...getSheetStyles(),
@@ -224,14 +244,18 @@ const RunningDetailBottomSheet = ({
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-xl font-bold text-gray-900">{selectedItem.name}</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedItem.name}
+                </h2>
                 {itemType === 'course' && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${difficultyInfo.color}`}>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium text-white ${difficultyInfo.color}`}
+                  >
                     {difficultyInfo.text}
                   </span>
                 )}
               </div>
-              
+
               {selectedItem.address && (
                 <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
                   <MapPin size={14} />
@@ -260,21 +284,21 @@ const RunningDetailBottomSheet = ({
               <button
                 onClick={handleSaveToggle}
                 className={`p-2 rounded-full transition-colors ${
-                  isSaved 
-                    ? 'bg-red-100 text-red-600' 
+                  isSaved
+                    ? 'bg-red-100 text-red-600'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 <Heart size={18} fill={isSaved ? 'currentColor' : 'none'} />
               </button>
-              
+
               <button
                 onClick={handleShare}
                 className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
               >
                 <Share2 size={18} />
               </button>
-              
+
               <button
                 onClick={onClose}
                 className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
@@ -289,16 +313,20 @@ const RunningDetailBottomSheet = ({
             {/* 기본 정보 카드 */}
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 mb-4">
               <h3 className="font-semibold text-gray-900 mb-3">기본 정보</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 {itemType === 'course' ? (
                   <>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{selectedItem.distance || '5.2km'}</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {selectedItem.distance || '5.2km'}
+                      </div>
                       <div className="text-xs text-gray-600">총 거리</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{selectedItem.estimatedTime || '30분'}</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {selectedItem.estimatedTime || '30분'}
+                      </div>
                       <div className="text-xs text-gray-600">예상 시간</div>
                     </div>
                     <div className="text-center">
@@ -306,26 +334,36 @@ const RunningDetailBottomSheet = ({
                       <div className="text-xs text-gray-600">난이도</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{selectedItem.elevation || '50m'}</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {selectedItem.elevation || '50m'}
+                      </div>
                       <div className="text-xs text-gray-600">고도차</div>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{selectedItem.rating || '4.5'}</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {selectedItem.rating || '4.5'}
+                      </div>
                       <div className="text-xs text-gray-600">평점</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{selectedItem.reviewCount || '24'}</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {selectedItem.reviewCount || '24'}
+                      </div>
                       <div className="text-xs text-gray-600">리뷰 수</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl">{selectedItem.isOpen ? '🟢' : '🔴'}</div>
+                      <div className="text-2xl">
+                        {selectedItem.isOpen ? '🟢' : '🔴'}
+                      </div>
                       <div className="text-xs text-gray-600">운영 상태</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{selectedItem.distance || '0.3km'}</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {selectedItem.distance || '0.3km'}
+                      </div>
                       <div className="text-xs text-gray-600">거리</div>
                     </div>
                   </>
@@ -356,7 +394,9 @@ const RunningDetailBottomSheet = ({
             {selectedItem.description && (
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-900 mb-3">상세 설명</h3>
-                <p className="text-gray-700 leading-relaxed">{selectedItem.description}</p>
+                <p className="text-gray-700 leading-relaxed">
+                  {selectedItem.description}
+                </p>
               </div>
             )}
 
@@ -381,11 +421,15 @@ const RunningDetailBottomSheet = ({
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="text-blue-700">오픈</span>
-                    <span className="font-medium text-blue-900">{selectedItem.operatingHours.open}</span>
+                    <span className="font-medium text-blue-900">
+                      {selectedItem.operatingHours.open}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-blue-700">마감</span>
-                    <span className="font-medium text-blue-900">{selectedItem.operatingHours.close}</span>
+                    <span className="font-medium text-blue-900">
+                      {selectedItem.operatingHours.close}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -399,14 +443,22 @@ const RunningDetailBottomSheet = ({
           <div className="flex gap-3 pt-4 border-t border-gray-100">
             <button
               onClick={() => {
-                // TODO: 길찾기 기능 구현
-                console.log('길찾기:', selectedItem);
+                if (selectedItem) {
+                  // 네이버 지도 길찾기 열기
+                  const destination = {
+                    lat: selectedItem.latitude || selectedItem.lat,
+                    lng: selectedItem.longitude || selectedItem.lng,
+                    name:
+                      selectedItem.name || selectedItem.title || '러닝 장소',
+                  };
+                  openNaverMapDirectionsFromCurrentLocation(destination);
+                }
               }}
               className="flex-1 bg-purple-600 text-white py-3 px-4 rounded-xl font-medium hover:bg-purple-700 transition-colors"
             >
               길찾기
             </button>
-            
+
             {itemType === 'course' && (
               <button
                 onClick={() => {

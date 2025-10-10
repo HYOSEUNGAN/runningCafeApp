@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getPlaceReviews, getPlaceRatingStats } from '../../services/reviewService';
+import {
+  getPlaceReviews,
+  getPlaceRatingStats,
+} from '../../services/reviewService';
+import { getPlaceRelatedFeeds } from '../../services/feedService';
 import ReviewModal from '../common/ReviewModal';
+import CreatePostModal from '../feed/CreatePostModal';
 import { useAppStore } from '../../stores/useAppStore';
+import { openNaverMapDirectionsFromCurrentLocation } from '../../utils/naverMapUtils';
 
 /**
  * 러닝플레이스 바텀시트 컴포넌트
@@ -10,9 +16,15 @@ import { useAppStore } from '../../stores/useAppStore';
 const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [reviews, setReviews] = useState([]);
-  const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
+  const [ratingStats, setRatingStats] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+  });
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [feedPosts, setFeedPosts] = useState([]);
+  const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const { showToast } = useAppStore();
 
   // 리뷰 데이터 로드
@@ -22,16 +34,23 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
     }
   }, [place, isOpen, activeTab]);
 
+  // 피드 데이터 로드
+  useEffect(() => {
+    if (place && isOpen && activeTab === 'feeds') {
+      loadFeeds();
+    }
+  }, [place, isOpen, activeTab]);
+
   const loadReviews = async () => {
     if (!place?.id) return;
-    
+
     setIsLoadingReviews(true);
     try {
       const [reviewsData, statsData] = await Promise.all([
         getPlaceReviews('running_place', place.id),
-        getPlaceRatingStats('running_place', place.id)
+        getPlaceRatingStats('running_place', place.id),
       ]);
-      
+
       setReviews(reviewsData);
       setRatingStats(statsData);
     } catch (error) {
@@ -42,25 +61,69 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
     }
   };
 
-  const handleReviewSubmitted = (newReview) => {
+  const loadFeeds = async () => {
+    if (!place?.id || !place?.name) return;
+
+    setIsLoadingFeeds(true);
+    try {
+      const result = await getPlaceRelatedFeeds(
+        'running_place',
+        place.id,
+        place.name,
+        { limit: 20 }
+      );
+
+      if (result.success) {
+        setFeedPosts(result.data);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('피드 로드 실패:', error);
+      showToast('피드를 불러오는데 실패했습니다.', 'error');
+      setFeedPosts([]);
+    } finally {
+      setIsLoadingFeeds(false);
+    }
+  };
+
+  const handleReviewSubmitted = newReview => {
     setReviews(prev => [newReview, ...prev]);
     setRatingStats(prev => ({
-      averageRating: ((prev.averageRating * prev.totalReviews) + newReview.rating) / (prev.totalReviews + 1),
-      totalReviews: prev.totalReviews + 1
+      averageRating:
+        (prev.averageRating * prev.totalReviews + newReview.rating) /
+        (prev.totalReviews + 1),
+      totalReviews: prev.totalReviews + 1,
     }));
     showToast('리뷰가 작성되었습니다!', 'success');
   };
 
-  const formatTimeAgo = (dateString) => {
+  const formatTimeAgo = dateString => {
     const now = new Date();
     const date = new Date(dateString);
     const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return '방금 전';
     if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}시간 전`;
-    if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}일 전`;
+    if (diffInMinutes < 10080)
+      return `${Math.floor(diffInMinutes / 1440)}일 전`;
     return date.toLocaleDateString();
+  };
+
+  const formatDuration = duration => {
+    // 밀리초인지 초인지 판단 (10000 이상이면 밀리초로 가정)
+    const totalSeconds =
+      duration > 10000 ? Math.floor(duration / 1000) : Math.floor(duration);
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!place || !isOpen) return null;
@@ -155,10 +218,16 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
                 <div className="flex items-center space-x-1">
                   <span className="text-yellow-500">⭐</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {ratingStats.averageRating > 0 ? ratingStats.averageRating.toFixed(1) : (place.rating || '4.5')}
+                    {ratingStats.averageRating > 0
+                      ? ratingStats.averageRating.toFixed(1)
+                      : place.rating || '4.5'}
                   </span>
                   <span className="text-sm text-gray-500">
-                    ({ratingStats.totalReviews > 0 ? ratingStats.totalReviews : (place.review_count || place.reviewCount || 0)})
+                    (
+                    {ratingStats.totalReviews > 0
+                      ? ratingStats.totalReviews
+                      : place.review_count || place.reviewCount || 0}
+                    )
                   </span>
                 </div>
               </div>
@@ -334,8 +403,11 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
                 </div>
               ) : reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border border-gray-200 rounded-xl p-4">
+                  {reviews.map(review => (
+                    <div
+                      key={review.id}
+                      className="border border-gray-200 rounded-xl p-4"
+                    >
                       {/* 리뷰 헤더 */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3">
@@ -352,11 +424,13 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
                           </div>
                         </div>
                         <div className="flex items-center space-x-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
+                          {[1, 2, 3, 4, 5].map(star => (
                             <span
                               key={star}
                               className={`text-sm ${
-                                star <= review.rating ? 'text-yellow-500' : 'text-gray-300'
+                                star <= review.rating
+                                  ? 'text-yellow-500'
+                                  : 'text-gray-300'
                               }`}
                             >
                               ⭐
@@ -388,7 +462,9 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
                           <span>❤️</span>
-                          <span className="text-xs">{review.likesCount || 0}</span>
+                          <span className="text-xs">
+                            {review.likesCount || 0}
+                          </span>
                         </button>
                         <div className="flex items-center space-x-2">
                           {review.isFeatured && (
@@ -415,105 +491,145 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
 
           {activeTab === 'feeds' && (
             <div className="p-4">
-              <div className="space-y-4">
-                {/* 샘플 피드 데이터 */}
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      김
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">
-                        김러너
-                      </p>
-                      <p className="text-xs text-gray-500">2시간 전</p>
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      오늘 {place.name}에서 러닝했는데 정말 좋았어요! 🏃‍♀️ 날씨도
-                      좋고 경치도 예뻐서 기분 좋게 뛸 수 있었습니다.
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-100 rounded-lg p-3 text-sm">
-                    <div className="flex items-center justify-between text-gray-600">
-                      <span>📏 거리: 3.2km</span>
-                      <span>⏱️ 시간: 18분 30초</span>
-                      <span>⚡ 페이스: 5'47"/km</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center space-x-4">
-                      <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-                        <span>❤️</span>
-                        <span className="text-xs">12</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
-                        <span>💬</span>
-                        <span className="text-xs">3</span>
-                      </button>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      #러닝 #운동 #{place.name?.replace(/\s+/g, '')}
-                    </span>
-                  </div>
+              {isLoadingFeeds ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto mb-2"></div>
+                  <p className="text-gray-500 text-sm">피드를 불러오는 중...</p>
                 </div>
+              ) : feedPosts.length > 0 ? (
+                <div className="space-y-4">
+                  {feedPosts.map(post => (
+                    <div
+                      key={post.id}
+                      className="bg-white border border-gray-200 rounded-lg p-4"
+                    >
+                      {/* 사용자 정보 */}
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {(
+                            post.profiles?.display_name ||
+                            post.profiles?.username ||
+                            '?'
+                          ).charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">
+                            {post.profiles?.display_name ||
+                              post.profiles?.username ||
+                              '익명'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatTimeAgo(post.created_at)}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      박
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">
-                        박달리기
-                      </p>
-                      <p className="text-xs text-gray-500">1일 전</p>
-                    </div>
-                  </div>
+                      {/* 포스트 내용 */}
+                      {post.caption && (
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            {post.caption}
+                          </p>
+                        </div>
+                      )}
 
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      새벽 러닝으로 하루를 시작! 💪 조용하고 공기도 맑아서
-                      최고였어요.
-                    </p>
-                  </div>
+                      {/* 이미지 */}
+                      {post.image_urls && post.image_urls.length > 0 && (
+                        <div className="mb-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {post.image_urls
+                              .slice(0, 4)
+                              .map((imageUrl, index) => (
+                                <img
+                                  key={index}
+                                  src={imageUrl}
+                                  alt={`포스트 이미지 ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded-lg"
+                                  onError={e => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              ))}
+                          </div>
+                        </div>
+                      )}
 
-                  <div className="bg-gray-100 rounded-lg p-3 text-sm">
-                    <div className="flex items-center justify-between text-gray-600">
-                      <span>📏 거리: 5.0km</span>
-                      <span>⏱️ 시간: 25분 12초</span>
-                      <span>⚡ 페이스: 5'02"/km</span>
-                    </div>
-                  </div>
+                      {/* 러닝 기록 */}
+                      {post.running_records && (
+                        <div className="bg-gray-100 rounded-lg p-3 text-sm mb-3">
+                          <div className="flex items-center justify-between text-gray-600">
+                            <span>
+                              📏 거리:{' '}
+                              {(
+                                (post.running_records.distance || 0) / 1000
+                              ).toFixed(1)}
+                              km
+                            </span>
+                            <span>
+                              ⏱️ 시간:{' '}
+                              {formatDuration(
+                                post.running_records.duration || 0
+                              )}
+                            </span>
+                            {post.running_records.pace && (
+                              <span>
+                                ⚡ 페이스: {post.running_records.pace}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center space-x-4">
-                      <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-                        <span>❤️</span>
-                        <span className="text-xs">8</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
-                        <span>💬</span>
-                        <span className="text-xs">1</span>
-                      </button>
+                      {/* 해시태그 */}
+                      {post.hashtags && post.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {post.hashtags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 액션 버튼 */}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <div className="flex items-center space-x-4">
+                          <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
+                            <span>❤️</span>
+                            <span className="text-xs">
+                              {post.likes_count || 0}
+                            </span>
+                          </button>
+                          <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
+                            <span>💬</span>
+                            <span className="text-xs">
+                              {post.comments_count || 0}
+                            </span>
+                          </button>
+                        </div>
+                        {post.location && (
+                          <span className="text-xs text-gray-400">
+                            📍 {post.location}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-400">
-                      #새벽러닝 #건강 #운동
-                    </span>
-                  </div>
+                  ))}
                 </div>
-
-                {/* 더 많은 피드가 있을 때 */}
-                <div className="text-center py-4">
-                  <button className="text-cyan-600 text-sm font-medium hover:text-cyan-700 transition-colors">
-                    더 많은 피드 보기
-                  </button>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">📝</div>
+                  <p className="text-gray-500 text-sm">
+                    아직 관련 피드가 없습니다
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    이 장소에서 러닝한 후 첫 번째 포스트를 작성해보세요!
+                  </p>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -521,7 +637,20 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
         {/* 액션 버튼들 */}
         <div className="p-4 border-t border-gray-100 bg-gray-50">
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-xl hover:from-cyan-600 hover:to-purple-600 transition-all duration-200">
+            <button
+              onClick={() => {
+                if (place) {
+                  // 네이버 지도 길찾기 열기
+                  const destination = {
+                    lat: place.latitude || place.lat,
+                    lng: place.longitude || place.lng,
+                    name: place.name || place.title || '러닝 장소',
+                  };
+                  openNaverMapDirectionsFromCurrentLocation(destination);
+                }
+              }}
+              className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-xl hover:from-cyan-600 hover:to-purple-600 transition-all duration-200"
+            >
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -544,7 +673,15 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
               <span>길찾기</span>
             </button>
 
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => {
+                // 피드 작성 모달 열기
+                if (place) {
+                  setShowCreatePostModal(true);
+                }
+              }}
+              className="flex items-center justify-center space-x-2 px-4 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+            >
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -555,10 +692,10 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                 />
               </svg>
-              <span>공유</span>
+              <span>피드 작성</span>
             </button>
           </div>
         </div>
@@ -571,6 +708,23 @@ const RunningPlaceBottomSheet = ({ place, isOpen, onClose }) => {
         place={place}
         placeType="running_place"
         onReviewSubmitted={handleReviewSubmitted}
+      />
+
+      {/* 피드 작성 모달 */}
+      <CreatePostModal
+        isOpen={showCreatePostModal}
+        onClose={success => {
+          setShowCreatePostModal(false);
+          if (success) {
+            // 피드 작성 성공 시 처리
+            showToast({
+              type: 'success',
+              message: '피드가 성공적으로 작성되었습니다! 🎉',
+            });
+          }
+        }}
+        place={place}
+        mode="normal"
       />
     </>
   );

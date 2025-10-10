@@ -255,12 +255,16 @@ const drawStat = (
 };
 
 /**
- * 시간 포맷팅
+ * 시간 포맷팅 (밀리초 단위 지원)
  */
-const formatDuration = seconds => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
+const formatDuration = duration => {
+  // 밀리초인지 초인지 판단 (10000 이상이면 밀리초로 가정)
+  const totalSeconds =
+    duration > 10000 ? Math.floor(duration / 1000) : Math.floor(duration);
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
 
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -412,6 +416,41 @@ export const OVERLAY_TEMPLATES = {
 };
 
 /**
+ * 러닝 데이터 포맷팅 및 검증
+ */
+export const formatRunningData = runningData => {
+  const {
+    distance = 0,
+    duration = 0,
+    pace,
+    calories = 0,
+    date = new Date(),
+  } = runningData;
+
+  // 거리를 미터에서 킬로미터로 변환 (필요한 경우)
+  const distanceKm = distance > 100 ? distance / 1000 : distance;
+
+  // 페이스 계산 (제공되지 않은 경우)
+  let calculatedPace = pace;
+  if (!pace && distanceKm > 0 && duration > 0) {
+    const durationMinutes =
+      duration > 10000 ? duration / 1000 / 60 : duration / 60;
+    calculatedPace = durationMinutes / distanceKm;
+  }
+
+  // 칼로리 계산 (제공되지 않은 경우 - 대략적인 계산)
+  const calculatedCalories = calories || Math.floor(distanceKm * 60);
+
+  return {
+    distance: distanceKm * 1000, // 미터 단위로 통일
+    duration,
+    pace: calculatedPace,
+    calories: calculatedCalories,
+    date,
+  };
+};
+
+/**
  * 템플릿별 오버레이 생성
  */
 export const createTemplatedOverlay = async (
@@ -420,10 +459,11 @@ export const createTemplatedOverlay = async (
   templateName = 'STRAVA_CLASSIC'
 ) => {
   const template = OVERLAY_TEMPLATES[templateName];
+  const formattedData = formatRunningData(runningData);
 
-  return createRunningPhotoOverlay(imageFile, runningData, {
+  return createRunningPhotoOverlay(imageFile, formattedData, {
     ...template,
-    customElements: getTemplateElements(templateName, runningData),
+    customElements: getTemplateElements(templateName, formattedData),
   });
 };
 

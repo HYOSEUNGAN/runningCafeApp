@@ -827,7 +827,7 @@ const MapContainer = ({
                 ${place.difficulty || '보통'}
               </span>
               <span style="font-size: 12px; color: #6b7280;">
-                ${place.distance || '거리 정보 없음'}
+
               </span>
             </div>
             <div style="font-size: 11px; color: #9ca3af;">

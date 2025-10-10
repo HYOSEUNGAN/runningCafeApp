@@ -39,6 +39,7 @@ CREATE TABLE public.feed_posts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
   running_record_id uuid,
+  place_id integer, -- 러닝 플레이스 ID 추가
   caption text,
   image_urls ARRAY,
   hashtags ARRAY,
@@ -50,7 +51,8 @@ CREATE TABLE public.feed_posts (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT feed_posts_pkey PRIMARY KEY (id),
   CONSTRAINT feed_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
-  CONSTRAINT feed_posts_running_record_id_fkey FOREIGN KEY (running_record_id) REFERENCES public.running_records(id)
+  CONSTRAINT feed_posts_running_record_id_fkey FOREIGN KEY (running_record_id) REFERENCES public.running_records(id),
+  CONSTRAINT feed_posts_place_id_fkey FOREIGN KEY (place_id) REFERENCES public.running_places(id)
 );
 CREATE TABLE public.follows (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -185,7 +187,7 @@ CREATE TABLE public.running_places (
   address text,
   lat double precision NOT NULL,
   lng double precision NOT NULL,
-  place_type varchar(50) NOT NULL CHECK (place_type IN ('park', 'trail', 'track', 'riverside', 'mountain', 'asphalt')),
+  -- place_type varchar(50) NOT NULL CHECK (place_type IN ('park', 'trail', 'track', 'riverside', 'mountain', 'asphalt')),
   description text,
   difficulty_level integer CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
   distance_km numeric,

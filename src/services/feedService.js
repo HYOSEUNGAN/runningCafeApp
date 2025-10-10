@@ -24,6 +24,7 @@ export const createFeedPost = async postData => {
     const {
       user_id,
       running_record_id = null,
+      // place_id = null, // 임시로 주석 처리 (DB 스키마 업데이트 후 활성화)
       caption,
       images = [],
       image_urls = [],
@@ -62,6 +63,7 @@ export const createFeedPost = async postData => {
       .insert({
         user_id,
         running_record_id,
+        // place_id, // 임시로 주석 처리 (DB 스키마 업데이트 후 활성화)
         caption: caption || '',
         image_urls: finalImageUrls,
         hashtags,
@@ -104,16 +106,26 @@ export const createFeedPost = async postData => {
 };
 
 /**
- * 피드 포스트 목록 조회
+ * 피드 포스트 목록 조회 (무한스크롤 최적화)
  * @param {Object} options - 조회 옵션
- * @param {number} options.limit - 조회할 개수 (기본값: 20)
+ * @param {number} options.limit - 조회할 개수 (기본값: 10)
  * @param {number} options.offset - 시작 위치 (기본값: 0)
  * @param {string} options.userId - 특정 사용자의 포스트만 조회 (선택사항)
+ * @param {string} options.lastPostId - 마지막 포스트 ID (커서 기반 페이지네이션용)
+ * @param {string} options.orderBy - 정렬 기준 (기본값: 'created_at')
+ * @param {boolean} options.ascending - 오름차순 여부 (기본값: false)
  * @returns {Promise<Object>} 피드 포스트 목록
  */
 export const getFeedPosts = async (options = {}) => {
   try {
-    const { limit = 20, offset = 0, userId } = options;
+    const {
+      limit = 10,
+      offset = 0,
+      userId,
+      lastPostId,
+      orderBy = 'created_at',
+      ascending = false,
+    } = options;
 
     let query = supabase
       .from('feed_posts')
@@ -134,22 +146,59 @@ export const getFeedPosts = async (options = {}) => {
         )
       `
       )
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order(orderBy, { ascending });
 
     // 특정 사용자의 포스트만 조회하는 경우
     if (userId) {
       query = query.eq('user_id', userId);
     }
 
-    const { data, error } = await query;
+    // 커서 기반 페이지네이션 (성능 최적화)
+    if (lastPostId && !ascending) {
+      query = query.lt(
+        'created_at',
+        `(SELECT created_at FROM feed_posts WHERE id = '${lastPostId}')`
+      );
+    } else if (lastPostId && ascending) {
+      query = query.gt(
+        'created_at',
+        `(SELECT created_at FROM feed_posts WHERE id = '${lastPostId}')`
+      );
+    }
+
+    // 오프셋 기반 페이지네이션 (fallback)
+    if (!lastPostId) {
+      query = query.range(offset, offset + limit - 1);
+    } else {
+      query = query.limit(limit);
+    }
+
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('피드 포스트 조회 실패:', error);
       throw error;
     }
 
-    return { success: true, data };
+    // 데이터 후처리: 이미지 URL 유효성 검사
+    const processedData =
+      data?.map(post => ({
+        ...post,
+        image_urls:
+          post.image_urls?.filter(url => url && url.trim() !== '') || [],
+        hashtags: post.hashtags || [],
+      })) || [];
+
+    return {
+      success: true,
+      data: processedData,
+      hasMore: processedData.length === limit,
+      totalCount: count,
+      nextCursor:
+        processedData.length > 0
+          ? processedData[processedData.length - 1].id
+          : null,
+    };
   } catch (error) {
     console.error('피드 포스트 조회 중 오류:', error);
     return { success: false, error: error.message };

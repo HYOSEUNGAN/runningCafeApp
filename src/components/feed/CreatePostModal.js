@@ -9,6 +9,7 @@ import {
   Trash2,
   Video,
   RotateCcw,
+  Navigation,
 } from 'lucide-react';
 import { createFeedPost } from '../../services/feedService';
 import {
@@ -17,11 +18,14 @@ import {
   compressImage,
 } from '../../services/imageUploadService';
 import { createRunningRecordMapImage } from '../../services/mapImageService';
+import { reverseGeocode } from '../../services/naverApiService';
+import advancedLocationService from '../../services/advancedLocationService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
 import {
   createRunningPhotoOverlay,
   createTemplatedOverlay,
+  formatRunningData,
   OVERLAY_TEMPLATES,
 } from '../../utils/photoOverlay';
 
@@ -34,6 +38,7 @@ const CreatePostModal = ({
   onClose,
   runningRecord = null,
   mode = 'normal',
+  place = null, // 플레이스 정보 추가
 }) => {
   // 상태 관리
   const [caption, setCaption] = useState('');
@@ -49,6 +54,8 @@ const CreatePostModal = ({
   const [selectedTemplate, setSelectedTemplate] = useState('STRAVA_CLASSIC');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [previewOverlay, setPreviewOverlay] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [currentGPSLocation, setCurrentGPSLocation] = useState(null);
 
   // 스토어
   const { user, getUserId } = useAuthStore();
@@ -91,7 +98,20 @@ const CreatePostModal = ({
         if (runningRecord.path && runningRecord.path.length > 0) {
           generateMapImage();
         }
-      } else if (!runningRecord) {
+      } else if (place) {
+        // 플레이스 정보로 초기값 설정
+        setLocation(place.name || place.title || '');
+        setHashtags(
+          [
+            '러닝',
+            place.name || place.title || '',
+            place.district || '',
+          ].filter(Boolean)
+        );
+        setCaption(
+          `${place.name || place.title || ''}에서 러닝! 🏃‍♂️\n\n#러닝스팟 #운동`
+        );
+      } else {
         // 수기 작성의 경우 빈 상태로 시작
         setCaption('');
         setHashtags([]);
@@ -319,20 +339,20 @@ const CreatePostModal = ({
       let finalFile = file;
       if (runningRecord) {
         try {
+          // 러닝 데이터 준비 및 포맷팅
+          const runningData = {
+            distance: runningRecord.distance,
+            duration: runningRecord.duration,
+            pace:
+              runningRecord.pace ||
+              calculatePace(runningRecord.distance, runningRecord.duration),
+            calories: runningRecord.calories_burned || runningRecord.calories,
+            date: new Date(),
+          };
+
           const overlayBlob = await createTemplatedOverlay(
             file,
-            {
-              distance: runningRecord.distance,
-              duration: runningRecord.duration,
-              pace: calculatePace(
-                runningRecord.distance,
-                runningRecord.duration
-              ),
-              calories:
-                runningRecord.calories ||
-                Math.floor((runningRecord.distance / 1000) * 60),
-              date: new Date(),
-            },
+            runningData,
             selectedTemplate
           );
 
@@ -529,6 +549,102 @@ const CreatePostModal = ({
     }
   };
 
+  // GPS 위치 가져오기 및 주소 변환
+  const getCurrentLocationAndAddress = async () => {
+    if (isLoadingLocation) return;
+
+    setIsLoadingLocation(true);
+
+    try {
+      showToast({
+        type: 'info',
+        message: '현재 위치를 찾는 중...',
+      });
+
+      // GPS 위치 가져오기
+      const position = await new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(
+            new Error('이 브라우저에서는 위치 서비스를 지원하지 않습니다.')
+          );
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000,
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      setCurrentGPSLocation({ lat: latitude, lng: longitude });
+
+      // 좌표를 주소로 변환
+      try {
+        const geocodeResult = await reverseGeocode(latitude, longitude);
+
+        if (geocodeResult.results && geocodeResult.results.length > 0) {
+          const result = geocodeResult.results[0];
+          const region = result.region;
+
+          // 도로명 주소 우선, 없으면 지번 주소 사용
+          let addressText = '';
+          if (result.land && result.land.addition0) {
+            // 도로명 주소
+            addressText = `${region.area1.name} ${region.area2.name} ${result.land.addition0.value}`;
+          } else if (result.land && result.land.name) {
+            // 지번 주소
+            addressText = `${region.area1.name} ${region.area2.name} ${result.land.name}`;
+          } else {
+            // 기본 주소
+            addressText = `${region.area1.name} ${region.area2.name} ${region.area3.name}`;
+          }
+
+          setLocation(addressText);
+
+          showToast({
+            type: 'success',
+            message: '📍 현재 위치가 입력되었습니다!',
+          });
+        } else {
+          throw new Error('주소를 찾을 수 없습니다.');
+        }
+      } catch (geocodeError) {
+        console.warn('주소 변환 실패:', geocodeError);
+        // 주소 변환 실패 시 좌표만 표시
+        setLocation(
+          `위도: ${latitude.toFixed(6)}, 경도: ${longitude.toFixed(6)}`
+        );
+
+        showToast({
+          type: 'warning',
+          message: '📍 위치는 찾았지만 주소 변환에 실패했습니다.',
+        });
+      }
+    } catch (error) {
+      console.error('위치 정보 오류:', error);
+
+      let errorMessage = '위치 정보를 가져올 수 없습니다.';
+
+      if (error.code === 1) {
+        errorMessage =
+          '위치 접근 권한이 필요합니다. 브라우저 설정을 확인해주세요.';
+      } else if (error.code === 2) {
+        errorMessage = '위치 정보를 사용할 수 없습니다.';
+      } else if (error.code === 3) {
+        errorMessage = '위치 정보 요청 시간이 초과되었습니다.';
+      }
+
+      showToast({
+        type: 'error',
+        message: errorMessage,
+      });
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
   // 포스트 제출
   const handleSubmit = async () => {
     if (!caption.trim() && selectedImages.length === 0) {
@@ -545,6 +661,7 @@ const CreatePostModal = ({
       const postData = {
         user_id: getUserId(),
         running_record_id: runningRecord?.id || null,
+        // place_id: place?.id || null, // 임시로 주석 처리 (DB 스키마 업데이트 후 활성화)
         caption: caption.trim(),
         images: selectedImages,
         hashtags,
@@ -758,7 +875,9 @@ const CreatePostModal = ({
               >
                 <Camera size={20} />
                 <span>
-                  {runningRecord ? '🏃‍♀️ 러닝 인증샷 촬영' : '📸 사진 바로 찍기'}
+                  {runningRecord
+                    ? '🏃‍♀️ Strava 스타일 인증샷 촬영'
+                    : '📸 사진 바로 찍기'}
                 </span>
               </button>
 
@@ -967,14 +1086,35 @@ const CreatePostModal = ({
               <MapPin size={16} className="text-gray-500" />
               <label className="text-sm font-medium text-gray-700">위치</label>
             </div>
-            <input
-              type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="위치를 입력하세요 (선택사항)"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isSubmitting}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="위치를 입력하세요 (선택사항)"
+                className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={getCurrentLocationAndAddress}
+                disabled={isSubmitting || isLoadingLocation}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-500 hover:text-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="현재 위치 가져오기"
+              >
+                {isLoadingLocation ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                ) : (
+                  <Navigation size={16} />
+                )}
+              </button>
+            </div>
+            {currentGPSLocation && (
+              <div className="mt-1 text-xs text-gray-500">
+                📍 GPS: {currentGPSLocation.lat.toFixed(6)},{' '}
+                {currentGPSLocation.lng.toFixed(6)}
+              </div>
+            )}
           </div>
 
           {/* 해시태그 입력 */}
