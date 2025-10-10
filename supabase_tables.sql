@@ -185,7 +185,7 @@ CREATE TABLE public.running_places (
   address text,
   lat double precision NOT NULL,
   lng double precision NOT NULL,
-  place_type varchar(50) NOT NULL CHECK (place_type IN ('park', 'trail', 'track', 'riverside', 'mountain')),
+  place_type varchar(50) NOT NULL CHECK (place_type IN ('park', 'trail', 'track', 'riverside', 'mountain', 'asphalt')),
   description text,
   difficulty_level integer CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
   distance_km numeric,

@@ -145,63 +145,6 @@ const MapPage = () => {
     }
   };
 
-  const handleCafeSelect = cafe => {
-    setSelectedCafe(cafe);
-    showToast({
-      type: 'info',
-      message: `${cafe.name}을(를) 선택했습니다.`,
-    });
-  };
-
-  const handleRouteClick = cafe => {
-    showToast({
-      type: 'success',
-      message: `${cafe.name}까지의 경로를 안내합니다.`,
-    });
-    // TODO: 경로 안내 기능 구현
-  };
-
-  const handleCallClick = cafe => {
-    if (cafe.phone) {
-      window.open(`tel:${cafe.phone}`);
-    } else {
-      showToast({
-        type: 'warning',
-        message: '전화번호 정보가 없습니다.',
-      });
-    }
-  };
-
-  const handleSaveClick = (cafeId, isSaved) => {
-    showToast({
-      type: 'success',
-      message: isSaved
-        ? '즐겨찾기에 추가했습니다.'
-        : '즐겨찾기에서 제거했습니다.',
-    });
-    // TODO: 즐겨찾기 상태 저장
-  };
-
-  const handleShareClick = cafe => {
-    if (navigator.share) {
-      navigator
-        .share({
-          title: cafe.name,
-          text: `${cafe.name} - 러닝 후 추천 카페`,
-          url: window.location.href,
-        })
-        .catch(console.error);
-    } else {
-      // 클립보드에 복사
-      navigator.clipboard.writeText(window.location.href).then(() => {
-        showToast({
-          type: 'success',
-          message: '링크가 클립보드에 복사되었습니다.',
-        });
-      });
-    }
-  };
-
   // 필터 변경 핸들러
   const handleFilterChange = newFilters => {
     setSelectedFilters(newFilters);
@@ -319,11 +262,12 @@ const MapPage = () => {
         isOpen={isBottomSheetOpen}
         userLocation={userLocation}
         onClose={() => setIsBottomSheetOpen(false)}
-        onCafeSelect={handleCafeSelect}
-        onRouteClick={handleRouteClick}
-        onCallClick={handleCallClick}
-        onSaveClick={handleSaveClick}
-        onShareClick={handleShareClick}
+        onPlaceSelect={place => {
+          setSelectedRunningItem(place);
+          setRunningItemType('place');
+          setIsRunningDetailOpen(true);
+          setIsBottomSheetOpen(false);
+        }}
         selectedFilters={selectedFilters}
         searchRadius={searchRadius}
       />

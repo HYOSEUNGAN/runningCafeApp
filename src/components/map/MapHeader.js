@@ -22,19 +22,19 @@ const MapHeader = ({
 
   // 카페 타입 필터 옵션들 (러닝앱 스타일)
   const filterOptions = [
-    { id: 'open', label: '영업중', icon: '🟢', color: 'bg-green-500' },
-    {
-      id: 'runner-friendly',
-      label: '러너친화',
-      icon: '🏃‍♀️',
-      color: 'bg-purple-500',
-    },
-    {
-      id: 'partnership',
-      label: '제휴카페',
-      icon: '🤝',
-      color: 'bg-orange-500',
-    },
+    // { id: 'open', label: '영업중', icon: '🟢', color: 'bg-green-500' },
+    // {
+    //   id: 'runner-friendly',
+    //   label: '러너친화',
+    //   icon: '🏃‍♀️',
+    //   color: 'bg-purple-500',
+    // },
+    // {
+    //   id: 'partnership',
+    //   label: '제휴카페',
+    //   icon: '🤝',
+    //   color: 'bg-orange-500',
+    // },
   ];
 
   // 거리 옵션들

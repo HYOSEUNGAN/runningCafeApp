@@ -30,11 +30,11 @@ export const getAllRunningPlaces = async () => {
         lat: place.lat,
         lng: place.lng,
       },
-      placeType: place.place_type,
+      placeType: place.place_type || 'park', // 기본값 설정
       description: place.description,
-      difficultyLevel: place.difficulty_level,
+      difficultyLevel: place.difficulty_level || 1,
       distanceKm: place.distance_km,
-      surfaceType: place.surface_type,
+      surfaceType: place.surface_type || 'mixed',
       facilities: place.facilities || [],
       imageUrls: place.image_urls || [],
       rating: place.rating || 0,
@@ -42,8 +42,8 @@ export const getAllRunningPlaces = async () => {
       createdAt: place.created_at,
       updatedAt: place.updated_at,
       // 지도 표시용 추가 속성
-      difficulty: getDifficultyText(place.difficulty_level),
-      color: getDifficultyColor(place.difficulty_level),
+      difficulty: getDifficultyText(place.difficulty_level || 1),
+      color: getDifficultyColor(place.difficulty_level || 1),
       distance: place.distance_km ? `${place.distance_km}km` : '거리 정보 없음',
     }));
   } catch (error) {
@@ -87,11 +87,11 @@ export const getNearbyRunningPlaces = async (lat, lng, radius = 10) => {
             lat: place.lat,
             lng: place.lng,
           },
-          placeType: place.place_type,
+          placeType: place.place_type || 'park',
           description: place.description,
-          difficultyLevel: place.difficulty_level,
+          difficultyLevel: place.difficulty_level || 1,
           distanceKm: place.distance_km,
-          surfaceType: place.surface_type,
+          surfaceType: place.surface_type || 'mixed',
           facilities: place.facilities || [],
           imageUrls: place.image_urls || [],
           rating: place.rating || 0,
@@ -102,8 +102,8 @@ export const getNearbyRunningPlaces = async (lat, lng, radius = 10) => {
           distance: distance,
           distanceText: `${distance.toFixed(1)}km`,
           // 지도 표시용 추가 속성
-          difficulty: getDifficultyText(place.difficulty_level),
-          color: getDifficultyColor(place.difficulty_level),
+          difficulty: getDifficultyText(place.difficulty_level || 1),
+          color: getDifficultyColor(place.difficulty_level || 1),
         };
       })
       .filter(place => place.distance <= radius) // 정확한 반경 내 필터링

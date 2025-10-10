@@ -5,7 +5,7 @@ import {
   getAllRunningPlaces,
   getNearbyRunningPlaces,
 } from '../../services/runningPlaceService';
-import RunningPlaceDetailModal from './RunningPlaceDetailModal';
+import RunningPlaceBottomSheet from './RunningPlaceBottomSheet';
 
 /**
  * 메인 지도 컨테이너 컴포넌트
@@ -29,10 +29,10 @@ const MapContainer = ({
   const naverMapRef = useRef(null);
   const markersRef = useRef([]);
   const circleRef = useRef(null);
-  const polylinesRef = useRef([]);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [selectedRunningPlace, setSelectedRunningPlace] = useState(null);
-  const [showRunningPlaceDetail, setShowRunningPlaceDetail] = useState(false);
+  const [showRunningPlaceBottomSheet, setShowRunningPlaceBottomSheet] =
+    useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -164,6 +164,13 @@ const MapContainer = ({
           runningPlaces: runningPlaceData.length,
           cafeAddresses: cafeData.map(cafe => cafe.address),
           runningPlaceAddresses: runningPlaceData.map(place => place.address),
+          runningPlaceDetails: runningPlaceData.slice(0, 3).map(place => ({
+            id: place.id,
+            name: place.name,
+            placeType: place.placeType,
+            difficultyLevel: place.difficultyLevel,
+            coordinates: place.coordinates,
+          })),
         });
 
         setSupabaseCafes(cafeData);
@@ -296,16 +303,14 @@ const MapContainer = ({
   const handleMarkerClick = (type, item) => {
     setSelectedMarker({ type, item });
 
-    // 러닝 플레이스 클릭 시 폴리라인 표시 및 상세 모달 열기
+    // 러닝 플레이스 클릭 시 바텀시트 열기
     if (type === 'running_place') {
       setSelectedRunningPlace(item);
-      showRunningPlacePolyline(item);
-      setShowRunningPlaceDetail(true);
+      setShowRunningPlaceBottomSheet(true);
     } else {
-      // 다른 마커 클릭 시 폴리라인 숨기기
-      hideAllPolylines();
+      // 다른 마커 클릭 시 바텀시트 닫기
       setSelectedRunningPlace(null);
-      setShowRunningPlaceDetail(false);
+      setShowRunningPlaceBottomSheet(false);
     }
 
     if (onMarkerClick) {
@@ -313,51 +318,10 @@ const MapContainer = ({
     }
   };
 
-  // 폴리라인 표시 함수
-  const showRunningPlacePolyline = place => {
-    if (!naverMapRef.current || !place.coordinates) return;
-
-    // 기존 폴리라인 제거
-    hideAllPolylines();
-
-    // 샘플 폴리라인 경로 생성 (실제로는 DB에서 가져와야 함)
-    const samplePath = generateSamplePath(
-      place.coordinates,
-      place.distanceKm || 2
-    );
-
-    const polyline = new window.naver.maps.Polyline({
-      map: naverMapRef.current,
-      path: samplePath,
-      strokeColor: place.color || '#8B5CF6',
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
-      strokeStyle: 'solid',
-    });
-
-    polylinesRef.current.push(polyline);
-  };
-
-  // 모든 폴리라인 숨기기
-  const hideAllPolylines = () => {
-    polylinesRef.current.forEach(polyline => polyline.setMap(null));
-    polylinesRef.current = [];
-  };
-
-  // 샘플 폴리라인 경로 생성 함수
-  const generateSamplePath = (center, distanceKm = 2) => {
-    const path = [];
-    const numPoints = 20;
-    const radius = (distanceKm / 2) * 0.01; // 대략적인 반경 계산
-
-    for (let i = 0; i <= numPoints; i++) {
-      const angle = (i / numPoints) * 2 * Math.PI;
-      const lat = center.lat + radius * Math.cos(angle) * 0.8;
-      const lng = center.lng + radius * Math.sin(angle);
-      path.push(new window.naver.maps.LatLng(lat, lng));
-    }
-
-    return path;
+  // 바텀시트 닫기 핸들러
+  const handleCloseBottomSheet = () => {
+    setShowRunningPlaceBottomSheet(false);
+    setSelectedRunningPlace(null);
   };
 
   // 검색 반경 원형 영역 생성 함수
@@ -483,11 +447,13 @@ const MapContainer = ({
         { name: '중랑구', lat: 37.6063, lng: 127.0925 },
       ];
 
-      // 실제 데이터에서 구별 카페+러닝플레이스 개수 계산
+      // 실제 데이터에서 구별 러닝플레이스 개수만 계산 (카페 제외)
       const getDistrictCount = districtName => {
-        const cafeCount = displayCafes.filter(
-          cafe => cafe.address && cafe.address.includes(districtName)
-        ).length;
+        // 카페 카운트 비활성화
+        const cafeCount = 0;
+        // const cafeCount = displayCafes.filter(
+        //   cafe => cafe.address && cafe.address.includes(districtName)
+        // ).length;
 
         const runningPlaceCount = displayRunningPlaces.filter(
           place => place.address && place.address.includes(districtName)
@@ -807,27 +773,23 @@ const MapContainer = ({
         icon: {
           content: `
             <div style="
-              width: 40px; 
-              height: 40px; 
-              background: ${place.color || '#8B5CF6'}; 
+              width: 44px; 
+              height: 44px; 
+              background: linear-gradient(135deg, #00BCD4 0%, #9C27B0 100%); 
               border: 3px solid white;
-              border-radius: 50%;
+              border-radius: 12px;
               display: flex;
               align-items: center;
               justify-content: center;
               cursor: pointer;
               transition: transform 0.2s ease, box-shadow 0.2s ease;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.2)'" 
-               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                <path d="M13.5 5.5C13.5 6.32843 12.8284 7 12 7C11.1716 7 10.5 6.32843 10.5 5.5C10.5 4.67157 11.1716 4 12 4C12.8284 4 13.5 4.67157 13.5 5.5Z"/>
-                <path d="M8.5 12C8.5 11.1716 9.17157 10.5 10 10.5H14C14.8284 10.5 15.5 11.1716 15.5 12V19C15.5 19.8284 14.8284 20.5 14 20.5H10C9.17157 20.5 8.5 19.8284 8.5 19V12Z"/>
-                <path d="M10 8.5C9.17157 8.5 8.5 9.17157 8.5 10C8.5 10.8284 9.17157 11.5 10 11.5H14C14.8284 11.5 15.5 10.8284 15.5 10C15.5 9.17157 14.8284 8.5 14 8.5H10Z"/>
-              </svg>
+              box-shadow: 0 4px 16px rgba(0,188,212,0.3);
+            " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 6px 20px rgba(0,188,212,0.4)'" 
+               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 16px rgba(0,188,212,0.3)'">
+              <span style="font-size: 20px;">🏃‍♀️</span>
             </div>
           `,
-          anchor: new window.naver.maps.Point(20, 20),
+          anchor: new window.naver.maps.Point(22, 22),
         },
       });
 
@@ -899,9 +861,6 @@ const MapContainer = ({
     // 기존 마커 제거
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
-
-    // 기존 폴리라인 제거
-    hideAllPolylines();
 
     // 검색 반경 원형 영역 생성
     createSearchRadiusCircle();
@@ -985,19 +944,41 @@ const MapContainer = ({
         markersRef.current.push(marker);
       });
     } else {
-      // 줌인 시 개별 마커 또는 클러스터 표시
-      const allItems = [...displayCafes, ...displayRunningPlaces];
+      // 줌인 시 개별 마커 또는 클러스터 표시 (러닝플레이스만)
+      const allItems = [...displayRunningPlaces]; // 카페 제외
+      console.log('🗺️ 마커 생성 디버깅:', {
+        displayCafes: displayCafes.length,
+        displayRunningPlaces: displayRunningPlaces.length,
+        allItems: allItems.length,
+        currentZoom,
+        runningPlacesSample: displayRunningPlaces.slice(0, 2).map(place => ({
+          name: place.name,
+          placeType: place.placeType,
+          difficultyLevel: place.difficultyLevel,
+          coordinates: place.coordinates,
+        })),
+      });
       const clusteredItems = clusterMarkers(allItems, currentZoom);
 
       clusteredItems.forEach(item => {
         if (item.type === 'cluster' && item.items.length > 1) {
           // 클러스터 마커
-          const cafeCount = item.items.filter(
-            i => i.rating !== undefined || i.phone !== undefined
-          ).length;
           const runningPlaceCount = item.items.filter(
-            i => i.placeType !== undefined || i.difficulty !== undefined
+            i =>
+              i.placeType !== undefined ||
+              i.difficultyLevel !== undefined ||
+              i.surfaceType !== undefined ||
+              i.distanceKm !== undefined
           ).length;
+
+          // 카페 카운트 비활성화
+          const cafeCount = 0;
+          // const cafeCount = item.items.filter(
+          //   i =>
+          //     i.phone !== undefined ||
+          //     i.operatingHours !== undefined ||
+          //     i.isOpen !== undefined
+          // ).length;
 
           const marker = new window.naver.maps.Marker({
             position: new window.naver.maps.LatLng(
@@ -1047,19 +1028,25 @@ const MapContainer = ({
           // 개별 마커 (기존 로직 유지)
           const actualItem = item.type === 'cluster' ? item.items[0] : item;
 
+          // 러닝플레이스만 마커 생성 (카페 마커 비활성화)
           if (
-            actualItem.rating !== undefined ||
-            actualItem.phone !== undefined
-          ) {
-            // 카페 마커
-            createCafeMarker(actualItem);
-          } else if (
             actualItem.placeType !== undefined ||
-            actualItem.difficulty !== undefined
+            actualItem.difficultyLevel !== undefined ||
+            actualItem.surfaceType !== undefined ||
+            actualItem.distanceKm !== undefined
           ) {
-            // 러닝 플레이스 마커
+            // 러닝 플레이스 마커만 표시
             createRunningPlaceMarker(actualItem);
           }
+          // 카페 마커는 임시로 비활성화
+          // else if (
+          //   actualItem.phone !== undefined ||
+          //   actualItem.operatingHours !== undefined ||
+          //   actualItem.isOpen !== undefined
+          // ) {
+          //   // 카페 마커
+          //   createCafeMarker(actualItem);
+          // }
         }
       });
     }
@@ -1075,7 +1062,6 @@ const MapContainer = ({
     createCafeMarker,
     createRunningPlaceMarker,
     createSearchRadiusCircle,
-    hideAllPolylines,
   ]);
 
   // 지도 초기화 useEffect
@@ -1113,10 +1099,6 @@ const MapContainer = ({
       // 마커 정리
       markersRef.current.forEach(marker => marker.setMap(null));
       markersRef.current = [];
-
-      // 폴리라인 정리
-      polylinesRef.current.forEach(polyline => polyline.setMap(null));
-      polylinesRef.current = [];
 
       // 원형 영역 정리
       if (circleRef.current) {
@@ -1255,16 +1237,11 @@ const MapContainer = ({
         </div>
       )}
 
-      {/* 러닝 플레이스 상세 모달 */}
-      <RunningPlaceDetailModal
-        isOpen={showRunningPlaceDetail}
-        onClose={() => {
-          setShowRunningPlaceDetail(false);
-          hideAllPolylines();
-          setSelectedRunningPlace(null);
-        }}
+      {/* 러닝 플레이스 바텀시트 */}
+      <RunningPlaceBottomSheet
         place={selectedRunningPlace}
-        placeId={selectedRunningPlace?.id}
+        isOpen={showRunningPlaceBottomSheet}
+        onClose={handleCloseBottomSheet}
       />
     </div>
   );

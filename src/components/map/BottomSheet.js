@@ -1,24 +1,114 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, MapPin } from 'lucide-react';
 import FilterTabs from './FilterTabs';
-import CafeCard from './CafeCard';
-import { searchNearbyCafesWithNaver } from '../../services/cafeService';
+import { getAllRunningPlaces } from '../../services/runningPlaceService';
 import { useAppStore } from '../../stores/useAppStore';
+
+// 러닝플레이스 카드 컴포넌트 (불필요한 기능 제거)
+const RunningPlaceCard = ({ place, onCardClick }) => {
+  // 난이도별 정보
+  const getDifficultyInfo = level => {
+    const difficultyMap = {
+      1: { label: '초급', color: 'bg-green-100 text-green-700', emoji: '🚶‍♀️' },
+      2: { label: '초중급', color: 'bg-blue-100 text-blue-700', emoji: '🏃‍♀️' },
+      3: { label: '중급', color: 'bg-yellow-100 text-yellow-700', emoji: '🏃‍♂️' },
+      4: {
+        label: '중고급',
+        color: 'bg-orange-100 text-orange-700',
+        emoji: '🏃‍♀️💨',
+      },
+      5: { label: '고급', color: 'bg-red-100 text-red-700', emoji: '🏃‍♂️💨' },
+    };
+    return difficultyMap[level] || difficultyMap[1];
+  };
+
+  // 장소 타입별 아이콘
+  const getPlaceTypeIcon = type => {
+    const typeMap = {
+      park: '🌳',
+      trail: '🛤️',
+      track: '🏟️',
+      riverside: '🌊',
+      mountain: '⛰️',
+    };
+    return typeMap[type] || '🏃‍♀️';
+  };
+
+  const difficultyInfo = getDifficultyInfo(
+    place.difficultyLevel || place.difficulty_level
+  );
+  const placeIcon = getPlaceTypeIcon(place.placeType || place.place_type);
+
+  return (
+    <div
+      className="bg-white hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+      onClick={() => onCardClick && onCardClick(place)}
+    >
+      <div className="p-4">
+        <div className="flex space-x-3">
+          {/* 이미지 */}
+          <div className="flex-shrink-0">
+            <div className="w-16 h-16 bg-gradient-to-br from-cyan-50 to-purple-50 rounded-lg overflow-hidden">
+              {place.imageUrls && place.imageUrls[0] ? (
+                <img
+                  src={place.imageUrls[0]}
+                  alt={place.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl">
+                  {placeIcon}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 정보 */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="text-sm font-bold text-gray-900 truncate pr-2">
+                {place.name}
+              </h3>
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                <span className="text-yellow-500 text-xs">⭐</span>
+                <span className="text-xs font-bold text-gray-800">
+                  {place.rating || '4.5'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 mb-2">
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-medium ${difficultyInfo.color}`}
+              >
+                {difficultyInfo.emoji} {difficultyInfo.label}
+              </span>
+              {place.distance && (
+                <span className="text-xs text-cyan-600 font-medium">
+                  📏 {place.distance.toFixed(1)}km
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-500 line-clamp-1">
+              {place.address || '주소 정보 없음'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /**
  * 하단 스크롤 바텀시트 컴포넌트
- * 드래그 가능한 바텀시트와 카페 목록
+ * 드래그 가능한 바텀시트와 러닝플레이스 목록
  */
 const BottomSheet = ({
-  cafes = [],
   userLocation,
   isOpen = true,
   onClose,
-  onCafeSelect,
-  onRouteClick,
-  onCallClick,
-  onSaveClick,
-  onShareClick,
+  onPlaceSelect,
   selectedFilters = [],
   searchRadius = 5,
 }) => {
@@ -28,136 +118,116 @@ const BottomSheet = ({
   const [activeTab, setActiveTab] = useState('nearby');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [nearbyCarfes, setNearbyCafes] = useState([]);
-  const [savedCafes, setSavedCafes] = useState([]);
+  const [nearbyPlaces, setNearbyPlaces] = useState([]);
+  const [savedPlaces, setSavedPlaces] = useState([]);
 
   const sheetRef = useRef(null);
   const handleRef = useRef(null);
   const { showToast } = useAppStore();
 
-  // 사용자 위치 기반 카페 검색
+  // 사용자 위치 기반 러닝플레이스 검색
   useEffect(() => {
     if (userLocation && activeTab === 'nearby') {
-      fetchNearbyCafes();
+      fetchNearbyPlaces();
     }
   }, [userLocation, searchRadius, selectedFilters, activeTab]);
 
-  // 저장된 카페 목록 로드
+  // 저장된 러닝플레이스 목록 로드
   useEffect(() => {
     if (activeTab === 'favorites') {
-      loadSavedCafes();
+      loadSavedPlaces();
     }
   }, [activeTab]);
 
-  const fetchNearbyCafes = async () => {
+  // 두 지점 간의 거리 계산 (하버사인 공식)
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371; // 지구의 반지름 (km)
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const fetchNearbyPlaces = async () => {
     if (!userLocation) return;
 
     setIsLoading(true);
     try {
-      const cafes = await searchNearbyCafesWithNaver(
-        userLocation.lat,
-        userLocation.lng,
-        searchRadius * 1000, // km를 m로 변환
-        '카페'
+      const allPlaces = await getAllRunningPlaces();
+
+      // 거리 계산 및 반경 내 필터링
+      const placesWithDistance = allPlaces.map(place => ({
+        ...place,
+        distance: calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          place.coordinates.lat,
+          place.coordinates.lng
+        ),
+      }));
+
+      // 반경 내 러닝플레이스만 필터링
+      const nearbyFiltered = placesWithDistance.filter(
+        place => place.distance <= searchRadius
       );
 
-      // 필터 적용
-      const filteredCafes = applyFilters(cafes);
-      setNearbyCafes(filteredCafes);
+      // 거리순 정렬 (이미지 필터링 제거)
+      const sorted = nearbyFiltered.sort((a, b) => a.distance - b.distance);
+
+      setNearbyPlaces(sorted);
     } catch (error) {
-      console.error('카페 검색 실패:', error);
-      // 실패 시 샘플 데이터 사용
-      setNearbyCafes(getSampleCafes());
+      console.error('주변 러닝플레이스 검색 실패:', error);
+      showToast('주변 러닝플레이스를 불러오는데 실패했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadSavedCafes = () => {
-    // 로컬 스토리지에서 저장된 카페 목록 로드
+  const loadSavedPlaces = () => {
+    // 로컬 스토리지에서 저장된 러닝플레이스 목록 로드
     try {
-      const saved = localStorage.getItem('savedCafes');
+      const saved = localStorage.getItem('savedRunningPlaces');
       if (saved) {
-        setSavedCafes(JSON.parse(saved));
+        setSavedPlaces(JSON.parse(saved));
       }
     } catch (error) {
-      console.error('저장된 카페 로드 실패:', error);
+      console.error('저장된 러닝플레이스 로드 실패:', error);
     }
   };
 
-  const applyFilters = cafes => {
-    return cafes.filter(cafe => {
-      // 검색어 필터
+  // 현재 표시할 러닝플레이스 목록 결정
+  const getCurrentPlaces = () => {
+    if (activeTab === 'favorites') {
+      return savedPlaces.filter(place => {
+        if (
+          searchQuery &&
+          !place.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // 주변 탭에서는 검색어 필터링
+    return nearbyPlaces.filter(place => {
       if (
         searchQuery &&
-        !cafe.name.toLowerCase().includes(searchQuery.toLowerCase())
+        !place.name.toLowerCase().includes(searchQuery.toLowerCase())
       ) {
         return false;
       }
-
-      // 선택된 필터 적용
-      if (selectedFilters.includes('open') && !cafe.isOpen) {
-        return false;
-      }
-
-      if (
-        selectedFilters.includes('runner-friendly') &&
-        !cafe.tags?.some(
-          tag =>
-            tag.includes('러너') || tag.includes('러닝') || tag.includes('운동')
-        )
-      ) {
-        return false;
-      }
-
       return true;
     });
   };
 
-  const getSampleCafes = () => [
-    {
-      id: 'sample_1',
-      name: '러닝 후 힐링 카페',
-      rating: 4.8,
-      reviewCount: 24,
-      distance: '0.3km',
-      district: '한남동',
-      isOpen: true,
-      closeTime: '22:00',
-      phone: '02-1234-5678',
-      tags: ['러닝 후 추천', '테라스 있음', 'WiFi 무료'],
-      isSaved: false,
-      coordinates: { lat: 37.5665, lng: 126.978 },
-    },
-    {
-      id: 'sample_2',
-      name: '한강뷰 카페',
-      rating: 4.6,
-      reviewCount: 18,
-      distance: '0.5km',
-      district: '용산구',
-      isOpen: true,
-      closeTime: '21:00',
-      phone: '02-2345-6789',
-      tags: ['한강뷰', '러너 할인', '샤워실 근처'],
-      isSaved: true,
-      coordinates: { lat: 37.5665, lng: 126.979 },
-    },
-    {
-      id: 'sample_3',
-      name: '올림픽공원 카페',
-      rating: 4.9,
-      reviewCount: 32,
-      distance: '0.8km',
-      district: '송파구',
-      isOpen: false,
-      openTime: '07:00',
-      phone: '02-3456-7890',
-      tags: ['아침 일찍 오픈', '건강 메뉴', '러닝 용품 판매'],
-      isSaved: false,
-      coordinates: { lat: 37.5665, lng: 126.977 },
-    },
-  ];
+  const filteredPlaces = getCurrentPlaces();
 
   const getSheetStyles = () => {
     switch (sheetHeight) {
@@ -268,50 +338,6 @@ const BottomSheet = ({
     };
   }, [isDragging, dragStartY]);
 
-  // 현재 표시할 카페 목록 결정
-  const getCurrentCafes = () => {
-    if (activeTab === 'favorites') {
-      return savedCafes;
-    }
-
-    // 실제 데이터가 있으면 사용, 없으면 샘플 데이터
-    const cafesToUse =
-      nearbyCarfes.length > 0 ? nearbyCarfes : getSampleCafes();
-
-    // 검색어 및 필터 적용
-    return applyFilters(cafesToUse);
-  };
-
-  const filteredCafes = getCurrentCafes();
-
-  // 카페 저장/해제 핸들러
-  const handleSaveToggle = (cafeId, isSaved) => {
-    try {
-      const savedList = JSON.parse(localStorage.getItem('savedCafes') || '[]');
-
-      if (isSaved) {
-        // 저장
-        const cafeToSave = filteredCafes.find(cafe => cafe.id === cafeId);
-        if (cafeToSave && !savedList.find(c => c.id === cafeId)) {
-          savedList.push({ ...cafeToSave, isSaved: true });
-          localStorage.setItem('savedCafes', JSON.stringify(savedList));
-          setSavedCafes(savedList);
-        }
-      } else {
-        // 제거
-        const updatedList = savedList.filter(cafe => cafe.id !== cafeId);
-        localStorage.setItem('savedCafes', JSON.stringify(updatedList));
-        setSavedCafes(updatedList);
-      }
-
-      if (onSaveClick) {
-        onSaveClick(cafeId, isSaved);
-      }
-    } catch (error) {
-      console.error('카페 저장 실패:', error);
-    }
-  };
-
   // 검색어 변경 핸들러
   const handleSearchChange = e => {
     setSearchQuery(e.target.value);
@@ -350,8 +376,8 @@ const BottomSheet = ({
         <FilterTabs
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          nearbyCount={nearbyCarfes.length || getSampleCafes().length}
-          favoritesCount={savedCafes.length}
+          nearbyCount={nearbyPlaces.length}
+          favoritesCount={savedPlaces.length}
           searchRadius={searchRadius}
         />
 
@@ -365,7 +391,7 @@ const BottomSheet = ({
               />
               <input
                 type="text"
-                placeholder="카페 이름으로 검색..."
+                placeholder="러닝 플레이스 이름으로 검색..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
@@ -382,14 +408,16 @@ const BottomSheet = ({
           </div>
         )}
 
-        {/* 카페 목록 - 네이버 지도 스타일 스크롤 */}
+        {/* 러닝플레이스 목록 - 네이버 지도 스타일 스크롤 */}
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500 mb-4"></div>
-              <p className="text-gray-500 text-sm">주변 카페를 찾는 중...</p>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500 mb-4"></div>
+              <p className="text-gray-500 text-sm">
+                주변 러닝플레이스를 찾는 중...
+              </p>
             </div>
-          ) : filteredCafes.length > 0 ? (
+          ) : filteredPlaces.length > 0 ? (
             <div
               className="h-full overflow-y-auto"
               style={{
@@ -420,19 +448,14 @@ const BottomSheet = ({
                 }
               `}</style>
               <div className="space-y-0">
-                {filteredCafes.map((cafe, index) => (
-                  <div key={cafe.id} className="relative">
-                    <CafeCard
-                      cafe={cafe}
-                      onCardClick={onCafeSelect}
-                      onRouteClick={onRouteClick}
-                      onCallClick={onCallClick}
-                      onSaveClick={handleSaveToggle}
-                      onShareClick={onShareClick}
-                      isSaved={savedCafes.some(saved => saved.id === cafe.id)}
+                {filteredPlaces.map((place, index) => (
+                  <div key={place.id} className="relative">
+                    <RunningPlaceCard
+                      place={place}
+                      onCardClick={onPlaceSelect}
                     />
                     {/* 구분선 (마지막 항목 제외) */}
-                    {index < filteredCafes.length - 1 && (
+                    {index < filteredPlaces.length - 1 && (
                       <div className="border-b border-gray-100/70"></div>
                     )}
                   </div>
@@ -445,26 +468,26 @@ const BottomSheet = ({
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
               <div className="text-6xl mb-4">
-                {searchQuery ? '🔍' : activeTab === 'favorites' ? '⭐' : '☕'}
+                {searchQuery ? '🔍' : activeTab === 'favorites' ? '⭐' : '🏃‍♀️'}
               </div>
               <p className="text-lg font-medium mb-2">
                 {searchQuery
                   ? `'${searchQuery}' 검색 결과가 없습니다`
                   : activeTab === 'favorites'
-                    ? '즐겨찾기한 카페가 없습니다'
-                    : '주변에 카페가 없습니다'}
+                    ? '즐겨찾기한 러닝플레이스가 없습니다'
+                    : '주변에 러닝플레이스가 없습니다'}
               </p>
               <p className="text-sm text-center px-8 text-gray-400">
                 {searchQuery
                   ? '다른 검색어를 시도해보세요'
                   : activeTab === 'favorites'
-                    ? '마음에 드는 카페를 저장해보세요'
-                    : '다른 지역을 검색해보세요'}
+                    ? '마음에 드는 러닝플레이스를 저장해보세요'
+                    : '다른 지역을 검색하거나 반경을 늘려보세요'}
               </p>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                  className="mt-3 px-4 py-2 bg-cyan-500 text-white text-sm rounded-lg hover:bg-cyan-600 transition-colors"
                 >
                   검색어 지우기
                 </button>

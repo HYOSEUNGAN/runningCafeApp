@@ -23,7 +23,7 @@ const FilterTabs = ({
   const tabs = [
     {
       id: 'nearby',
-      label: `주변 ${selectedRadius}km`,
+      label: `주변 `,
       icon: '📍',
       count: nearbyCount,
     },
@@ -37,16 +37,16 @@ const FilterTabs = ({
 
   // 카테고리 필터 (모바일 최적화)
   const categoryFilters = [
-    { id: 'open', label: '영업중', icon: '🟢' },
-    { id: 'runner-friendly', label: '러너친화', icon: '🏃‍♀️' },
-    { id: 'partnership', label: '제휴카페', icon: '🤝' },
+    // { id: 'open', label: '영업중', icon: '🟢' },
+    // { id: 'runner-friendly', label: '러너친화', icon: '🏃‍♀️' },
+    // { id: 'partnership', label: '제휴카페', icon: '🤝' },
   ];
 
   // 거리 필터 (모바일 최적화)
   const radiusOptions = [
-    { value: 3, label: '3km' },
-    { value: 5, label: '5km' },
-    { value: 10, label: '10km' },
+    // { value: 3, label: '3km' },
+    // { value: 5, label: '5km' },
+    // { value: 10, label: '10km' },
   ];
 
   const handleTabClick = tabId => {
