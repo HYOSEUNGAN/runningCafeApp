@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateRunningMapImage } from '../../services/mapImageService';
 import { formatTime, calculatePace } from '../../utils/format';
+import {
+  captureRunningPhoto,
+  OVERLAY_TEMPLATES,
+} from '../../utils/photoOverlay';
+import { createFeedPost } from '../../services/feedService';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { useAppStore } from '../../stores/useAppStore';
 import '../../styles/running-completion.css';
 
 /**
@@ -19,7 +26,14 @@ const RunningCompletionScreen = ({
   const [mapImageUrl, setMapImageUrl] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
+  const [showInstantPhoto, setShowInstantPhoto] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('ACHIEVEMENT');
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
   const confettiRef = useRef(null);
+
+  // 스토어
+  const { getUserId } = useAuthStore();
+  const { showToast } = useAppStore();
 
   const {
     distance = 0,
@@ -177,6 +191,92 @@ const RunningCompletionScreen = ({
     } catch (error) {
       console.log('사운드 재생 실패:', error);
     }
+  };
+
+  // 즉시 인증샷 촬영
+  const handleInstantPhotoCapture = async () => {
+    try {
+      setIsCapturingPhoto(true);
+
+      // 러닝 데이터 준비
+      const runningPhotoData = {
+        distance: distance,
+        duration: duration,
+        pace: calculatePace(distance / 1000, duration / 1000),
+        calories: calories,
+        date: new Date(),
+      };
+
+      // 템플릿 옵션
+      const templateOptions = {
+        template: selectedTemplate,
+        showCelebration: true,
+        customText:
+          achievements.length > 0 ? achievements[0].title : '목표 달성!',
+      };
+
+      // 인증샷 촬영
+      const photoBlob = await captureRunningPhoto(
+        runningPhotoData,
+        templateOptions
+      );
+
+      if (photoBlob) {
+        // 바로 피드에 공유
+        const photoFile = new File(
+          [photoBlob],
+          `running-achievement-${Date.now()}.jpg`,
+          {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          }
+        );
+
+        const postData = {
+          user_id: getUserId(),
+          running_record_id: null, // 러닝 기록 ID가 있다면 추가
+          caption: `🎉 러닝 완주! ${(distance / 1000).toFixed(1)}km 달성! 💪\n\n시간: ${formatTime(duration)}\n페이스: ${calculatePace(distance / 1000, duration / 1000)}\n칼로리: ${calories}kcal\n\n#러닝완주 #목표달성 #RunningCafe`,
+          images: [photoFile],
+          hashtags: ['러닝완주', '목표달성', 'RunningCafe'],
+          is_achievement: true,
+        };
+
+        const result = await createFeedPost(postData);
+
+        if (result.success) {
+          showToast({
+            type: 'success',
+            message: '🎊 인증샷이 피드에 공유되었습니다!',
+          });
+
+          // 완료 화면 닫기
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+        } else {
+          throw new Error(result.error);
+        }
+      }
+    } catch (error) {
+      console.error('즉시 인증샷 촬영 실패:', error);
+      showToast({
+        type: 'error',
+        message: '인증샷 촬영에 실패했습니다. 다시 시도해주세요.',
+      });
+    } finally {
+      setIsCapturingPhoto(false);
+    }
+  };
+
+  // 템플릿 표시 이름 가져오기
+  const getTemplateDisplayName = templateKey => {
+    const names = {
+      STRAVA_CLASSIC: '스트라바 클래식',
+      NIKE_RUN: '나이키 런',
+      MINIMAL: '미니멀',
+      ACHIEVEMENT: '달성 축하',
+    };
+    return names[templateKey] || templateKey;
   };
 
   const calculatePaceInMinutes = (distance, duration) => {
@@ -405,6 +505,26 @@ const RunningCompletionScreen = ({
                   : 'opacity-0 translate-y-8'
               }`}
             >
+              {/* 즉시 인증샷 촬영 버튼 */}
+              <button
+                onClick={handleInstantPhotoCapture}
+                disabled={isCapturingPhoto}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 transform hover:scale-102 active:scale-98 shadow-2xl border-2 border-yellow-300"
+              >
+                {isCapturingPhoto ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>인증샷 생성 중...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-2xl">📸</span>
+                    <span>즉시 인증샷 공유하기</span>
+                    <span className="text-lg">🏆</span>
+                  </div>
+                )}
+              </button>
+
               <button
                 onClick={onShare}
                 className="w-full bg-white/20 backdrop-blur-lg text-white font-semibold py-4 px-6 rounded-2xl border border-white/30 hover:bg-white/30 transition-all duration-200 transform hover:scale-102 active:scale-98"

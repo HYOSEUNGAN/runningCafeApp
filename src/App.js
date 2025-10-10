@@ -5,6 +5,7 @@ import AppRoutes from './components/AppRoutes';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import Toast from './components/common/Toast';
 import Modal from './components/common/Modal';
+import UpdateNotification from './components/common/UpdateNotification';
 import IntroPage from './pages/IntroPage';
 import { setupSampleDataHelper } from './utils/sampleData';
 import { setupSampleDataHelper as setupRunningDataHelper } from './utils/sampleRunningData';
@@ -69,6 +70,7 @@ function AppContent() {
       {/* 전역 컴포넌트들 */}
       <Toast />
       <Modal />
+      <UpdateNotification />
     </div>
   );
 }

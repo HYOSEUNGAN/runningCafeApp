@@ -608,6 +608,166 @@ export const searchPostsByHashtag = async (hashtag, options = {}) => {
 };
 
 /**
+ * 특정 장소와 관련된 피드 포스트 검색
+ * @param {string} placeType - 장소 타입 ('cafe' | 'running_place')
+ * @param {number} placeId - 장소 ID
+ * @param {string} placeName - 장소 이름 (해시태그 검색용)
+ * @param {Object} options - 조회 옵션
+ * @returns {Promise<Object>} 검색된 포스트 목록
+ */
+export const getPlaceRelatedFeeds = async (
+  placeType,
+  placeId,
+  placeName,
+  options = {}
+) => {
+  try {
+    const { limit = 20, offset = 0 } = options;
+
+    if (!placeType || !placeId || !placeName) {
+      throw new Error('필수 파라미터가 누락되었습니다.');
+    }
+
+    // 1. place_feed_posts 테이블에서 직접 연결된 포스트 검색
+    const { data: directPosts, error: directError } = await supabase
+      .from('place_feed_posts')
+      .select(
+        `
+        feed_posts:feed_post_id (
+          *,
+          profiles:user_id (
+            username,
+            display_name,
+            avatar_url
+          ),
+          running_records:running_record_id (
+            distance,
+            duration,
+            pace,
+            calories_burned,
+            title
+          )
+        )
+      `
+      )
+      .eq('place_type', placeType)
+      .eq('place_id', placeId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (directError) {
+      console.error('직접 연결된 피드 검색 실패:', directError);
+    }
+
+    // 2. 장소 이름을 해시태그로 포함한 포스트 검색
+    const placeHashtags = [
+      placeName,
+      placeName.replace(/\s+/g, ''), // 공백 제거
+      `${placeName}러닝`,
+      `${placeName}달리기`,
+    ];
+
+    const hashtagPromises = placeHashtags.map(hashtag =>
+      supabase
+        .from('feed_posts')
+        .select(
+          `
+          *,
+          profiles:user_id (
+            username,
+            display_name,
+            avatar_url
+          ),
+          running_records:running_record_id (
+            distance,
+            duration,
+            pace,
+            calories_burned,
+            title
+          )
+        `
+        )
+        .or(placeHashtags.map(tag => `hashtags.cs.{${tag}}`).join(','))
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1)
+    );
+
+    const hashtagResults = await Promise.allSettled(hashtagPromises);
+
+    // 3. 위치 정보로 검색 (location 필드에 장소명이 포함된 경우)
+    const { data: locationPosts, error: locationError } = await supabase
+      .from('feed_posts')
+      .select(
+        `
+        *,
+        profiles:user_id (
+          username,
+          display_name,
+          avatar_url
+        ),
+        running_records:running_record_id (
+          distance,
+          duration,
+          pace,
+          calories_burned,
+          title
+        )
+      `
+      )
+      .ilike('location', `%${placeName}%`)
+      .order('created_at', { ascending: false })
+      .range(0, limit - 1);
+
+    if (locationError) {
+      console.error('위치 기반 피드 검색 실패:', locationError);
+    }
+
+    // 결과 합치기 및 중복 제거
+    const allPosts = [];
+
+    // 직접 연결된 포스트 추가
+    if (directPosts) {
+      directPosts.forEach(item => {
+        if (item.feed_posts) {
+          allPosts.push(item.feed_posts);
+        }
+      });
+    }
+
+    // 해시태그 검색 결과 추가
+    hashtagResults.forEach(result => {
+      if (result.status === 'fulfilled' && result.value.data) {
+        result.value.data.forEach(post => {
+          if (!allPosts.find(p => p.id === post.id)) {
+            allPosts.push(post);
+          }
+        });
+      }
+    });
+
+    // 위치 기반 검색 결과 추가
+    if (locationPosts) {
+      locationPosts.forEach(post => {
+        if (!allPosts.find(p => p.id === post.id)) {
+          allPosts.push(post);
+        }
+      });
+    }
+
+    // 생성일 기준으로 정렬
+    allPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // 제한된 개수만 반환
+    const limitedPosts = allPosts.slice(offset, offset + limit);
+
+    return { success: true, data: limitedPosts };
+  } catch (error) {
+    console.error('장소 관련 피드 검색 중 오류:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * 포스트의 좋아요와 댓글 수를 실제 데이터베이스에서 재계산하여 동기화
  * @param {string} postId - 포스트 ID
  * @returns {Promise<Object>} 동기화 결과

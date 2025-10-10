@@ -5,6 +5,7 @@ import {
   getAllRunningPlaces,
   getNearbyRunningPlaces,
 } from '../../services/runningPlaceService';
+import RunningPlaceDetailModal from './RunningPlaceDetailModal';
 
 /**
  * 메인 지도 컨테이너 컴포넌트
@@ -28,7 +29,10 @@ const MapContainer = ({
   const naverMapRef = useRef(null);
   const markersRef = useRef([]);
   const circleRef = useRef(null);
+  const polylinesRef = useRef([]);
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const [selectedRunningPlace, setSelectedRunningPlace] = useState(null);
+  const [showRunningPlaceDetail, setShowRunningPlaceDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -291,9 +295,69 @@ const MapContainer = ({
   // 마커 클릭 핸들러
   const handleMarkerClick = (type, item) => {
     setSelectedMarker({ type, item });
+
+    // 러닝 플레이스 클릭 시 폴리라인 표시 및 상세 모달 열기
+    if (type === 'running_place') {
+      setSelectedRunningPlace(item);
+      showRunningPlacePolyline(item);
+      setShowRunningPlaceDetail(true);
+    } else {
+      // 다른 마커 클릭 시 폴리라인 숨기기
+      hideAllPolylines();
+      setSelectedRunningPlace(null);
+      setShowRunningPlaceDetail(false);
+    }
+
     if (onMarkerClick) {
       onMarkerClick(type, item);
     }
+  };
+
+  // 폴리라인 표시 함수
+  const showRunningPlacePolyline = place => {
+    if (!naverMapRef.current || !place.coordinates) return;
+
+    // 기존 폴리라인 제거
+    hideAllPolylines();
+
+    // 샘플 폴리라인 경로 생성 (실제로는 DB에서 가져와야 함)
+    const samplePath = generateSamplePath(
+      place.coordinates,
+      place.distanceKm || 2
+    );
+
+    const polyline = new window.naver.maps.Polyline({
+      map: naverMapRef.current,
+      path: samplePath,
+      strokeColor: place.color || '#8B5CF6',
+      strokeWeight: 4,
+      strokeOpacity: 0.8,
+      strokeStyle: 'solid',
+    });
+
+    polylinesRef.current.push(polyline);
+  };
+
+  // 모든 폴리라인 숨기기
+  const hideAllPolylines = () => {
+    polylinesRef.current.forEach(polyline => polyline.setMap(null));
+    polylinesRef.current = [];
+  };
+
+  // 샘플 폴리라인 경로 생성 함수
+  const generateSamplePath = (center, distanceKm = 2) => {
+    const path = [];
+    const numPoints = 20;
+    const radius = (distanceKm / 2) * 0.01; // 대략적인 반경 계산
+
+    for (let i = 0; i <= numPoints; i++) {
+      const angle = (i / numPoints) * 2 * Math.PI;
+      const lat = center.lat + radius * Math.cos(angle) * 0.8;
+      const lng = center.lng + radius * Math.sin(angle);
+      path.push(new window.naver.maps.LatLng(lat, lng));
+    }
+
+    return path;
   };
 
   // 검색 반경 원형 영역 생성 함수
@@ -730,6 +794,104 @@ const MapContainer = ({
     [handleMarkerClick]
   );
 
+  // 러닝 플레이스 마커 생성 함수
+  const createRunningPlaceMarker = useCallback(
+    place => {
+      const marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(
+          place.coordinates.lat,
+          place.coordinates.lng
+        ),
+        map: naverMapRef.current,
+        title: place.name,
+        icon: {
+          content: `
+            <div style="
+              width: 40px; 
+              height: 40px; 
+              background: ${place.color || '#8B5CF6'}; 
+              border: 3px solid white;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              transition: transform 0.2s ease, box-shadow 0.2s ease;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.2)'" 
+               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <path d="M13.5 5.5C13.5 6.32843 12.8284 7 12 7C11.1716 7 10.5 6.32843 10.5 5.5C10.5 4.67157 11.1716 4 12 4C12.8284 4 13.5 4.67157 13.5 5.5Z"/>
+                <path d="M8.5 12C8.5 11.1716 9.17157 10.5 10 10.5H14C14.8284 10.5 15.5 11.1716 15.5 12V19C15.5 19.8284 14.8284 20.5 14 20.5H10C9.17157 20.5 8.5 19.8284 8.5 19V12Z"/>
+                <path d="M10 8.5C9.17157 8.5 8.5 9.17157 8.5 10C8.5 10.8284 9.17157 11.5 10 11.5H14C14.8284 11.5 15.5 10.8284 15.5 10C15.5 9.17157 14.8284 8.5 14 8.5H10Z"/>
+              </svg>
+            </div>
+          `,
+          anchor: new window.naver.maps.Point(20, 20),
+        },
+      });
+
+      // 마커 클릭 이벤트
+      window.naver.maps.Event.addListener(marker, 'click', () => {
+        handleMarkerClick('running_place', place);
+      });
+
+      // 정보 창 생성
+      const infoWindow = new window.naver.maps.InfoWindow({
+        content: `
+          <div style="
+            padding: 12px; 
+            min-width: 200px; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          ">
+            <div style="font-weight: 600; font-size: 14px; color: #1f2937; margin-bottom: 8px;">
+              🏃‍♂️ ${place.name}
+            </div>
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+              📍 ${place.address || '주소 정보 없음'}
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="
+                background: ${place.color || '#8B5CF6'}; 
+                color: white; 
+                padding: 2px 6px; 
+                border-radius: 4px; 
+                font-size: 10px; 
+                font-weight: 500;
+              ">
+                ${place.difficulty || '보통'}
+              </span>
+              <span style="font-size: 12px; color: #6b7280;">
+                ${place.distance || '거리 정보 없음'}
+              </span>
+            </div>
+            <div style="font-size: 11px; color: #9ca3af;">
+              클릭하면 러닝 코스를 확인할 수 있습니다
+            </div>
+          </div>
+        `,
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+        anchorSize: new window.naver.maps.Size(0, 0),
+      });
+
+      // 마커 호버 이벤트
+      window.naver.maps.Event.addListener(marker, 'mouseover', () => {
+        infoWindow.open(naverMapRef.current, marker);
+      });
+
+      window.naver.maps.Event.addListener(marker, 'mouseout', () => {
+        infoWindow.close();
+      });
+
+      markersRef.current.push(marker);
+    },
+    [handleMarkerClick]
+  );
+
   // 마커 생성 및 관리
   const createMarkers = useCallback(() => {
     if (!naverMapRef.current || !mapReady) return;
@@ -737,6 +899,9 @@ const MapContainer = ({
     // 기존 마커 제거
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+
+    // 기존 폴리라인 제거
+    hideAllPolylines();
 
     // 검색 반경 원형 영역 생성
     createSearchRadiusCircle();
@@ -893,7 +1058,7 @@ const MapContainer = ({
             actualItem.difficulty !== undefined
           ) {
             // 러닝 플레이스 마커
-            createRunningCourseMarker(actualItem);
+            createRunningPlaceMarker(actualItem);
           }
         }
       });
@@ -902,13 +1067,15 @@ const MapContainer = ({
     mapReady,
     userLocation,
     displayCafes,
+    displayRunningPlaces,
     currentZoom,
     clusterMarkers,
     createRegionMarkers,
     handleMarkerClick,
     createCafeMarker,
-    createRunningCourseMarker,
+    createRunningPlaceMarker,
     createSearchRadiusCircle,
+    hideAllPolylines,
   ]);
 
   // 지도 초기화 useEffect
@@ -938,7 +1105,7 @@ const MapContainer = ({
   // 마커 생성 useEffect
   useEffect(() => {
     createMarkers();
-  }, [createMarkers, displayCafes]);
+  }, [createMarkers, displayCafes, displayRunningPlaces]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -946,6 +1113,10 @@ const MapContainer = ({
       // 마커 정리
       markersRef.current.forEach(marker => marker.setMap(null));
       markersRef.current = [];
+
+      // 폴리라인 정리
+      polylinesRef.current.forEach(polyline => polyline.setMap(null));
+      polylinesRef.current = [];
 
       // 원형 영역 정리
       if (circleRef.current) {
@@ -1083,6 +1254,18 @@ const MapContainer = ({
           </div>
         </div>
       )}
+
+      {/* 러닝 플레이스 상세 모달 */}
+      <RunningPlaceDetailModal
+        isOpen={showRunningPlaceDetail}
+        onClose={() => {
+          setShowRunningPlaceDetail(false);
+          hideAllPolylines();
+          setSelectedRunningPlace(null);
+        }}
+        place={selectedRunningPlace}
+        placeId={selectedRunningPlace?.id}
+      />
     </div>
   );
 };

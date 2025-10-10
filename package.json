@@ -36,8 +36,8 @@
     "zustand": "^5.0.8"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "REACT_APP_VERSION=$npm_package_version react-scripts start",
+    "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "setup": "npm install && echo '✅ 의존성 설치가 완료되었습니다!' && echo '📝 .env 파일을 수동으로 생성해주세요.' && echo '💡 자세한 설정 방법은 README.md를 참고하세요.'",

@@ -19,12 +19,22 @@ import {
 import { createRunningRecordMapImage } from '../../services/mapImageService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
+import {
+  createRunningPhotoOverlay,
+  createTemplatedOverlay,
+  OVERLAY_TEMPLATES,
+} from '../../utils/photoOverlay';
 
 /**
  * 피드 포스트 작성 모달 컴포넌트
  * 이미지 업로드, 캡션 작성, 해시태그 추가 기능을 제공합니다.
  */
-const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
+const CreatePostModal = ({
+  isOpen,
+  onClose,
+  runningRecord = null,
+  mode = 'normal',
+}) => {
   // 상태 관리
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState([]);
@@ -36,6 +46,9 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
   const [facingMode, setFacingMode] = useState('environment'); // 'user' or 'environment'
+  const [selectedTemplate, setSelectedTemplate] = useState('STRAVA_CLASSIC');
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [previewOverlay, setPreviewOverlay] = useState(null);
 
   // 스토어
   const { user, getUserId } = useAuthStore();
@@ -47,35 +60,45 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // 러닝 기록이 있는 경우 초기 캡션 설정 및 지도 이미지 생성
+  // 모달이 열릴 때 초기화 및 카메라 모드 처리
   useEffect(() => {
-    if (runningRecord && isOpen) {
-      const distance = (runningRecord.distance / 1000).toFixed(1);
-      const duration = formatRunningTime(runningRecord.duration);
-      const pace = calculatePace(
-        runningRecord.distance,
-        runningRecord.duration
-      );
-
-      const autoCaption = `오늘 ${distance}km 러닝 완주! 🏃‍♀️\n시간: ${duration}\n페이스: ${pace}\n\n#러닝 #운동 #건강 #러닝기록 #RunningCafe`;
-      setCaption(autoCaption);
-      setHashtags(['러닝', '운동', '건강', '러닝기록', 'RunningCafe']);
-
-      if (runningRecord.location) {
-        setLocation(runningRecord.location);
+    if (isOpen) {
+      // 카메라 모드면 자동으로 카메라 시작
+      if (mode === 'camera') {
+        setTimeout(() => {
+          startCamera();
+        }, 300);
       }
 
-      // 러닝 경로가 있으면 지도 이미지 자동 생성
-      if (runningRecord.path && runningRecord.path.length > 0) {
-        generateMapImage();
+      // 러닝 기록이 있는 경우 초기 캡션 설정 및 지도 이미지 생성
+      if (runningRecord) {
+        const distance = (runningRecord.distance / 1000).toFixed(1);
+        const duration = formatRunningTime(runningRecord.duration);
+        const pace = calculatePace(
+          runningRecord.distance,
+          runningRecord.duration
+        );
+
+        const autoCaption = `오늘 ${distance}km 러닝 완주! 🏃‍♀️\n시간: ${duration}\n페이스: ${pace}\n\n#러닝 #운동 #건강 #러닝기록 #RunningCafe`;
+        setCaption(autoCaption);
+        setHashtags(['러닝', '운동', '건강', '러닝기록', 'RunningCafe']);
+
+        if (runningRecord.location) {
+          setLocation(runningRecord.location);
+        }
+
+        // 러닝 경로가 있으면 지도 이미지 자동 생성
+        if (runningRecord.path && runningRecord.path.length > 0) {
+          generateMapImage();
+        }
+      } else if (!runningRecord) {
+        // 수기 작성의 경우 빈 상태로 시작
+        setCaption('');
+        setHashtags([]);
+        setLocation('');
       }
-    } else if (!runningRecord && isOpen) {
-      // 수기 작성의 경우 빈 상태로 시작
-      setCaption('');
-      setHashtags([]);
-      setLocation('');
     }
-  }, [runningRecord, isOpen]);
+  }, [runningRecord, isOpen, mode]);
 
   // 러닝 기록용 지도 이미지 생성
   const generateMapImage = async () => {
@@ -161,6 +184,12 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
   // 카메라 시작
   const startCamera = async () => {
     try {
+      // 러닝 기록이 있으면 템플릿 선택 모달 먼저 표시
+      if (runningRecord && !showTemplateSelector) {
+        setShowTemplateSelector(true);
+        return;
+      }
+
       const constraints = {
         video: {
           facingMode: facingMode,
@@ -180,7 +209,9 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
 
       showToast({
         type: 'success',
-        message: '카메라가 시작되었습니다! 📸',
+        message: runningRecord
+          ? `${getTemplateDisplayName(selectedTemplate)} 스타일로 인증샷을 촬영하세요! 📸`
+          : '카메라가 시작되었습니다! 📸',
       });
     } catch (error) {
       console.error('카메라 시작 실패:', error);
@@ -199,7 +230,34 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
         type: 'error',
         message: errorMessage,
       });
+
+      // 폴백: 파일 선택으로 대체
+      if (fileInputRef.current) {
+        fileInputRef.current.setAttribute('capture', 'environment');
+        fileInputRef.current.click();
+      }
     }
+  };
+
+  // 템플릿 선택 후 카메라 시작
+  const handleTemplateSelect = templateName => {
+    setSelectedTemplate(templateName);
+    setShowTemplateSelector(false);
+    // 템플릿 선택 후 바로 카메라 시작
+    setTimeout(() => {
+      startCamera();
+    }, 100);
+  };
+
+  // 템플릿 표시 이름 가져오기
+  const getTemplateDisplayName = templateKey => {
+    const names = {
+      STRAVA_CLASSIC: '스트라바 클래식',
+      NIKE_RUN: '나이키 런',
+      MINIMAL: '미니멀',
+      ACHIEVEMENT: '달성 축하',
+    };
+    return names[templateKey] || templateKey;
   };
 
   // 카메라 정지
@@ -257,8 +315,57 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
         lastModified: Date.now(),
       });
 
+      // 러닝 기록이 있으면 오버레이 적용
+      let finalFile = file;
+      if (runningRecord) {
+        try {
+          const overlayBlob = await createTemplatedOverlay(
+            file,
+            {
+              distance: runningRecord.distance,
+              duration: runningRecord.duration,
+              pace: calculatePace(
+                runningRecord.distance,
+                runningRecord.duration
+              ),
+              calories:
+                runningRecord.calories ||
+                Math.floor((runningRecord.distance / 1000) * 60),
+              date: new Date(),
+            },
+            selectedTemplate
+          );
+
+          finalFile = new File(
+            [overlayBlob],
+            `running-photo-${timestamp}.jpg`,
+            {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            }
+          );
+
+          showToast({
+            type: 'success',
+            message: '📸 러닝 기록이 포함된 사진이 추가되었습니다!',
+          });
+        } catch (overlayError) {
+          console.error('오버레이 적용 실패:', overlayError);
+          showToast({
+            type: 'warning',
+            message:
+              '📸 사진은 추가되었지만 러닝 기록 오버레이 적용에 실패했습니다.',
+          });
+        }
+      } else {
+        showToast({
+          type: 'success',
+          message: '📸 사진이 추가되었습니다!',
+        });
+      }
+
       // 이미지 압축
-      const compressedFile = await compressImage(file);
+      const compressedFile = await compressImage(finalFile);
 
       // 미리보기 생성
       const previewUrl = createImagePreview(compressedFile);
@@ -267,16 +374,12 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
           id: Date.now(),
           url: previewUrl,
           file: compressedFile,
-          name: file.name,
+          name: finalFile.name,
+          isOverlay: !!runningRecord, // 오버레이 적용 여부 표시
         };
 
         setSelectedImages(prev => [...prev, compressedFile]);
         setImagePreviews(prev => [...prev, newPreview]);
-
-        showToast({
-          type: 'success',
-          message: '📸 사진이 추가되었습니다!',
-        });
 
         // 사진 촬영 후 카메라 종료
         stopCamera();
@@ -654,7 +757,9 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
                 disabled={isSubmitting}
               >
                 <Camera size={20} />
-                <span>📸 사진 바로 찍기</span>
+                <span>
+                  {runningRecord ? '🏃‍♀️ 러닝 인증샷 촬영' : '📸 사진 바로 찍기'}
+                </span>
               </button>
 
               {/* 갤러리에서 선택 버튼 */}
@@ -669,9 +774,102 @@ const CreatePostModal = ({ isOpen, onClose, runningRecord = null }) => {
             </div>
           )}
 
+          {/* 템플릿 선택 모달 */}
+          {showTemplateSelector && runningRecord && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    📸 인증샷 스타일 선택
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    러닝 기록과 함께 멋진 인증샷을 만들어보세요!
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {Object.entries(OVERLAY_TEMPLATES).map(([key, template]) => (
+                    <button
+                      key={key}
+                      onClick={() => handleTemplateSelect(key)}
+                      className={`p-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                        selectedTemplate === key
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-2xl mb-2">
+                          {key === 'STRAVA_CLASSIC' && '🏃‍♀️'}
+                          {key === 'NIKE_RUN' && '💪'}
+                          {key === 'MINIMAL' && '✨'}
+                          {key === 'ACHIEVEMENT' && '🏆'}
+                        </div>
+                        <div className="font-semibold">
+                          {getTemplateDisplayName(key)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {key === 'STRAVA_CLASSIC' && '클래식한 러닝 스타일'}
+                          {key === 'NIKE_RUN' && '동기부여 메시지'}
+                          {key === 'MINIMAL' && '깔끔한 미니멀'}
+                          {key === 'ACHIEVEMENT' && '달성 축하 스타일'}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowTemplateSelector(false)}
+                    className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => handleTemplateSelect(selectedTemplate)}
+                    className="flex-1 py-3 px-4 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-colors"
+                  >
+                    선택 완료
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 카메라 뷰 */}
           {showCamera && (
             <div className="space-y-3">
+              {/* 선택된 템플릿 표시 */}
+              {runningRecord && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">
+                        {selectedTemplate === 'STRAVA_CLASSIC' && '🏃‍♀️'}
+                        {selectedTemplate === 'NIKE_RUN' && '💪'}
+                        {selectedTemplate === 'MINIMAL' && '✨'}
+                        {selectedTemplate === 'ACHIEVEMENT' && '🏆'}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-purple-700">
+                          {getTemplateDisplayName(selectedTemplate)} 스타일
+                        </p>
+                        <p className="text-xs text-purple-600">
+                          러닝 기록이 자동으로 사진에 추가됩니다
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowTemplateSelector(true)}
+                      className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                    >
+                      변경
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="relative bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}

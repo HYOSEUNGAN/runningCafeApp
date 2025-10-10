@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import CommentModal from '../components/feed/CommentModal';
 import CreatePostModal from '../components/feed/CreatePostModal';
 import ImageSkeleton from '../components/common/ImageSkeleton';
+import { Camera, Plus } from 'lucide-react';
 
 const FeedPage = () => {
   const [posts, setPosts] = useState([]);
@@ -25,6 +26,7 @@ const FeedPage = () => {
   });
   const [createPostModal, setCreatePostModal] = useState({
     isOpen: false,
+    mode: 'normal', // 'normal' | 'camera'
   });
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -313,6 +315,20 @@ const FeedPage = () => {
 
     setCreatePostModal({
       isOpen: true,
+      mode: 'normal',
+    });
+  };
+
+  // 카메라 모드로 포스트 작성 모달 열기
+  const handleCreateCameraPost = () => {
+    if (!isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    setCreatePostModal({
+      isOpen: true,
+      mode: 'camera',
     });
   };
 
@@ -320,6 +336,7 @@ const FeedPage = () => {
   const handleCloseCreatePostModal = () => {
     setCreatePostModal({
       isOpen: false,
+      mode: 'normal',
     });
   };
 
@@ -766,6 +783,31 @@ const FeedPage = () => {
           </div>
         )} */}
 
+        {/* 플로팅 액션 버튼 */}
+        {isAuthenticated() && (
+          <div className="fixed bottom-20 right-4 z-40">
+            <div className="flex flex-col space-y-3">
+              {/* 카메라 버튼 */}
+              <button
+                onClick={handleCreateCameraPost}
+                className="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95"
+                aria-label="카메라로 포스트 작성"
+              >
+                <Camera size={24} />
+              </button>
+
+              {/* 일반 글쓰기 버튼 */}
+              <button
+                onClick={handleCreatePost}
+                className="w-16 h-16 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95"
+                aria-label="새 포스트 작성"
+              >
+                <Plus size={28} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 댓글 모달 */}
         <CommentModal
           isOpen={commentModal.isOpen}
@@ -777,6 +819,7 @@ const FeedPage = () => {
         <CreatePostModal
           isOpen={createPostModal.isOpen}
           onClose={handleCloseCreatePostModal}
+          mode={createPostModal.mode}
         />
       </div>
     </div>

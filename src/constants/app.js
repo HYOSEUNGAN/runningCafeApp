@@ -15,6 +15,8 @@ export const ROUTES = {
   RUNNING_START: '/running-start',
   RUNNING_START2: '/running-start2',
   CAFES: '/cafes',
+  CAFE_DETAIL: '/cafe/:id',
+  RUNNING_PLACE_DETAIL: '/running-place/:id',
   MY_RECORDS: '/records',
   FEED: '/feed',
   RECORD: '/record',

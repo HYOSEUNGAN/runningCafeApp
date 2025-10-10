@@ -3,8 +3,10 @@
  * 백그라운드에서 러닝 추적을 지속하기 위한 서비스 워커
  */
 
-const CACHE_NAME = 'running-cafe-v1';
-const RUNNING_DATA_CACHE = 'running-data-v1';
+// 버전 기반 캐시 이름 (배포시마다 변경)
+const VERSION = '1.0.1'; // 배포할 때마다 이 버전을 업데이트하세요
+const CACHE_NAME = `running-cafe-v${VERSION}`;
+const RUNNING_DATA_CACHE = `running-data-v${VERSION}`;
 
 // 캐시할 리소스 목록
 const urlsToCache = [
@@ -45,16 +47,29 @@ self.addEventListener('activate', event => {
   console.log('[SW] 서비스 워커 활성화됨');
 
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME && cacheName !== RUNNING_DATA_CACHE) {
-            console.log('[SW] 오래된 캐시 삭제:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // 모든 기존 캐시 삭제 (버전이 다른 경우)
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME && cacheName !== RUNNING_DATA_CACHE) {
+              console.log('[SW] 오래된 캐시 삭제:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // 새 버전의 서비스 워커임을 클라이언트에 알림
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_UPDATED',
+            version: VERSION,
+            message: '새 버전이 설치되었습니다. 페이지를 새로고침해주세요.',
+          });
+        });
+      }),
+    ])
   );
 
   // 모든 클라이언트에서 새 서비스 워커 제어
@@ -114,6 +129,24 @@ self.addEventListener('message', event => {
   const { type, data } = event.data;
 
   switch (type) {
+    case 'SKIP_WAITING':
+      // 새 서비스 워커로 즉시 전환
+      self.skipWaiting();
+      break;
+
+    case 'CLEAR_CACHE':
+      // 모든 캐시 강제 삭제
+      clearAllCaches();
+      break;
+
+    case 'GET_VERSION':
+      // 현재 서비스 워커 버전 반환
+      event.ports[0].postMessage({
+        type: 'VERSION_INFO',
+        version: VERSION,
+      });
+      break;
+
     case 'START_BACKGROUND_TRACKING':
       startBackgroundTracking(data);
       break;
@@ -137,6 +170,34 @@ self.addEventListener('message', event => {
       console.log('[SW] 알 수 없는 메시지 타입:', type);
   }
 });
+
+/**
+ * 모든 캐시 강제 삭제
+ */
+async function clearAllCaches() {
+  try {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames.map(cacheName => {
+        console.log('[SW] 캐시 삭제:', cacheName);
+        return caches.delete(cacheName);
+      })
+    );
+
+    // 클라이언트에게 캐시 삭제 완료 알림
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'CACHE_CLEARED',
+        message: '모든 캐시가 삭제되었습니다.',
+      });
+    });
+
+    console.log('[SW] 모든 캐시 삭제 완료');
+  } catch (error) {
+    console.error('[SW] 캐시 삭제 실패:', error);
+  }
+}
 
 /**
  * 백그라운드 러닝 추적 시작

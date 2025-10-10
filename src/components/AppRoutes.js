@@ -16,6 +16,8 @@ import LoginPage from '../pages/LoginPage';
 import AuthCallbackPage from '../pages/AuthCallbackPage';
 import FeedPage from '../pages/FeedPage';
 import RecordPage from '../pages/RecordPage';
+import CafeDetailPage from '../pages/CafeDetailPage';
+import RunningPlaceDetailPage from '../pages/RunningPlaceDetailPage';
 // import SignupPage from '../pages/SignupPage';
 // import RunningCoursesPage from '../pages/RunningCoursesPage';
 // import CafesPage from '../pages/CafesPage';
@@ -80,6 +82,11 @@ const AppRoutes = () => {
         <Route path={ROUTES.RUNNING_START} element={<RunningStartPage />} />
         <Route path={ROUTES.RUNNING_START2} element={<RunningStart2Page />} />
         <Route path={ROUTES.CAFES} element={<TempPage title="카페" />} />
+        <Route path={ROUTES.CAFE_DETAIL} element={<CafeDetailPage />} />
+        <Route
+          path={ROUTES.RUNNING_PLACE_DETAIL}
+          element={<RunningPlaceDetailPage />}
+        />
         <Route
           path={ROUTES.MY_RECORDS}
           element={<TempPage title="내 기록" />}
