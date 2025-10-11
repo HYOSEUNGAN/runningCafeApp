@@ -31,6 +31,31 @@ const config: CapacitorConfig = {
       // 앱이 백그라운드로 이동해도 위치 추적 유지
       backgroundMode: true,
     },
+    Camera: {
+      // 카메라 권한 설정
+      permissions: ['camera', 'photos'],
+    },
+    Device: {
+      // 디바이스 정보 접근
+    },
+    Haptics: {
+      // 햅틱 피드백
+    },
+    LocalNotifications: {
+      // 로컬 알림
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#3B82F6',
+      sound: 'beep.wav',
+    },
+    Network: {
+      // 네트워크 상태 모니터링
+    },
+    Preferences: {
+      // 로컬 저장소
+    },
+    Share: {
+      // 공유 기능
+    },
   },
 };
 

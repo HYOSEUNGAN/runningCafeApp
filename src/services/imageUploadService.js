@@ -1,9 +1,216 @@
 import { supabase } from './supabase';
+import platformUtils from '../utils/platformUtils';
+
+// Capacitor imports - 동적으로 로드
+let Camera,
+  CameraResultType,
+  CameraSource,
+  Filesystem,
+  Directory,
+  Encoding,
+  Device;
+
+// Capacitor 플러그인 동적 로드
+async function loadCapacitorPlugins() {
+  try {
+    if (await platformUtils.isNative()) {
+      const cameraModule = await import('@capacitor/camera');
+      const filesystemModule = await import('@capacitor/filesystem');
+      const deviceModule = await import('@capacitor/device');
+
+      Camera = cameraModule.Camera;
+      CameraResultType = cameraModule.CameraResultType;
+      CameraSource = cameraModule.CameraSource;
+      Filesystem = filesystemModule.Filesystem;
+      Directory = filesystemModule.Directory;
+      Encoding = filesystemModule.Encoding;
+      Device = deviceModule.Device;
+    }
+  } catch (error) {
+    console.log('Capacitor 플러그인 로드 실패 (웹 환경에서는 정상):', error);
+  }
+}
 
 /**
  * 이미지 업로드 관련 API 서비스
  * Supabase Storage를 사용하여 이미지 파일을 업로드하고 관리합니다.
+ * 웹과 네이티브 환경 모두 지원
  */
+
+/**
+ * 카메라로 사진 촬영 (웹/네이티브 환경 지원)
+ * @param {Object} options - 카메라 옵션
+ * @returns {Promise<Object>} 촬영된 이미지 정보
+ */
+export const takePicture = async (options = {}) => {
+  try {
+    await loadCapacitorPlugins();
+
+    return await platformUtils.safeApiCall(
+      // 웹 환경: MediaDevices API 사용
+      async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('카메라가 지원되지 않는 환경입니다.');
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+
+        // 간단한 캔버스 캡처 구현
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        return new Promise((resolve, reject) => {
+          video.srcObject = stream;
+          video.play();
+
+          video.addEventListener('loadedmetadata', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+
+            stream.getTracks().forEach(track => track.stop());
+
+            const imageUri = canvas.toDataURL(
+              'image/jpeg',
+              options.quality || 0.9
+            );
+            resolve({
+              success: true,
+              imageUri,
+              format: 'jpeg',
+            });
+          });
+
+          video.addEventListener('error', reject);
+        });
+      },
+      // 네이티브 환경: Capacitor Camera 사용
+      async () => {
+        const image = await Camera.getPhoto({
+          quality: options.quality || 90,
+          allowEditing: options.allowEditing || false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Camera,
+        });
+
+        return {
+          success: true,
+          imageUri: image.webPath,
+          format: image.format,
+        };
+      }
+    );
+  } catch (error) {
+    console.error('카메라 촬영 실패:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 갤러리에서 사진 선택 (웹/네이티브 환경 지원)
+ * @param {Object} options - 선택 옵션
+ * @returns {Promise<Object>} 선택된 이미지 정보
+ */
+export const pickFromGallery = async (options = {}) => {
+  try {
+    await loadCapacitorPlugins();
+
+    return await platformUtils.safeApiCall(
+      // 웹 환경: HTML input file 사용
+      async () => {
+        return new Promise((resolve, reject) => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+
+          input.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = e => {
+                resolve({
+                  success: true,
+                  imageUri: e.target.result,
+                  format: file.type.split('/')[1] || 'jpeg',
+                });
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            } else {
+              reject(new Error('파일이 선택되지 않았습니다.'));
+            }
+          });
+
+          input.click();
+        });
+      },
+      // 네이티브 환경: Capacitor Camera 사용
+      async () => {
+        const image = await Camera.getPhoto({
+          quality: options.quality || 90,
+          allowEditing: options.allowEditing || false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Photos,
+        });
+
+        return {
+          success: true,
+          imageUri: image.webPath,
+          format: image.format,
+        };
+      }
+    );
+  } catch (error) {
+    console.error('갤러리 선택 실패:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * 이미지 파일을 Base64로 변환 (웹/네이티브 환경 지원)
+ * @param {string} imageUri - 이미지 URI
+ * @returns {Promise<string>} Base64 인코딩된 이미지
+ */
+export const convertToBase64 = async imageUri => {
+  try {
+    await loadCapacitorPlugins();
+
+    return await platformUtils.safeApiCall(
+      // 웹 환경: Canvas API 사용
+      async () => {
+        return new Promise((resolve, reject) => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg', 0.9));
+          };
+
+          img.onerror = reject;
+          img.src = imageUri;
+        });
+      },
+      // 네이티브 환경: Filesystem 플러그인 사용
+      async () => {
+        const readFile = await Filesystem.readFile({
+          path: imageUri,
+        });
+
+        return `data:image/jpeg;base64,${readFile.data}`;
+      }
+    );
+  } catch (error) {
+    console.error('Base64 변환 실패:', error);
+    throw error;
+  }
+};
 
 /**
  * 이미지 파일을 Supabase Storage에 업로드

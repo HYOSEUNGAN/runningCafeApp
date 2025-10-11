@@ -1,7 +1,14 @@
 /**
  * 개선된 백그라운드-포그라운드 동기화 서비스
  * 실시간 데이터 동기화와 상태 관리를 통해 끊김 없는 러닝 추적 제공
+ * Capacitor 네이티브 API 사용으로 모바일 앱 호환성 보장
  */
+
+import { App } from '@capacitor/app';
+import { Network } from '@capacitor/network';
+import { Preferences } from '@capacitor/preferences';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Device } from '@capacitor/device';
 
 class BackgroundSyncService {
   constructor() {
@@ -11,10 +18,11 @@ class BackgroundSyncService {
     this.syncInterval = 2000; // 2초마다 동기화
     this.maxRetries = 3;
     this.retryDelay = 1000;
+    this.isNativeEnvironment = false;
 
     // 동기화 상태
     this.syncStatus = {
-      isOnline: navigator.onLine,
+      isOnline: true, // 기본값으로 설정, 나중에 업데이트
       lastSuccessfulSync: null,
       failedSyncs: 0,
       pendingOperations: 0,
@@ -23,7 +31,7 @@ class BackgroundSyncService {
     // 이벤트 리스너
     this.eventListeners = new Map();
 
-    // 워커 및 채널
+    // 워커 및 채널 (웹 환경에서만 사용)
     this.serviceWorker = null;
     this.broadcastChannel = null;
 
@@ -34,6 +42,68 @@ class BackgroundSyncService {
    * 서비스 초기화
    */
   async init() {
+    try {
+      // 디바이스 환경 확인
+      const deviceInfo = await Device.getInfo();
+      this.isNativeEnvironment = deviceInfo.platform !== 'web';
+
+      console.log('백그라운드 동기화 서비스 초기화:', {
+        platform: deviceInfo.platform,
+        isNative: this.isNativeEnvironment,
+      });
+
+      if (this.isNativeEnvironment) {
+        // 네이티브 환경 초기화
+        await this.initNativeEnvironment();
+      } else {
+        // 웹 환경 초기화
+        await this.initWebEnvironment();
+      }
+
+      // 공통 초기화
+      await this.initCommonFeatures();
+
+      console.log('백그라운드 동기화 서비스 초기화 완료');
+    } catch (error) {
+      console.error('백그라운드 동기화 서비스 초기화 실패:', error);
+    }
+  }
+
+  /**
+   * 네이티브 환경 초기화
+   */
+  async initNativeEnvironment() {
+    try {
+      // 앱 상태 변화 모니터링
+      App.addListener('appStateChange', state => {
+        console.log('앱 상태 변화:', state);
+        if (state.isActive) {
+          this.handleAppResume();
+        } else {
+          this.handleAppPause();
+        }
+      });
+
+      // 네트워크 상태 모니터링
+      const status = await Network.getStatus();
+      this.syncStatus.isOnline = status.connected;
+
+      Network.addListener('networkStatusChange', status => {
+        console.log('네트워크 상태 변화:', status);
+        this.handleNetworkChange(status.connected);
+      });
+
+      // 로컬 알림 권한 요청
+      await LocalNotifications.requestPermissions();
+    } catch (error) {
+      console.error('네이티브 환경 초기화 실패:', error);
+    }
+  }
+
+  /**
+   * 웹 환경 초기화
+   */
+  async initWebEnvironment() {
     try {
       // Service Worker 등록 및 연결
       await this.initServiceWorker();
@@ -46,13 +116,66 @@ class BackgroundSyncService {
 
       // 페이지 가시성 모니터링
       this.initVisibilityMonitoring();
-
-      // 주기적 동기화 시작
-      this.startPeriodicSync();
-
-      console.log('백그라운드 동기화 서비스 초기화 완료');
     } catch (error) {
-      console.error('백그라운드 동기화 서비스 초기화 실패:', error);
+      console.error('웹 환경 초기화 실패:', error);
+    }
+  }
+
+  /**
+   * 공통 기능 초기화
+   */
+  async initCommonFeatures() {
+    // 주기적 동기화 시작
+    this.startPeriodicSync();
+
+    // 저장된 동기화 큐 복원
+    await this.restoreSyncQueue();
+  }
+
+  /**
+   * 앱 일시정지 처리
+   */
+  handleAppPause() {
+    console.log('앱 백그라운드 진입');
+    this.emit('appPause');
+
+    // 백그라운드에서도 중요한 데이터는 동기화 계속
+    this.scheduleBackgroundSync();
+  }
+
+  /**
+   * 앱 재개 처리
+   */
+  handleAppResume() {
+    console.log('앱 포그라운드 복귀');
+    this.emit('appResume');
+
+    // 포그라운드 복귀 시 즉시 동기화
+    this.forceSyncAll();
+  }
+
+  /**
+   * 백그라운드 동기화 스케줄링
+   */
+  async scheduleBackgroundSync() {
+    try {
+      // 로컬 알림으로 백그라운드 작업 상태 알림
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: '런뷰',
+            body: '백그라운드에서 러닝 데이터를 동기화 중입니다.',
+            id: 1,
+            schedule: { at: new Date(Date.now() + 1000) },
+            sound: null,
+            attachments: null,
+            actionTypeId: '',
+            extra: null,
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('백그라운드 동기화 스케줄링 실패:', error);
     }
   }
 

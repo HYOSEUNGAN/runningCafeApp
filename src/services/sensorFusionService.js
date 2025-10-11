@@ -1,7 +1,29 @@
 /**
  * 다중 센서 융합 위치 추적 서비스
  * GPS, 가속도계, 자이로스코프, 나침반을 융합하여 정확도 향상
+ * 웹과 네이티브 환경 모두 지원
  */
+
+import platformUtils from '../utils/platformUtils';
+
+// Capacitor imports - 동적으로 로드
+let Device, Haptics, ImpactStyle;
+
+// Capacitor 플러그인 동적 로드
+async function loadCapacitorPlugins() {
+  try {
+    if (await platformUtils.isNative()) {
+      const deviceModule = await import('@capacitor/device');
+      const hapticsModule = await import('@capacitor/haptics');
+
+      Device = deviceModule.Device;
+      Haptics = hapticsModule.Haptics;
+      ImpactStyle = hapticsModule.ImpactStyle;
+    }
+  } catch (error) {
+    console.log('Capacitor 플러그인 로드 실패 (웹 환경에서는 정상):', error);
+  }
+}
 
 class SensorFusionService {
   constructor() {
@@ -49,6 +71,26 @@ class SensorFusionService {
    */
   async initialize() {
     try {
+      // Capacitor 플러그인 로드
+      await loadCapacitorPlugins();
+
+      // 플랫폼별 초기화
+      if (await platformUtils.isWeb()) {
+        return await this.initializeWebSensors();
+      } else {
+        return await this.initializeNativeSensors();
+      }
+    } catch (error) {
+      console.error('센서 초기화 실패:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 웹 환경 센서 초기화
+   */
+  async initializeWebSensors() {
+    try {
       // 권한 요청
       if (typeof DeviceMotionEvent?.requestPermission === 'function') {
         const permission = await DeviceMotionEvent.requestPermission();
@@ -80,9 +122,82 @@ class SensorFusionService {
 
       return true;
     } catch (error) {
-      console.error('센서 초기화 실패:', error);
+      console.error('웹 센서 초기화 실패:', error);
       return false;
     }
+  }
+
+  /**
+   * 네이티브 환경 센서 초기화
+   */
+  async initializeNativeSensors() {
+    try {
+      // 네이티브 환경에서는 센서 데이터를 시뮬레이션하거나
+      // 대체 방법을 사용합니다.
+      console.log('네이티브 센서 모드 - GPS 기반 추정 사용');
+
+      // 걸음 감지를 위한 간단한 타이머 기반 시뮬레이션
+      this.nativeStepSimulation = setInterval(() => {
+        this.simulateStepDetection();
+      }, 1000);
+
+      return true;
+    } catch (error) {
+      console.error('네이티브 센서 초기화 실패:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 네이티브 환경에서 걸음 감지 시뮬레이션
+   */
+  simulateStepDetection() {
+    if (!this.isRunning) return;
+
+    // GPS 속도 기반으로 걸음 수 추정
+    const currentTime = Date.now();
+    const timeDiff = (currentTime - this.lastGPSUpdate) / 1000;
+
+    if (this.velocity.x !== 0 || this.velocity.y !== 0) {
+      const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2);
+
+      // 러닝 속도에 따른 걸음 빈도 계산 (대략적)
+      if (speed > 1.5) {
+        // 1.5 m/s 이상일 때만 걸음으로 간주
+        const stepsPerSecond = speed / this.averageStepLength;
+        const estimatedSteps = Math.round(stepsPerSecond * timeDiff);
+
+        if (estimatedSteps > 0) {
+          this.stepCounter += estimatedSteps;
+          this.lastStepTime = currentTime;
+
+          // 햅틱 피드백
+          this.provideStepFeedback();
+
+          // 콜백 호출
+          this.notifyCallbacks('step', {
+            stepCount: this.stepCounter,
+            estimatedDistance: this.stepCounter * this.averageStepLength,
+            timestamp: currentTime,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * 걸음 감지 시 햅틱 피드백
+   */
+  async provideStepFeedback() {
+    // 네이티브 환경에서만 햅틱 피드백 제공
+    if ((await platformUtils.isNative()) && Haptics) {
+      try {
+        await Haptics.impact({ style: ImpactStyle.Light });
+      } catch (error) {
+        console.log('햅틱 피드백 실패:', error);
+      }
+    }
+    // 웹 환경에서는 햅틱 피드백 없음 (조용히 무시)
   }
 
   /**

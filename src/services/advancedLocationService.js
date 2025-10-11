@@ -1,10 +1,33 @@
 /**
  * 고급 위치 추적 서비스
  * GPS, 센서 융합, 칼만 필터를 통합하여 최적의 위치 정확도 제공
+ * 웹과 네이티브 환경 모두 지원
  */
 
+import platformUtils from '../utils/platformUtils';
 import gpsAccuracyService from './gpsAccuracyService';
 import sensorFusionService from './sensorFusionService';
+
+// Capacitor imports - 동적으로 로드
+let Geolocation, Device, Haptics, ImpactStyle;
+
+// Capacitor 플러그인 동적 로드
+async function loadCapacitorPlugins() {
+  try {
+    if (await platformUtils.isNative()) {
+      const geolocationModule = await import('@capacitor/geolocation');
+      const deviceModule = await import('@capacitor/device');
+      const hapticsModule = await import('@capacitor/haptics');
+
+      Geolocation = geolocationModule.Geolocation;
+      Device = deviceModule.Device;
+      Haptics = hapticsModule.Haptics;
+      ImpactStyle = hapticsModule.ImpactStyle;
+    }
+  } catch (error) {
+    console.log('Capacitor 플러그인 로드 실패 (웹 환경에서는 정상):', error);
+  }
+}
 
 class AdvancedLocationService {
   constructor() {
@@ -13,6 +36,7 @@ class AdvancedLocationService {
     this.trackingMode = 'auto'; // auto, gps_only, sensor_fusion
     this.locationHistory = [];
     this.maxHistorySize = 1000;
+    this.isInitialPositionReceived = false; // GPS 초기 위치 수신 여부
 
     // 위치 품질 메트릭
     this.qualityMetrics = {
@@ -65,6 +89,9 @@ class AdvancedLocationService {
    */
   async initializeServices() {
     try {
+      // Capacitor 플러그인 로드 (네이티브 환경에서만)
+      await loadCapacitorPlugins();
+
       // GPS 정확도 서비스 초기화
       gpsAccuracyService.reset();
 
@@ -126,12 +153,21 @@ class AdvancedLocationService {
   /**
    * 위치 추적 중지
    */
-  stopTracking() {
+  async stopTracking() {
     if (!this.isActive) return;
 
     // GPS 추적 중지
     if (this.watchId) {
-      navigator.geolocation.clearWatch(this.watchId);
+      await platformUtils.safeApiCall(
+        // 웹 환경: navigator.geolocation 사용
+        () => {
+          navigator.geolocation.clearWatch(this.watchId);
+        },
+        // 네이티브 환경: Capacitor Geolocation 사용
+        async () => {
+          await Geolocation.clearWatch({ id: this.watchId });
+        }
+      );
       this.watchId = null;
     }
 
@@ -154,20 +190,60 @@ class AdvancedLocationService {
   async startGPSTracking() {
     const options = this.getOptimizedGPSOptions();
 
-    return new Promise((resolve, reject) => {
-      this.watchId = navigator.geolocation.watchPosition(
-        position => {
-          this.handleGPSUpdate(position);
-          resolve();
-        },
-        error => {
-          console.error('GPS 추적 오류:', error);
-          this.notifyCallbacks('onError', { type: 'gps_error', error });
-          reject(error);
-        },
-        options
-      );
-    });
+    return await platformUtils.safeApiCall(
+      // 웹 환경: 기존 navigator.geolocation 사용
+      () => {
+        return new Promise((resolve, reject) => {
+          this.watchId = navigator.geolocation.watchPosition(
+            position => {
+              this.handleGPSUpdate(position);
+              if (!this.isInitialPositionReceived) {
+                this.isInitialPositionReceived = true;
+                resolve();
+              }
+            },
+            error => {
+              console.error('GPS 추적 오류:', error);
+              this.notifyCallbacks('onError', { type: 'gps_error', error });
+              reject(error);
+            },
+            options
+          );
+        });
+      },
+      // 네이티브 환경: Capacitor Geolocation 사용
+      async () => {
+        try {
+          // Capacitor Geolocation 권한 요청
+          const permissions = await Geolocation.requestPermissions();
+
+          if (permissions.location !== 'granted') {
+            throw new Error('위치 권한이 거부되었습니다.');
+          }
+
+          return new Promise((resolve, reject) => {
+            this.watchId = Geolocation.watchPosition(
+              options,
+              position => {
+                this.handleGPSUpdate(position);
+                if (!this.isInitialPositionReceived) {
+                  this.isInitialPositionReceived = true;
+                  resolve();
+                }
+              },
+              error => {
+                console.error('GPS 추적 오류:', error);
+                this.notifyCallbacks('onError', { type: 'gps_error', error });
+                reject(error);
+              }
+            );
+          });
+        } catch (error) {
+          console.error('Capacitor GPS 추적 시작 실패:', error);
+          throw error;
+        }
+      }
+    );
   }
 
   /**
@@ -177,6 +253,31 @@ class AdvancedLocationService {
     if (this.currentPosition) {
       sensorFusionService.startTracking(this.currentPosition);
     }
+  }
+
+  /**
+   * 위치 업데이트 처리 시 햅틱 피드백 제공
+   */
+  async provideFeedback(type = 'success') {
+    // 네이티브 환경에서만 햅틱 피드백 제공
+    if ((await platformUtils.isNative()) && Haptics) {
+      try {
+        switch (type) {
+          case 'success':
+            await Haptics.impact({ style: ImpactStyle.Light });
+            break;
+          case 'warning':
+            await Haptics.impact({ style: ImpactStyle.Medium });
+            break;
+          case 'error':
+            await Haptics.impact({ style: ImpactStyle.Heavy });
+            break;
+        }
+      } catch (error) {
+        console.log('햅틱 피드백 실패:', error);
+      }
+    }
+    // 웹 환경에서는 햅틱 피드백 없음 (조용히 무시)
   }
 
   /**
@@ -398,6 +499,13 @@ class AdvancedLocationService {
   updateCurrentPosition(position, quality) {
     this.currentPosition = position;
     this.qualityMetrics = quality;
+
+    // 위치 품질에 따른 햅틱 피드백
+    if (quality.reliability > 0.8) {
+      this.provideFeedback('success');
+    } else if (quality.reliability < 0.5) {
+      this.provideFeedback('warning');
+    }
 
     // 히스토리 업데이트
     this.updateLocationHistory(position);
