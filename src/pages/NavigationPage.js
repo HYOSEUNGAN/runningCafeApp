@@ -21,6 +21,7 @@ import RunningCompletionScreen from '../components/running/RunningCompletionScre
 import performanceOptimizer from '../services/performanceOptimizer';
 import backgroundSyncService from '../services/backgroundSyncService';
 import interactiveEffectsService from '../services/interactiveEffectsService';
+import gpsAccuracyService from '../services/gpsAccuracyService';
 import { formatDistance, formatTime, formatCalories } from '../utils/format';
 import {
   calculateDistance,
@@ -115,13 +116,17 @@ const NavigationPage = () => {
   const [goalAchieved, setGoalAchieved] = useState(false);
   const [showGoalCelebration, setShowGoalCelebration] = useState(false);
 
+  // 목표 설정 UI 상태
+  const [selectedMode, setSelectedMode] = useState('free'); // 'free', 'goal'
+
   // 카운트다운 상태
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownNumber, setCountdownNumber] = useState(0);
 
   // 스토어
   const { user, isAuthenticated } = useAuthStore();
-  const { showToast } = useAppStore();
+  const { showToast, runningGoal, initializeRunningGoal, clearRunningGoal } =
+    useAppStore();
   const navigate = useNavigate();
 
   // 지도 관련 refs
@@ -134,6 +139,34 @@ const NavigationPage = () => {
   const infoWindowsRef = useRef([]);
   const startMarkerRef = useRef(null);
   const directionMarkerRef = useRef(null);
+
+  // 폴리라인 업데이트 함수 (메인 컬러 적용)
+  const updatePolyline = useCallback(pathArray => {
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+    }
+
+    if (pathArray.length > 1) {
+      polylineRef.current = new window.naver.maps.Polyline({
+        map: naverMapRef.current,
+        path: pathArray,
+        strokeColor: '#8b3dff', // 프로젝트 메인 컬러 (primary-500)
+        strokeWeight: 5,
+        strokeOpacity: 0.9,
+        strokeStyle: 'solid',
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
+      });
+    }
+  }, []);
+
+  // 경로(path)가 업데이트될 때마다 폴리라인 그리기
+  useEffect(() => {
+    if (isTracking && path.length > 1 && naverMapRef.current) {
+      updatePolyline(path);
+      console.log(`폴리라인 업데이트: ${path.length}개 포인트`);
+    }
+  }, [path, isTracking, updatePolyline]);
 
   // Service Worker 및 백그라운드 서비스 초기화
   useEffect(() => {
@@ -150,6 +183,12 @@ const NavigationPage = () => {
 
         // 인터랙티브 효과 서비스 초기화
         interactiveEffectsService.init();
+
+        // GPS 정확도 서비스 초기화 및 환경 설정
+        gpsAccuracyService.reset();
+        // 환경에 따라 적절한 설정 적용 (기본: suburban)
+        gpsAccuracyService.setEnvironment('suburban');
+        console.log('GPS 정확도 서비스 초기화 완료 - 교외 환경 모드');
 
         // 성능 최적화 이벤트 리스너
         window.addEventListener('performanceOptimizationChange', event => {
@@ -294,23 +333,21 @@ const NavigationPage = () => {
 
   // 목표 러닝 설정 로드
   useEffect(() => {
-    const loadRunningConfig = () => {
-      try {
-        const savedConfig = localStorage.getItem('runningConfig');
-        if (savedConfig) {
-          const config = JSON.parse(savedConfig);
-          if (config.mode === 'goal' && config.goals) {
-            setRunningGoals(config.goals);
-            console.log('목표 러닝 설정 로드:', config.goals);
-          }
-        }
-      } catch (error) {
-        console.error('러닝 설정 로드 실패:', error);
-      }
-    };
+    // 앱 초기화 시 전역 상태에서 목표 복원
+    initializeRunningGoal();
+  }, [initializeRunningGoal]);
 
-    loadRunningConfig();
-  }, []);
+  // 전역 상태의 runningGoal이 변경될 때 로컬 상태 업데이트
+  useEffect(() => {
+    if (runningGoal) {
+      setRunningGoals(runningGoal);
+      setSelectedMode('goal'); // 목표가 있으면 goal 모드로 설정
+      console.log('전역 상태에서 목표 러닝 설정 로드:', runningGoal);
+    } else {
+      setRunningGoals(null);
+      setSelectedMode('free'); // 목표가 없으면 free 모드로 설정
+    }
+  }, [runningGoal]);
 
   // 자동 러닝 시작 (RunningStartPage에서 온 경우)
   useEffect(() => {
@@ -1145,24 +1182,38 @@ const NavigationPage = () => {
       createStartMarker(currentPosition);
     }
 
+    // 고정밀도 GPS 옵션 설정 (정확도 최우선)
     const options = {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0,
+      enableHighAccuracy: true, // 고정밀도 모드 활성화
+      timeout: 10000, // 10초 타임아웃
+      maximumAge: 0, // 캐시된 위치 사용 안 함 (항상 새로운 위치 요청)
     };
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       position => {
+        // GPS 정확도 서비스로 위치 데이터 필터링 (칼만 필터 적용)
+        const filteredPosition = gpsAccuracyService.processGPSData(position);
+
+        if (!filteredPosition) {
+          console.warn('GPS 데이터 필터링 실패 - 위치 업데이트 건너뜀');
+          return;
+        }
+
         const newPos = new window.naver.maps.LatLng(
-          position.coords.latitude,
-          position.coords.longitude
+          filteredPosition.lat,
+          filteredPosition.lng
         );
 
         setCurrentPosition(newPos);
 
-        // GPS 정확도 업데이트
-        const accuracy = position.coords.accuracy;
+        // 필터링된 정확도 및 신뢰도 업데이트
+        const accuracy = filteredPosition.accuracy || position.coords.accuracy;
+        const confidence = filteredPosition.confidence || 1.0;
         setGpsAccuracy(accuracy);
+
+        console.log(
+          `GPS: 정확도 ${accuracy.toFixed(1)}m, 신뢰도 ${(confidence * 100).toFixed(0)}%, 필터링: ${filteredPosition.filtered ? 'O' : 'X'}`
+        );
 
         const speed = position.coords.speed || 0;
         const heading = position.coords.heading || 0;
@@ -1188,9 +1239,14 @@ const NavigationPage = () => {
               const lastPos = prevPath[prevPath.length - 1];
               const distance = calculateDistanceForNaverMap(lastPos, newPos);
 
-              // GPS 정확도가 낮을 때는 거리 계산을 더 보수적으로
-              if (accuracy <= 20) {
+              // GPS 정확도와 신뢰도를 모두 고려하여 거리 계산
+              // 정확도가 좋고 신뢰도가 높을 때만 거리에 반영
+              if (accuracy <= 30 && confidence > 0.5) {
                 setTotalDistance(prev => prev + distance);
+              } else {
+                console.warn(
+                  `거리 계산 건너뜀 - 정확도: ${accuracy.toFixed(1)}m, 신뢰도: ${(confidence * 100).toFixed(0)}%`
+                );
               }
             }
 
@@ -1201,6 +1257,8 @@ const NavigationPage = () => {
               accuracy: accuracy,
               speed: speed,
               heading: heading,
+              confidence: confidence,
+              filtered: filteredPosition.filtered || false,
             });
 
             return newPath;
@@ -1436,6 +1494,15 @@ const NavigationPage = () => {
 
         // 상태 초기화
         resetTrackingState();
+
+        // 목표 달성 시 목표 클리어
+        if (goalAchieved) {
+          clearRunningGoal();
+          showToast({
+            type: 'success',
+            message: '🎉 목표를 달성했습니다! 목표가 초기화되었습니다.',
+          });
+        }
       } else {
         throw new Error('저장된 기록이 없습니다');
       }
@@ -1721,26 +1788,6 @@ const NavigationPage = () => {
     if (startMarkerRef.current) {
       startMarkerRef.current.setMap(null);
       startMarkerRef.current = null;
-    }
-  };
-
-  // 폴리라인 업데이트 (메인 컬러 적용)
-  const updatePolyline = pathArray => {
-    if (polylineRef.current) {
-      polylineRef.current.setMap(null);
-    }
-
-    if (pathArray.length > 1) {
-      polylineRef.current = new window.naver.maps.Polyline({
-        map: naverMapRef.current,
-        path: pathArray,
-        strokeColor: '#8b3dff', // 프로젝트 메인 컬러 (primary-500)
-        strokeWeight: 5,
-        strokeOpacity: 0.9,
-        strokeStyle: 'solid',
-        strokeLineCap: 'round',
-        strokeLineJoin: 'round',
-      });
     }
   };
 
@@ -2220,6 +2267,276 @@ const NavigationPage = () => {
             </div>
           </div>
         </div>
+
+        {/* 목표 설정 UI */}
+        {!isTracking && (
+          <div className="px-4 py-4 bg-white border-t border-gray-200">
+            {/* 러닝 모드 */}
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-900 mb-3">
+                러닝 모드
+              </h3>
+
+              <div className="space-y-3">
+                {/* 자유 러닝 */}
+                <button
+                  onClick={() => {
+                    setSelectedMode('free');
+                    clearRunningGoal();
+                    showToast({
+                      type: 'info',
+                      message: '자유 러닝 모드로 변경되었습니다.',
+                    });
+                  }}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all ${
+                    selectedMode === 'free'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          selectedMode === 'free'
+                            ? 'bg-purple-100'
+                            : 'bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-2xl">📈</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900">자유 러닝</div>
+                        <div className="text-sm text-gray-600">
+                          목표 없이 자유롭게 달리기
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selectedMode === 'free'
+                          ? 'border-purple-500 bg-purple-500'
+                          : 'border-gray-300'
+                      }`}
+                    >
+                      {selectedMode === 'free' && (
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* 목표 러닝 */}
+                <button
+                  onClick={() => {
+                    setSelectedMode('goal');
+                  }}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all ${
+                    selectedMode === 'goal'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          selectedMode === 'goal'
+                            ? 'bg-purple-500'
+                            : 'bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-2xl">
+                          {selectedMode === 'goal' ? '🎯' : '🎯'}
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900">목표 러닝</div>
+                        <div className="text-sm text-gray-600">
+                          거리나 시간 목표 설정
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selectedMode === 'goal'
+                          ? 'border-purple-500 bg-purple-500'
+                          : 'border-gray-300'
+                      }`}
+                    >
+                      {selectedMode === 'goal' && (
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* 지도 러닝 */}
+                <button className="w-full p-4 rounded-2xl border-2 border-gray-200 bg-white opacity-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <span className="text-2xl">📍</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900">지도 러닝</div>
+                        <div className="text-sm text-gray-600">
+                          실시간 경로 추적 및 SNS 공유
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-6 h-6 rounded-full border-2 border-gray-300"></div>
+                  </div>
+                </button>
+
+                {/* 코스 러닝 - 베타 준비중 */}
+                <button
+                  className="w-full p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 opacity-60"
+                  disabled
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center">
+                        <span className="text-2xl">🗺️</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-gray-500">
+                            코스 러닝
+                          </span>
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-full">
+                            베타 준비중
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          미리 설정된 코스 따라가기 (곧 출시 예정)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-6 h-6 rounded-full border-2 border-gray-300 bg-gray-200"></div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 목표 설정 (목표 러닝 모드일 때) */}
+            {selectedMode === 'goal' && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
+                <h3 className="text-base font-bold text-gray-900 mb-3">
+                  목표 설정
+                </h3>
+
+                {/* 목표 타입 선택 */}
+                <div className="flex gap-3 mb-4">
+                  <button
+                    onClick={() =>
+                      setRunningGoals(prev => ({ ...prev, type: 'distance' }))
+                    }
+                    className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
+                      runningGoals?.type === 'distance'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white text-gray-700'
+                    }`}
+                  >
+                    거리 목표
+                  </button>
+                  <button
+                    onClick={() =>
+                      setRunningGoals(prev => ({ ...prev, type: 'time' }))
+                    }
+                    className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
+                      runningGoals?.type === 'time'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white text-gray-700'
+                    }`}
+                  >
+                    시간 목표
+                  </button>
+                </div>
+
+                {/* 거리 목표 설정 */}
+                {runningGoals?.type === 'distance' && (
+                  <div className="bg-white rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-gray-700">
+                        목표 거리
+                      </span>
+                      <span className="text-2xl font-bold text-purple-600">
+                        {runningGoals?.targetDistance || 3}km
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      step="0.5"
+                      value={runningGoals?.targetDistance || 3}
+                      onChange={e => {
+                        const distance = parseFloat(e.target.value);
+                        const goalData = {
+                          type: 'distance',
+                          targetDistance: distance,
+                          targetTime: Math.round(distance * 6),
+                          routineType: `${distance}km_routine`,
+                          createdAt: new Date().toISOString(),
+                        };
+                        setRunningGoal(goalData);
+                      }}
+                      className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${(((runningGoals?.targetDistance || 3) - 1) / 19) * 100}%, #e9d5ff ${(((runningGoals?.targetDistance || 3) - 1) / 19) * 100}%, #e9d5ff 100%)`,
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>1km</span>
+                      <span>20km</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 시간 목표 설정 */}
+                {runningGoals?.type === 'time' && (
+                  <div className="bg-white rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-gray-700">
+                        목표 시간
+                      </span>
+                      <span className="text-2xl font-bold text-purple-600">
+                        {runningGoals?.targetTime || 30}분
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="120"
+                      step="5"
+                      value={runningGoals?.targetTime || 30}
+                      onChange={e => {
+                        const time = parseInt(e.target.value);
+                        const goalData = {
+                          type: 'time',
+                          targetDistance: Math.round(time / 6),
+                          targetTime: time,
+                          routineType: `${time}min_routine`,
+                          createdAt: new Date().toISOString(),
+                        };
+                        setRunningGoal(goalData);
+                      }}
+                      className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${(((runningGoals?.targetTime || 30) - 10) / 110) * 100}%, #e9d5ff ${(((runningGoals?.targetTime || 30) - 10) / 110) * 100}%, #e9d5ff 100%)`,
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>10분</span>
+                      <span>120분</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 지도 */}
@@ -2415,6 +2732,64 @@ const NavigationPage = () => {
                 <div className="text-xs text-purple-600 font-medium">km/h</div>
               </div>
             </div>
+
+            {/* GPS 정확도 표시 (추적 중일 때만) */}
+            {isTracking && gpsAccuracy !== null && (
+              <div className="mt-2 px-2">
+                <div
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                    gpsAccuracy <= 10
+                      ? 'bg-green-50 border border-green-200'
+                      : gpsAccuracy <= 20
+                        ? 'bg-blue-50 border border-blue-200'
+                        : gpsAccuracy <= 30
+                          ? 'bg-yellow-50 border border-yellow-200'
+                          : 'bg-red-50 border border-red-200'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs">📡</span>
+                    <span
+                      className={`text-xs font-medium ${
+                        gpsAccuracy <= 10
+                          ? 'text-green-700'
+                          : gpsAccuracy <= 20
+                            ? 'text-blue-700'
+                            : gpsAccuracy <= 30
+                              ? 'text-yellow-700'
+                              : 'text-red-700'
+                      }`}
+                    >
+                      GPS 정확도
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span
+                      className={`text-xs font-bold ${
+                        gpsAccuracy <= 10
+                          ? 'text-green-700'
+                          : gpsAccuracy <= 20
+                            ? 'text-blue-700'
+                            : gpsAccuracy <= 30
+                              ? 'text-yellow-700'
+                              : 'text-red-700'
+                      }`}
+                    >
+                      {gpsAccuracy.toFixed(1)}m
+                    </span>
+                    <span className="text-xs">
+                      {gpsAccuracy <= 10
+                        ? '🟢'
+                        : gpsAccuracy <= 20
+                          ? '🔵'
+                          : gpsAccuracy <= 30
+                            ? '🟡'
+                            : '🔴'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 지도 패턴 배경 장식 */}
@@ -2775,10 +3150,19 @@ const NavigationPage = () => {
                 </button>
 
                 <button
-                  onClick={() => setShowGoalCelebration(false)}
+                  onClick={() => {
+                    setShowGoalCelebration(false);
+                    // 목표 클리어
+                    clearRunningGoal();
+                    showToast({
+                      type: 'info',
+                      message:
+                        '목표가 초기화되었습니다. 새로운 목표를 설정해보세요!',
+                    });
+                  }}
                   className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                 >
-                  계속 러닝하기
+                  목표 완료하고 계속하기
                 </button>
               </div>
             </div>
@@ -2802,6 +3186,29 @@ const NavigationPage = () => {
         onSaveToFeed={handleSaveToFeed}
         onViewDetail={handleViewRunningDetail}
       />
+
+      {/* 슬라이더 스타일 */}
+      <style jsx>{`
+        input[type='range']::-webkit-slider-thumb {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type='range']::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+      `}</style>
     </div>
   );
 };

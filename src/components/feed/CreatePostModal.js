@@ -755,49 +755,108 @@ const CreatePostModal = ({
             </div>
           </div>
 
-          {/* 러닝 기록 요약 (있는 경우) */}
+          {/* 러닝 기록 요약 (있는 경우) - 향상된 디자인 */}
           {runningRecord && (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-gray-700">
-                  🏃‍♀️ 러닝 기록
-                </h4>
+            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🏃‍♀️</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-800">
+                    러닝 기록 연결됨
+                  </h4>
+                </div>
                 <div className="flex items-center space-x-2">
                   {runningRecord.path && runningRecord.path.length > 0 && (
                     <button
                       onClick={generateMapImage}
-                      className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      className="text-xs px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-sm font-medium"
                       disabled={isSubmitting}
                     >
-                      🗺️ 지도 추가
+                      🗺️ 경로 지도
                     </button>
                   )}
-                  <span className="text-xs text-gray-500">자동 연결됨</span>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center text-sm">
-                <div>
-                  <div className="font-bold text-blue-600">
-                    {(runningRecord.distance / 1000).toFixed(1)}km
+
+              {/* 메인 통계 */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 text-center border border-blue-100">
+                  <div className="text-xs text-gray-500 mb-1">📏 거리</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {(runningRecord.distance / 1000).toFixed(2)}
                   </div>
-                  <div className="text-gray-500">거리</div>
+                  <div className="text-xs text-gray-600">km</div>
                 </div>
-                <div>
-                  <div className="font-bold text-green-600">
+                <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 text-center border border-green-100">
+                  <div className="text-xs text-gray-500 mb-1">⏱️ 시간</div>
+                  <div className="text-sm font-bold text-green-600">
                     {formatRunningTime(runningRecord.duration)}
                   </div>
-                  <div className="text-gray-500">시간</div>
                 </div>
-                <div>
-                  <div className="font-bold text-purple-600">
+                <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 text-center border border-purple-100">
+                  <div className="text-xs text-gray-500 mb-1">⚡ 페이스</div>
+                  <div className="text-sm font-bold text-purple-600">
                     {calculatePace(
                       runningRecord.distance,
                       runningRecord.duration
                     )}
                   </div>
-                  <div className="text-gray-500">페이스</div>
+                  <div className="text-xs text-gray-600">/km</div>
                 </div>
               </div>
+
+              {/* 추가 통계 (있는 경우) */}
+              <div className="grid grid-cols-2 gap-2">
+                {runningRecord.calories_burned && (
+                  <div className="bg-white/50 rounded-lg p-2 flex items-center space-x-2">
+                    <span className="text-orange-500">🔥</span>
+                    <div>
+                      <div className="text-xs text-gray-500">칼로리</div>
+                      <div className="text-sm font-semibold text-orange-600">
+                        {runningRecord.calories_burned} kcal
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {runningRecord.averageSpeed && (
+                  <div className="bg-white/50 rounded-lg p-2 flex items-center space-x-2">
+                    <span className="text-indigo-500">💨</span>
+                    <div>
+                      <div className="text-xs text-gray-500">평균 속도</div>
+                      <div className="text-sm font-semibold text-indigo-600">
+                        {(runningRecord.averageSpeed * 3.6).toFixed(1)} km/h
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 경로 정보 */}
+              {runningRecord.path && runningRecord.path.length > 0 && (
+                <div className="mt-3 p-2 bg-white/50 rounded-lg">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">📍 경로 포인트</span>
+                    <span className="font-medium text-blue-600">
+                      {runningRecord.path.length}개
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 목표 달성 배지 (목표가 있었고 달성한 경우) */}
+              {runningRecord.goal_achieved && (
+                <div className="mt-3 p-2 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-lg">🏆</span>
+                    <span className="text-sm font-bold text-yellow-700">
+                      목표 달성! {runningRecord.goal_value}
+                      {runningRecord.goal_type === 'distance' ? 'km' : '분'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

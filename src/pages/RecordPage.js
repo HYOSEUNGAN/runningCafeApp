@@ -3,6 +3,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import '../styles/calendar.css';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useAppStore } from '../stores/useAppStore';
 import {
   getUserRunningRecords,
   getMonthlyRunningStats,
@@ -27,23 +28,31 @@ const RecordPage = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const { user, isAuthenticated, getUserId } = useAuthStore();
+  const { setRunningGoal, showToast } = useAppStore();
   const navigate = useNavigate();
 
   // 루틴 시작 함수
   const startRoutine = distance => {
-    const routineData = {
-      targetDistance: distance,
-      targetTime: distance === 3 ? 25 * 60 * 1000 : 40 * 60 * 1000, // 25분 또는 40분 (밀리초)
+    // 전역 상태에 목표 설정
+    const goalData = {
+      type: 'distance', // 거리 목표
+      targetDistance: distance, // km 단위
+      targetTime: distance === 3 ? 25 : 40, // 분 단위 (예상 시간)
       routineType: `${distance}km_routine`,
+      createdAt: new Date().toISOString(),
     };
 
-    // 네비게이션 페이지로 루틴 데이터와 함께 이동
-    navigate('/nav', {
-      state: {
-        routineData,
-        isRoutineMode: true,
-      },
+    // 전역 상태에 목표 저장
+    setRunningGoal(goalData);
+
+    // 성공 메시지 표시
+    showToast({
+      type: 'success',
+      message: `🎯 ${distance}km 목표가 설정되었습니다!`,
     });
+
+    // 네비게이션 페이지로 이동
+    navigate('/nav');
   };
 
   // 데이터 로드

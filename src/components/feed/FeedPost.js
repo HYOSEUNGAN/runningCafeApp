@@ -140,35 +140,73 @@ const FeedPost = ({
         </span>
       </div>
 
-      {/* 러닝 통계 카드 (러닝 기록이 있는 경우만 표시) */}
+      {/* 러닝 통계 카드 (러닝 기록이 있는 경우만 표시) - 개선된 디자인 */}
       {post.running_records && post.running_record_id && (
-        <div className="mx-4 mb-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-lg font-bold text-blue-600">
-                {post.running_records?.distance?.toFixed(1) || '0.0'}km
+        <div className="mx-4 mb-3 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200 shadow-sm">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs">🏃‍♀️</span>
               </div>
-              <div className="text-xs text-gray-500">거리</div>
+              <h4 className="text-sm font-bold text-gray-800">러닝 기록</h4>
             </div>
-            <div>
-              <div className="text-lg font-bold text-green-600">
+            {post.is_achievement && (
+              <div className="flex items-center space-x-1 bg-gradient-to-r from-yellow-100 to-orange-100 px-2 py-1 rounded-full border border-yellow-300">
+                <span className="text-xs">🏆</span>
+                <span className="text-xs font-semibold text-yellow-700">
+                  달성
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 메인 통계 */}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 text-center border border-blue-100">
+              <div className="text-xs text-gray-500 mb-0.5">📏</div>
+              <div className="text-base font-bold text-blue-600">
+                {post.running_records?.distance?.toFixed(1) || '0.0'}
+              </div>
+              <div className="text-xs text-gray-600">km</div>
+            </div>
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 text-center border border-green-100">
+              <div className="text-xs text-gray-500 mb-0.5">⏱️</div>
+              <div className="text-xs font-bold text-green-600">
                 {formatDuration(post.running_records?.duration || 0)}
               </div>
-              <div className="text-xs text-gray-500">시간</div>
+              <div className="text-xs text-gray-600">시간</div>
             </div>
-            <div>
-              <div className="text-lg font-bold text-purple-600">
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 text-center border border-purple-100">
+              <div className="text-xs text-gray-500 mb-0.5">⚡</div>
+              <div className="text-xs font-bold text-purple-600">
                 {formatPace(post.running_records?.pace || 0)}
               </div>
-              <div className="text-xs text-gray-500">페이스</div>
+              <div className="text-xs text-gray-600">/km</div>
             </div>
-            <div>
-              <div className="text-lg font-bold text-orange-600">
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 text-center border border-orange-100">
+              <div className="text-xs text-gray-500 mb-0.5">🔥</div>
+              <div className="text-base font-bold text-orange-600">
                 {post.running_records?.calories_burned || 0}
               </div>
-              <div className="text-xs text-gray-500">칼로리</div>
+              <div className="text-xs text-gray-600">kcal</div>
             </div>
           </div>
+
+          {/* 경로 정보 (route_data가 있는 경우) */}
+          {post.running_records?.route_data && (
+            <div className="mt-2 p-2 bg-white/50 rounded-lg">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600 flex items-center space-x-1">
+                  <span>📍</span>
+                  <span>경로 데이터 포함</span>
+                </span>
+                <span className="font-medium text-blue-600">
+                  {post.running_records.route_data?.path?.length || 0}개 포인트
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

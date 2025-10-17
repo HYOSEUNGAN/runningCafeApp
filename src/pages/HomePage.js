@@ -7,7 +7,7 @@ import {
   BannerCarousel,
   RecentRunnersSection,
   RankingSection,
-  NearbyCafesSection,
+  NearbyRunningPlacesSection,
   VoteSection,
 } from '../components/home';
 
@@ -37,8 +37,8 @@ const HomePage = () => {
         {/* 랭킹 섹션 - 이번주 러너스픽 */}
         <RankingSection />
 
-        {/* 주변 카페 섹션 - 지금 위치에서 1km 이내 */}
-        <NearbyCafesSection />
+        {/* 주변 러닝코스 섹션 - 지금 위치에서 1km 이내 */}
+        <NearbyRunningPlacesSection />
 
         {/* 투표 섹션 - 볼까?말까? 의견을 모아모아 */}
         <VoteSection />
