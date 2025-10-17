@@ -22,6 +22,7 @@ import {
   getWeatherConditionEmoji,
 } from '../services/weatherService';
 import CreatePostModal from '../components/feed/CreatePostModal';
+import CountdownModal from '../components/common/CountdownModal';
 import { createRunningRecord } from '../services/runningRecordService';
 
 /**
@@ -70,6 +71,9 @@ const RunningStart2Page = () => {
 
   // 러닝 완료 확인 모달 상태
   const [showCompletionConfirm, setShowCompletionConfirm] = useState(false);
+
+  // 카운트다운 모달 상태
+  const [showCountdown, setShowCountdown] = useState(false);
 
   // 뒤로가기 (러닝 중이면 경고)
   const handleGoBack = () => {
@@ -295,12 +299,20 @@ const RunningStart2Page = () => {
     return R * c;
   }, []);
 
-  // 러닝 시작
-  const startTracking = async () => {
+  // 러닝 시작 (카운트다운 표시)
+  const handleStartTracking = () => {
     if (!navigator.geolocation) {
       showToast('이 브라우저는 위치 서비스를 지원하지 않습니다.', 'error');
       return;
     }
+
+    // 카운트다운 모달 표시
+    setShowCountdown(true);
+  };
+
+  // 카운트다운 완료 후 실제 러닝 시작
+  const startTracking = async () => {
+    setShowCountdown(false);
 
     setIsTracking(true);
     setIsPaused(false);
@@ -357,6 +369,11 @@ const RunningStart2Page = () => {
     );
 
     showToast('러닝 추적을 시작합니다! 🏃‍♀️', 'success');
+  };
+
+  // 카운트다운 취소
+  const handleCountdownCancel = () => {
+    setShowCountdown(false);
   };
 
   // 러닝 일시정지/재개
@@ -724,7 +741,7 @@ const RunningStart2Page = () => {
 
                 {/* 시작 버튼 */}
                 <button
-                  onClick={startTracking}
+                  onClick={handleStartTracking}
                   className="w-20 h-20 bg-primary-gradient hover:shadow-xl rounded-full flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   <div className="text-white font-bold text-lg drop-shadow-md">
@@ -885,6 +902,16 @@ const RunningStart2Page = () => {
           </div>
         </div>
       )}
+
+      {/* 카운트다운 모달 */}
+      <CountdownModal
+        isOpen={showCountdown}
+        onComplete={startTracking}
+        onCancel={handleCountdownCancel}
+        countFrom={3}
+        title="지도 러닝 시작 준비"
+        subtitle="GPS 추적을 시작합니다!"
+      />
 
       {/* 피드 작성 모달 */}
       <CreatePostModal

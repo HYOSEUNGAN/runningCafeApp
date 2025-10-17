@@ -14,6 +14,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useAppStore } from '../stores/useAppStore';
 import { ROUTES } from '../constants/app';
 import CreatePostModal from '../components/feed/CreatePostModal';
+import CountdownModal from '../components/common/CountdownModal';
 import { createRunningRecord } from '../services/runningRecordService';
 
 /**
@@ -34,6 +35,9 @@ const RunningStartPage = () => {
 
   const [selectedMode, setSelectedMode] = useState('free'); // 'free', 'goal', 'map', 'course'
 
+  // 카운트다운 모달 상태
+  const [showCountdown, setShowCountdown] = useState(false);
+
   // 뒤로가기
   const handleGoBack = () => {
     navigate(-1);
@@ -44,13 +48,21 @@ const RunningStartPage = () => {
     navigate(ROUTES.RUNNING_START2);
   };
 
-  // 러닝 시작
+  // 러닝 시작 (카운트다운 표시)
   const handleStartRunning = () => {
     if (!isAuthenticated()) {
       showToast('로그인이 필요합니다.', 'error');
       navigate(ROUTES.LOGIN);
       return;
     }
+
+    // 카운트다운 모달 표시
+    setShowCountdown(true);
+  };
+
+  // 카운트다운 완료 후 실제 러닝 시작
+  const handleCountdownComplete = () => {
+    setShowCountdown(false);
 
     // 러닝 설정 데이터를 로컬 스토리지에 저장
     const runningConfig = {
@@ -77,6 +89,11 @@ const RunningStartPage = () => {
       }
       navigate('/nav-detail'); // 실제 러닝 페이지로 이동
     }
+  };
+
+  // 카운트다운 취소
+  const handleCountdownCancel = () => {
+    setShowCountdown(false);
   };
 
   return (
@@ -404,6 +421,22 @@ const RunningStartPage = () => {
           </button>
         </div>
       </div>
+
+      {/* 카운트다운 모달 */}
+      <CountdownModal
+        isOpen={showCountdown}
+        onComplete={handleCountdownComplete}
+        onCancel={handleCountdownCancel}
+        countFrom={3}
+        title="러닝 시작 준비"
+        subtitle={
+          selectedMode === 'goal'
+            ? `목표 ${runningGoals.type === 'distance' ? runningGoals.targetDistance + 'km' : runningGoals.targetTime + '분'} 러닝`
+            : selectedMode === 'map'
+              ? '지도 러닝'
+              : '자유 러닝'
+        }
+      />
 
       {/* 사용자 정의 스타일 */}
       <style jsx>{`
