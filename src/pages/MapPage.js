@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../stores/useAppStore';
 import { ROUTES } from '../constants/app';
+import { GPS_OPTIONS, requestGPSPosition } from '../constants/gpsConfig';
 import {
   MapHeader,
   MapContainer,
@@ -40,11 +41,7 @@ const MapPage = () => {
         message: '현재 위치를 찾는 중...',
       });
 
-      const options = {
-        enableHighAccuracy: true, // 높은 정확도 요청
-        timeout: 10000, // 10초 타임아웃
-        maximumAge: 300000, // 5분 이내 캐시된 위치 사용
-      };
+      const options = GPS_OPTIONS.QUICK;
 
       navigator.geolocation.getCurrentPosition(
         position => {

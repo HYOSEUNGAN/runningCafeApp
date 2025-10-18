@@ -289,7 +289,7 @@ const NavPage = () => {
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 5000,
+          maximumAge: 0, // 캐시된 위치 사용 안 함 (항상 새로운 위치 요청)
         }
       );
 
